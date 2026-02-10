@@ -1,0 +1,28 @@
+{
+	"name": "dashboard",
+	"version": "0.1.0",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "vite --port 8903",
+		"build": "vite build",
+		"preview": "vite preview",
+		"lint": "biome check --write",
+		"check-types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@repo/ui": "*",
+		"@tauri-apps/api": "^2.0.0",
+		"react": "^19.2.0",
+		"react-dom": "^19.2.0"
+	},
+	"devDependencies": {
+		"@repo/biome-config": "^",
+		"@repo/typescript-config": "*",
+		"@types/react": "19.2.2",
+		"@types/react-dom": "19.2.2",
+		"@vitejs/plugin-react": "^4.0.0",
+		"typescript": "5.9.2",
+		"vite": "^6.0.0"
+	}
+}
