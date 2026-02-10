@@ -1,0 +1,94 @@
+services:
+  migrate:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+      target: builder
+    container_name: eos-migrate
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+    command: bunx prisma migrate deploy --schema packages/database/prisma/schema.prisma
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - eos-network
+    restart: "no"
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    container_name: eos-api
+    restart: unless-stopped
+    ports:
+      - "${API_PORT:-8901}:8901"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 8901
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8900}
+      SESSION_SECRET: ${SESSION_SECRET}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8901/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - eos-network
+
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+    container_name: eos-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8900}:8900"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: 8900
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - eos-network
+
+  auth:
+    build:
+      context: ../..
+      dockerfile: apps/auth/Dockerfile
+    container_name: eos-auth
+    restart: unless-stopped
+    ports:
+      - "${AUTH_PORT:-8902}:8902"
+    networks:
+      - eos-network
+
+  dashboard:
+    build:
+      context: ../..
+      dockerfile: apps/dashboard/Dockerfile
+    container_name: eos-dashboard
+    restart: unless-stopped
+    ports:
+      - "${DASHBOARD_PORT:-8903}:8903"
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - eos-network
+
+networks:
+  eos-network:
+    external: true
+    name: eos-network
