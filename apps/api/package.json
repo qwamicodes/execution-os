@@ -1,0 +1,27 @@
+{
+	"name": "@repo/api",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"dev": "bun --watch src/index.ts",
+		"build": "bun build src/index.ts --outdir dist --target bun",
+		"start": "bun dist/index.js",
+		"lint": "biome check --write",
+		"check-types": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@elysiajs/cors": "^1.0.0",
+		"@repo/database": "^",
+		"argon2": "^0.41.0",
+		"elysia": "^1.0.0",
+		"ioredis": "^5.0.0",
+		"zod": "^3.23.0"
+	},
+	"devDependencies": {
+		"@repo/biome-config": "^",
+		"@repo/typescript-config": "*",
+		"@types/bun": "^1.0.0",
+		"@types/node": "^22.0.0",
+		"typescript": "5.9.2"
+	}
+}
