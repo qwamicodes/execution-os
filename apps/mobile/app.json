@@ -1,0 +1,26 @@
+{
+	"expo": {
+		"name": "Execution OS",
+		"slug": "execution-os-mobile",
+		"version": "0.1.0",
+		"orientation": "portrait",
+		"scheme": "execution-os",
+		"userInterfaceStyle": "automatic",
+		"newArchEnabled": true,
+		"ios": {
+			"supportsTablet": true,
+			"bundleIdentifier": "com.execution-os.mobile"
+		},
+		"android": {
+			"package": "com.executionos.mobile",
+			"adaptiveIcon": {
+				"backgroundColor": "#ffffff"
+			}
+		},
+		"web": {
+			"bundler": "metro",
+			"output": "static"
+		},
+		"plugins": ["expo-router"]
+	}
+}

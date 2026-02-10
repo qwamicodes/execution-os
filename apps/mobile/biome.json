@@ -1,0 +1,17 @@
+{
+	"$schema": "https://biomejs.dev/schemas/2.3.8/schema.json",
+	"root": false,
+	"extends": ["@repo/biome-config/base", "@repo/biome-config/react-internal"],
+	"overrides": [
+		{
+			"includes": ["metro.config.js", "babel.config.js"],
+			"linter": {
+				"rules": {
+					"style": {
+						"noCommonJs": "off"
+					}
+				}
+			}
+		}
+	]
+}
