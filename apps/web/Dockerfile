@@ -12,14 +12,19 @@ WORKDIR /app
 COPY package.json bun.lock ./
 COPY turbo.json ./
 
-# Copy all workspace package.json files for dependency resolution
+# Copy all workspace package.json files (all required for lockfile resolution)
 COPY apps/api/package.json apps/api/package.json
+COPY apps/auth/package.json apps/auth/package.json
+COPY apps/dashboard/package.json apps/dashboard/package.json
+COPY apps/desktop/package.json apps/desktop/package.json
+COPY apps/mobile/package.json apps/mobile/package.json
 COPY apps/web/package.json apps/web/package.json
-COPY packages/database/package.json packages/database/package.json
 COPY packages/biome-config/package.json packages/biome-config/package.json
+COPY packages/database/package.json packages/database/package.json
+COPY packages/tailwind-config/package.json packages/tailwind-config/package.json
 COPY packages/typescript-config/package.json packages/typescript-config/package.json
 COPY packages/ui/package.json packages/ui/package.json
-COPY packages/tailwind-config/package.json packages/tailwind-config/package.json
+COPY packages/ui-native/package.json packages/ui-native/package.json
 
 # Install all dependencies
 RUN bun install --frozen-lockfile
