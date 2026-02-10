@@ -1,0 +1,270 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum ProjectType {
+  Core
+  SideQuest
+}
+
+enum TaskState {
+  Inbox
+  Ongoing
+  Ready
+  Active
+  Blocked
+  Paused
+  Done
+}
+
+enum TaskSize {
+  Small
+  Medium
+  Large
+  Huge
+}
+
+enum TaskUrgency {
+  Urgent
+  High
+  Medium
+  Low
+}
+
+enum SessionState {
+  Active
+  Paused
+  Completed
+  Abandoned
+}
+
+enum SessionOutcome {
+  Done
+  Continue
+  Blocked
+  TooBig
+}
+
+enum IntegrationType {
+  Slack
+  Gmail
+  GitHub
+  GitLab
+  Bitbucket
+  Voice
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id       String @id @default(uuid()) @db.Uuid
+  email    String @unique @db.VarChar(255)
+  password String @db.VarChar(255)
+  name     String @db.VarChar(100)
+  timezone String @default("UTC") @db.VarChar(50)
+
+  preferences Json @default("{}")
+
+  createdAt DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @db.Timestamptz(6)
+  deletedAt DateTime? @db.Timestamptz(6)
+
+  tasks        Task[]
+  sessions     Session[]
+  projects     Project[]
+  integrations Integration[]
+  stateHistory StateHistory[]
+
+  @@index([email])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model Project {
+  id          String      @id @default(uuid()) @db.Uuid
+  name        String      @db.VarChar(100)
+  description String?     @db.VarChar(500)
+  type        ProjectType @default(Core)
+  color       String?     @db.VarChar(7)
+
+  sideQuestState String? @db.VarChar(20)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(6)
+  archivedAt DateTime? @db.Timestamptz(6)
+  deletedAt  DateTime? @db.Timestamptz(6)
+
+  tasks Task[]
+
+  @@index([userId])
+  @@index([type])
+  @@index([archivedAt])
+  @@index([deletedAt])
+  @@map("projects")
+}
+
+model Task {
+  id          String    @id @default(uuid()) @db.Uuid
+  title       String    @db.VarChar(500)
+  description String?   @db.Text
+  state       TaskState @default(Inbox)
+
+  size             TaskSize?
+  urgency          TaskUrgency?
+  protected        Boolean       @default(false)
+  protectionReason String?       @db.VarChar(100)
+  tags             String[]      @db.VarChar(50)
+
+  priority          Int?  @db.Integer
+  estimatedSessions Int?  @db.SmallInt
+  completedSessions Int   @default(0) @db.SmallInt
+  deadline          DateTime? @db.Timestamptz(6)
+
+  parentId String? @db.Uuid
+  parent   Task?   @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks Task[]  @relation("TaskSubtasks")
+  order    Int?    @db.SmallInt
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  source         String @default("manual") @db.VarChar(20)
+  sourceMetadata Json?
+
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+  stateChangedAt DateTime  @default(now()) @db.Timestamptz(6)
+  deletedAt      DateTime? @db.Timestamptz(6)
+
+  sessions     Session[]
+  stateHistory StateHistory[]
+
+  @@index([userId])
+  @@index([projectId])
+  @@index([state])
+  @@index([priority])
+  @@index([deadline])
+  @@index([parentId])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([userId, state, priority])
+  @@index([projectId, state])
+  @@map("tasks")
+}
+
+model StateHistory {
+  id String @id @default(uuid()) @db.Uuid
+
+  fromState TaskState
+  toState   TaskState
+  reason    String?   @db.VarChar(200)
+
+  taskId String @db.Uuid
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([taskId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("state_history")
+}
+
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+
+  state   SessionState   @default(Active)
+  outcome SessionOutcome?
+
+  duration       Int       @default(30) @db.SmallInt
+  actualDuration Int?      @db.SmallInt
+  startedAt      DateTime  @default(now()) @db.Timestamptz(6)
+  pausedAt       DateTime? @db.Timestamptz(6)
+  resumedAt      DateTime? @db.Timestamptz(6)
+  completedAt    DateTime? @db.Timestamptz(6)
+  expiresAt      DateTime  @db.Timestamptz(6)
+
+  scratchpad  String? @db.Text
+  notes       String? @db.Text
+  blockerNote String? @db.VarChar(500)
+
+  taskId String @db.Uuid
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([taskId])
+  @@index([state])
+  @@index([outcome])
+  @@index([startedAt])
+  @@index([completedAt])
+  @@index([userId, state])
+  @@index([userId, completedAt])
+  @@map("sessions")
+}
+
+model Integration {
+  id   String          @id @default(uuid()) @db.Uuid
+  type IntegrationType
+  name String          @db.VarChar(100)
+
+  accessToken  String?   @db.Text
+  refreshToken String?   @db.Text
+  tokenExpiry  DateTime? @db.Timestamptz(6)
+
+  config Json?
+
+  enabled Boolean @default(true)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(6)
+  lastSyncAt DateTime? @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([type])
+  @@index([enabled])
+  @@map("integrations")
+}
+
+model EventLog {
+  id        String  @id @default(uuid()) @db.Uuid
+  eventType String  @db.VarChar(100)
+  payload   Json
+
+  userId    String? @db.Uuid
+  requestId String? @db.VarChar(100)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([eventType])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([requestId])
+  @@map("event_logs")
+}
