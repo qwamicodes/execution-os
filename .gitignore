@@ -33,6 +33,27 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
+# Tauri
+apps/desktop/src-tauri/target/
+
+# Expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Prisma
+packages/database/.env
+
+# Infrastructure environments (keep .env.example)
+infrastructure/docker/.env
+infrastructure/docker/.env.staging
+infrastructure/docker/.env.production
+
 # Misc
 .DS_Store
 *.pem
+.agents
+.claude
