@@ -1,0 +1,123 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { projects } from "@/lib/api";
+import { queryKeys } from "@/lib/query-keys";
+import type {
+	CreateProjectMilestoneInput,
+	CreateProjectInput,
+	ProjectFilters,
+	UpdateProjectMilestoneInput,
+	UpdateProjectInput,
+} from "@/lib/types";
+
+export function useProjects(filters?: ProjectFilters) {
+	return useQuery({
+		queryKey: queryKeys.projects.list(filters),
+		queryFn: () => projects.list(filters),
+	});
+}
+
+export function useProject(id: string) {
+	return useQuery({
+		queryKey: queryKeys.projects.detail(id),
+		queryFn: () => projects.get(id),
+		enabled: !!id,
+	});
+}
+
+export function useCreateProject() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (data: CreateProjectInput) => projects.create(data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useUpdateProject() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data: UpdateProjectInput }) =>
+			projects.update(id, data),
+		onSuccess: (_data, variables) => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(variables.id),
+			});
+		},
+	});
+}
+
+export function useDeleteProject() {
+	const queryClient = useQueryClient();
+	const navigate = useNavigate();
+
+	return useMutation({
+		mutationFn: (id: string) => projects.delete(id),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+			navigate({ to: "/projects" });
+		},
+	});
+}
+
+export function useProjectMilestones(projectId: string) {
+	return useQuery({
+		queryKey: queryKeys.projects.milestones(projectId),
+		queryFn: () => projects.listMilestones(projectId),
+		enabled: !!projectId,
+	});
+}
+
+export function useCreateProjectMilestone(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (data: CreateProjectMilestoneInput) =>
+			projects.createMilestone(projectId, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.milestones(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useUpdateProjectMilestone(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({
+			milestoneId,
+			data,
+		}: {
+			milestoneId: string;
+			data: UpdateProjectMilestoneInput;
+		}) => projects.updateMilestone(projectId, milestoneId, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.milestones(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useDeleteProjectMilestone(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (milestoneId: string) =>
+			projects.deleteMilestone(projectId, milestoneId),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.milestones(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
