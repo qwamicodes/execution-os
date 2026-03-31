@@ -3,7 +3,8 @@ import { z } from "zod";
 export const CreateProjectSchema = z.object({
 	name: z.string().min(1).max(100),
 	description: z.string().max(500).optional(),
-	type: z.enum(["Core", "SideQuest"]).default("Core"),
+	type: z.enum(["Clients", "Core", "SideQuest", "Office"]).default("Core"),
+	targetCompletionDate: z.string().datetime().optional(),
 	color: z
 		.string()
 		.regex(/^#[0-9A-Fa-f]{6}$/)
@@ -13,6 +14,7 @@ export const CreateProjectSchema = z.object({
 export const UpdateProjectSchema = z.object({
 	name: z.string().min(1).max(100).optional(),
 	description: z.string().max(500).optional(),
+	targetCompletionDate: z.string().datetime().nullable().optional(),
 	color: z
 		.string()
 		.regex(/^#[0-9A-Fa-f]{6}$/)
@@ -21,10 +23,31 @@ export const UpdateProjectSchema = z.object({
 });
 
 export const ProjectQuerySchema = z.object({
-	type: z.enum(["Core", "SideQuest"]).optional(),
+	type: z.enum(["Clients", "Core", "SideQuest", "Office"]).optional(),
 	includeArchived: z.coerce.boolean().default(false),
+});
+
+export const MilestoneStatusSchema = z.enum(["Pending", "Completed", "AtRisk"]);
+
+export const CreateMilestoneSchema = z.object({
+	title: z.string().min(1).max(200),
+	description: z.string().max(1000).optional(),
+	targetDate: z.string().datetime().nullable().optional(),
+	status: MilestoneStatusSchema.default("Pending"),
+	order: z.number().int().min(0).max(10_000).optional(),
+});
+
+export const UpdateMilestoneSchema = z.object({
+	title: z.string().min(1).max(200).optional(),
+	description: z.string().max(1000).nullable().optional(),
+	targetDate: z.string().datetime().nullable().optional(),
+	status: MilestoneStatusSchema.optional(),
+	order: z.number().int().min(0).max(10_000).optional(),
+	completedAt: z.string().datetime().nullable().optional(),
 });
 
 export type CreateProjectInput = z.infer<typeof CreateProjectSchema>;
 export type UpdateProjectInput = z.infer<typeof UpdateProjectSchema>;
 export type ProjectQuery = z.infer<typeof ProjectQuerySchema>;
+export type CreateMilestoneInput = z.infer<typeof CreateMilestoneSchema>;
+export type UpdateMilestoneInput = z.infer<typeof UpdateMilestoneSchema>;
