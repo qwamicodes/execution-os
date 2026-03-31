@@ -6,13 +6,26 @@ import {
 	UnprocessableError,
 } from "../../shared/errors";
 import { redis } from "../../shared/redis";
+import { recommendTaskForFocus } from "../ai/ai.service";
+import { recalculatePrioritiesForUser } from "../tasks/task.service";
+import type { RequestLogger } from "../../shared/wide-event";
 import type {
 	CompleteSessionInput,
 	SessionHistoryQuery,
 	StartSessionInput,
 } from "./session.schema";
 
-export async function startSession(userId: string, input: StartSessionInput) {
+export async function startSession(
+	userId: string,
+	input: StartSessionInput,
+	logger?: RequestLogger,
+) {
+	logger?.set("session_service", {
+		operation: "start",
+		user_id: userId,
+		task_id: input.taskId,
+		duration: input.duration,
+	});
 	// Check for existing active session
 	const activeKey = `active_session:${userId}`;
 	const existing = await redis.get(activeKey);
@@ -87,6 +100,10 @@ export async function startSession(userId: string, input: StartSessionInput) {
 			startedAt: now.toISOString(),
 		}),
 	);
+	logger?.set("session_service_result", {
+		operation: "start",
+		session_id: session.id,
+	});
 
 	return {
 		...session,
@@ -98,11 +115,16 @@ export async function startSession(userId: string, input: StartSessionInput) {
 	};
 }
 
-export async function getActiveSession(userId: string) {
+export async function getActiveSession(userId: string, logger?: RequestLogger) {
+	logger?.set("session_service", { operation: "get_active", user_id: userId });
 	const activeKey = `active_session:${userId}`;
 	const data = await redis.get(activeKey);
 
 	if (!data) {
+		logger?.set("session_service_result", {
+			operation: "get_active",
+			found: false,
+		});
 		return null;
 	}
 
@@ -119,6 +141,10 @@ export async function getActiveSession(userId: string) {
 
 	if (!session || (session.state !== "Active" && session.state !== "Paused")) {
 		await redis.del(activeKey);
+		logger?.set("session_service_result", {
+			operation: "get_active",
+			found: false,
+		});
 		return null;
 	}
 
@@ -138,7 +164,16 @@ export async function getActiveSession(userId: string) {
 	};
 }
 
-export async function pauseSession(userId: string, sessionId: string) {
+export async function pauseSession(
+	userId: string,
+	sessionId: string,
+	logger?: RequestLogger,
+) {
+	logger?.set("session_service", {
+		operation: "pause",
+		user_id: userId,
+		session_id: sessionId,
+	});
 	const session = await prisma.session.findFirst({
 		where: { id: sessionId, userId },
 	});
@@ -174,7 +209,16 @@ export async function pauseSession(userId: string, sessionId: string) {
 	};
 }
 
-export async function resumeSession(userId: string, sessionId: string) {
+export async function resumeSession(
+	userId: string,
+	sessionId: string,
+	logger?: RequestLogger,
+) {
+	logger?.set("session_service", {
+		operation: "resume",
+		user_id: userId,
+		session_id: sessionId,
+	});
 	const session = await prisma.session.findFirst({
 		where: { id: sessionId, userId },
 	});
@@ -220,7 +264,14 @@ export async function completeSession(
 	userId: string,
 	sessionId: string,
 	input: CompleteSessionInput,
+	logger?: RequestLogger,
 ) {
+	logger?.set("session_service", {
+		operation: "complete",
+		user_id: userId,
+		session_id: sessionId,
+		outcome: input.outcome,
+	});
 	const session = await prisma.session.findFirst({
 		where: { id: sessionId, userId },
 		include: {
@@ -286,19 +337,16 @@ export async function completeSession(
 
 	// Remove active session from Redis
 	await redis.del(`active_session:${userId}`);
+	await recalculatePrioritiesForUser(userId);
 
-	// Get next suggested task
-	const nextTask = await prisma.task.findFirst({
-		where: {
-			userId,
-			state: "Ready",
-			deletedAt: null,
-			id: { not: session.taskId },
-		},
-		orderBy: [{ priority: "desc" }, { createdAt: "asc" }],
-		include: {
-			project: { select: { id: true, name: true } },
-		},
+	// Get next suggested task from AI recommendation engine.
+	const recommendation = await recommendTaskForFocus(userId, {
+		forceRefresh: true,
+	}, logger);
+	const nextTask = recommendation.recommendedTask?.task ?? null;
+	logger?.set("session_service_result", {
+		operation: "complete",
+		next_task_id: nextTask?.id ?? null,
 	});
 
 	return {
@@ -331,7 +379,14 @@ export async function updateScratchpad(
 	userId: string,
 	sessionId: string,
 	content: string,
+	logger?: RequestLogger,
 ) {
+	logger?.set("session_service", {
+		operation: "scratchpad_update",
+		user_id: userId,
+		session_id: sessionId,
+		content_length: content.length,
+	});
 	const session = await prisma.session.findFirst({
 		where: { id: sessionId, userId },
 	});
@@ -352,7 +407,9 @@ export async function updateScratchpad(
 export async function getSessionHistory(
 	userId: string,
 	query: SessionHistoryQuery,
+	logger?: RequestLogger,
 ) {
+	logger?.set("session_service", { operation: "history", user_id: userId });
 	const where: Prisma.SessionWhereInput = {
 		userId,
 		state: "Completed",
@@ -378,6 +435,11 @@ export async function getSessionHistory(
 		}),
 		prisma.session.count({ where }),
 	]);
+	logger?.set("session_service_result", {
+		operation: "history",
+		total,
+		returned: sessions.length,
+	});
 
 	return { sessions, total };
 }
