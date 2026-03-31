@@ -7,7 +7,7 @@ export const CreateTaskSchema = z.object({
 	deadline: z.string().datetime().optional(),
 	tags: z.array(z.string()).max(10).optional(),
 	source: z
-		.enum(["manual", "slack", "email", "git", "voice", "api"])
+		.enum(["manual", "slack", "email", "git", "voice", "api", "linear"])
 		.default("manual"),
 	sourceMetadata: z.record(z.any()).optional(),
 });
@@ -40,12 +40,31 @@ export const TaskQuerySchema = z.object({
 	protected: z.coerce.boolean().optional(),
 	hasDeadline: z.coerce.boolean().optional(),
 	search: z.string().max(200).optional(),
+	tag: z.string().max(50).optional(),
+	kind: z.enum(["execution", "idea"]).optional(),
 });
 
 export const DecomposeRequestSchema = z.object({
 	feedback: z.string().max(500).optional(),
 });
 
+export const PriorityOverrideSchema = z.object({
+	mode: z.enum(["promote", "demote", "set"]),
+	score: z.number().int().min(0).max(100).optional(),
+	reason: z.string().max(200).optional(),
+});
+
+export const RecalculatePrioritySchema = z.object({
+	userScope: z.enum(["self"]).default("self"),
+});
+
+export const CreateBranchSchema = z.object({
+	baseBranch: z.string().max(100).optional().default("main"),
+	branchName: z.string().max(100).optional(),
+});
+
 export type CreateTaskInput = z.infer<typeof CreateTaskSchema>;
 export type UpdateTaskInput = z.infer<typeof UpdateTaskSchema>;
 export type TaskQuery = z.infer<typeof TaskQuerySchema>;
+export type PriorityOverrideInput = z.infer<typeof PriorityOverrideSchema>;
+export type CreateBranchInput = z.infer<typeof CreateBranchSchema>;
