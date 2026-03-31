@@ -1,0 +1,116 @@
+import { randomInt, timingSafeEqual } from "node:crypto";
+import { sendEmail } from "../../shared/email";
+import { otpTemplate } from "../../shared/email-templates";
+import { RateLimitError } from "../../shared/errors";
+import { redis } from "../../shared/redis";
+import type { RequestLogger } from "../../shared/wide-event";
+import { createSession, findOrCreateUser } from "./auth.service";
+
+const OTP_TTL = 5 * 60; // 5 minutes
+const OTP_MAX_ATTEMPTS = 3;
+const OTP_RATE_LIMIT_TTL = 15 * 60; // 15 minutes
+const OTP_RATE_LIMIT_MAX = 3;
+
+function generateOtp(): string {
+	return String(randomInt(100000, 999999));
+}
+
+export async function requestOtp(
+	email: string,
+	logger?: RequestLogger,
+): Promise<void> {
+	logger?.set("otp_service", {
+		operation: "request",
+		email_domain: email.split("@")[1] ?? null,
+	});
+	// Rate limit check
+	const rateKey = `otp_rate:${email}`;
+	const rateCount = await redis.incr(rateKey);
+
+	if (rateCount === 1) {
+		await redis.expire(rateKey, OTP_RATE_LIMIT_TTL);
+	}
+
+	if (rateCount > OTP_RATE_LIMIT_MAX) {
+		const ttl = await redis.ttl(rateKey);
+		throw new RateLimitError(ttl);
+	}
+
+	const code = generateOtp();
+
+	// Store OTP in Redis
+	const otpKey = `otp:${email}`;
+	await redis.setex(otpKey, OTP_TTL, JSON.stringify({ code, attempts: 0 }));
+
+	// Send email (don't leak user existence — always send)
+	// Silently swallow email errors to avoid leaking whether email exists
+	try {
+		const template = otpTemplate(code);
+		await sendEmail({
+			to: email,
+			subject: template.subject,
+			body: template.body,
+		});
+	} catch {
+		// Intentionally swallowed — wide event will show outcome: "success"
+		// from the user's perspective (no information leaked)
+	}
+}
+
+export async function verifyOtp(
+	email: string,
+	code: string,
+	logger?: RequestLogger,
+): Promise<{
+	user: { id: string; email: string; name: string; timezone: string };
+	sessionId: string;
+	expiresAt: string;
+}> {
+	const otpKey = `otp:${email}`;
+	logger?.set("otp_service", {
+		operation: "verify",
+		email_domain: email.split("@")[1] ?? null,
+		code_length: code.length,
+	});
+	const stored = await redis.get(otpKey);
+
+	if (!stored) {
+		throw new Error("Invalid or expired code");
+	}
+
+	const otpData = JSON.parse(stored) as { code: string; attempts: number };
+
+	// Increment attempts
+	otpData.attempts += 1;
+
+	if (otpData.attempts >= OTP_MAX_ATTEMPTS) {
+		await redis.del(otpKey);
+		throw new Error("Too many attempts. Please request a new code.");
+	}
+
+	// Update attempts count in Redis
+	const ttl = await redis.ttl(otpKey);
+	if (ttl > 0) {
+		await redis.setex(otpKey, ttl, JSON.stringify(otpData));
+	}
+
+	// Constant-time comparison
+	const codeBuffer = Buffer.from(code.padEnd(6));
+	const storedBuffer = Buffer.from(otpData.code.padEnd(6));
+
+	if (!timingSafeEqual(codeBuffer, storedBuffer)) {
+		throw new Error("Invalid or expired code");
+	}
+
+	// OTP valid — delete and create session
+	await redis.del(otpKey);
+
+	const user = await findOrCreateUser(email, logger);
+	const session = await createSession(user.id, false, logger);
+	logger?.set("otp_service_result", {
+		operation: "verify",
+		user_id: user.id,
+	});
+
+	return { user, sessionId: session.sessionId, expiresAt: session.expiresAt };
+}
