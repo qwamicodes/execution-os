@@ -57,3 +57,4 @@ infrastructure/docker/.env.production
 *.pem
 .agents
 .claude
+docs/
