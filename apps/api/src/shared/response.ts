@@ -29,18 +29,18 @@ export interface ErrorResponse {
 	};
 }
 
-export function success<T>(data: T): SuccessResponse<T> {
+export function success<T>(data: T, requestId?: string): SuccessResponse<T> {
 	return {
 		data,
 		meta: {
 			timestamp: new Date().toISOString(),
-			requestId: randomUUID(),
+			requestId: requestId || randomUUID(),
 		},
 	};
 }
 
-export function created<T>(data: T): SuccessResponse<T> {
-	return success(data);
+export function created<T>(data: T, requestId?: string): SuccessResponse<T> {
+	return success(data, requestId);
 }
 
 export function paginated<T>(
@@ -67,13 +67,14 @@ export function error(
 	code: string,
 	message: string,
 	details?: Record<string, unknown>,
+	requestId?: string,
 ): ErrorResponse {
 	return {
 		error: {
 			code,
 			message,
 			details,
-			requestId: randomUUID(),
+			requestId: requestId || randomUUID(),
 		},
 	};
 }
