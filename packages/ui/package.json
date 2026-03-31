@@ -3,7 +3,11 @@
 	"version": "0.0.0",
 	"private": true,
 	"exports": {
-		"./*": "./src/*.tsx"
+		"./components/*": "./src/components/*.tsx",
+		"./components/ui/*": "./src/components/ui/*.tsx",
+		"./lib/*": "./src/lib/*.ts",
+		"./styles/*": "./src/styles/*.css",
+		"./styles/globals.css": "./src/styles/globals.css"
 	},
 	"scripts": {
 		"lint": "biome check --write",
@@ -19,7 +23,19 @@
 		"typescript": "5.9.2"
 	},
 	"dependencies": {
+		"@hookform/resolvers": "^5.2.2",
+		"class-variance-authority": "^0.7.1",
+		"clsx": "^2.1.1",
+		"cmdk": "^1.1.1",
+		"framer-motion": "^12.38.0",
+		"goey-toast": "^0.4.0",
+		"input-otp": "^1.4.2",
+		"lucide-react": "^0.474.0",
+		"radix-ui": "^1.4.3",
 		"react": "^19.2.0",
-		"react-dom": "^19.2.0"
+		"react-dom": "^19.2.0",
+		"react-hook-form": "^7.71.1",
+		"tailwind-merge": "^3.0.2",
+		"zod": "^3.23.0"
 	}
 }
