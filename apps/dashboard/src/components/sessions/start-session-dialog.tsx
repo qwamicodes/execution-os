@@ -9,6 +9,7 @@ import { Label } from "@repo/ui/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
 import { useState } from "react";
 import { goeyToast as toast } from "goey-toast";
+import { useSessionSounds } from "@/hooks/use-session-sounds";
 import { useStartSession } from "@/hooks/use-sessions";
 import type { Task } from "@/lib/types";
 
@@ -35,6 +36,7 @@ export function StartSessionDialog({
 }: StartSessionDialogProps) {
 	const [duration, setDuration] = useState("25");
 	const startSession = useStartSession();
+	const { playSessionStart, playSessionError } = useSessionSounds();
 
 	function handleStart() {
 		startSession.mutate(
@@ -44,10 +46,12 @@ export function StartSessionDialog({
 			},
 			{
 				onSuccess: () => {
+					playSessionStart();
 					toast.success("Session started");
 					onOpenChange(false);
 				},
 				onError: (error) => {
+					playSessionError();
 					toast.error(error.message);
 				},
 			},
@@ -56,7 +60,7 @@ export function StartSessionDialog({
 
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
-			<DialogContent className="sm:max-w-sm">
+			<DialogContent >
 				<DialogHeader>
 					<DialogTitle>Start focus session</DialogTitle>
 				</DialogHeader>

@@ -16,6 +16,7 @@ import {
 	RouteHeroHeader,
 } from "@/components/shared/route-hero-header";
 import { useSessionTimer } from "@/hooks/use-session-timer";
+import { useSessionSounds } from "@/hooks/use-session-sounds";
 import {
 	useActiveSession,
 	usePauseSession,
@@ -32,6 +33,8 @@ function SessionsPage() {
 	const pauseSession = usePauseSession();
 	const resumeSession = useResumeSession();
 	const updateScratchpad = useUpdateScratchpad();
+	const { playSessionPause, playSessionResume, playSessionError } =
+		useSessionSounds();
 	const { formattedTime, isExpired, progress } = useSessionTimer(
 		session || null,
 	);
@@ -72,11 +75,19 @@ function SessionsPage() {
 		if (!session) return;
 		if (session.state === "Active") {
 			pauseSession.mutate(session.id, {
-				onError: (error) => toast.error(error.message),
+				onSuccess: () => playSessionPause(),
+				onError: (error) => {
+					playSessionError();
+					toast.error(error.message);
+				},
 			});
 		} else {
 			resumeSession.mutate(session.id, {
-				onError: (error) => toast.error(error.message),
+				onSuccess: () => playSessionResume(),
+				onError: (error) => {
+					playSessionError();
+					toast.error(error.message);
+				},
 			});
 		}
 	}
@@ -196,7 +207,7 @@ function SessionsPage() {
 				}
 			/>
 
-			<Card className="border-slate-200 bg-gradient-to-b from-white to-slate-50">
+			<Card className="border-slate-200 bg-linear-to-b from-white to-slate-50">
 				<CardContent className="flex flex-col items-center py-10">
 					<div className="flex items-center gap-1.5">
 						<Link

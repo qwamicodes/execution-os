@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
 import { Textarea } from "@repo/ui/components/ui/textarea";
 import { useState } from "react";
 import { goeyToast as toast } from "goey-toast";
+import { useSessionSounds } from "@/hooks/use-session-sounds";
 import { useCompleteSession } from "@/hooks/use-sessions";
 import { SESSION_OUTCOME_CONFIG } from "@/lib/constants";
 import type { Session, SessionOutcome } from "@/lib/types";
@@ -31,6 +32,7 @@ export function CompleteSessionDialog({
 	const [notes, setNotes] = useState("");
 	const [blockerNote, setBlockerNote] = useState("");
 	const completeSession = useCompleteSession();
+	const { playSessionComplete, playSessionError } = useSessionSounds();
 
 	function handleComplete() {
 		completeSession.mutate(
@@ -45,11 +47,13 @@ export function CompleteSessionDialog({
 			},
 			{
 				onSuccess: (data) => {
+					playSessionComplete();
 					toast.success("Session completed");
 					onOpenChange(false);
 					onCompleted?.(data?.nextTask);
 				},
 				onError: (error) => {
+					playSessionError();
 					toast.error(error.message);
 				},
 			},
