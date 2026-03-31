@@ -1,5 +1,6 @@
 generator client {
-  provider        = "prisma-client-js"
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
   previewFeatures = ["fullTextSearchPostgres"]
 }
 
@@ -11,8 +12,16 @@ datasource db {
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum ProjectType {
+  Clients
   Core
   SideQuest
+  Office
+}
+
+enum MilestoneStatus {
+  Pending
+  Completed
+  AtRisk
 }
 
 enum TaskState {
@@ -56,6 +65,7 @@ enum SessionOutcome {
 enum IntegrationType {
   Slack
   Gmail
+  Linear
   GitHub
   GitLab
   Bitbucket
@@ -65,11 +75,11 @@ enum IntegrationType {
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id       String @id @default(uuid()) @db.Uuid
-  email    String @unique @db.VarChar(255)
-  password String @db.VarChar(255)
-  name     String @db.VarChar(100)
-  timezone String @default("UTC") @db.VarChar(50)
+  id       String  @id @default(uuid()) @db.Uuid
+  email    String  @unique @db.VarChar(255)
+  password String? @db.VarChar(255)
+  name     String  @db.VarChar(100)
+  timezone String  @default("UTC") @db.VarChar(50)
 
   preferences Json @default("{}")
 
@@ -82,6 +92,7 @@ model User {
   projects     Project[]
   integrations Integration[]
   stateHistory StateHistory[]
+  milestones   ProjectMilestone[]
 
   @@index([email])
   @@index([createdAt])
@@ -95,6 +106,7 @@ model Project {
   description String?     @db.VarChar(500)
   type        ProjectType @default(Core)
   color       String?     @db.VarChar(7)
+  targetCompletionDate DateTime? @db.Timestamptz(6)
 
   sideQuestState String? @db.VarChar(20)
 
@@ -107,12 +119,41 @@ model Project {
   deletedAt  DateTime? @db.Timestamptz(6)
 
   tasks Task[]
+  milestones ProjectMilestone[]
 
   @@index([userId])
   @@index([type])
+  @@index([targetCompletionDate])
   @@index([archivedAt])
   @@index([deletedAt])
   @@map("projects")
+}
+
+model ProjectMilestone {
+  id String @id @default(uuid()) @db.Uuid
+
+  title       String   @db.VarChar(200)
+  description String?  @db.VarChar(1000)
+  targetDate  DateTime? @db.Timestamptz(6)
+  status      MilestoneStatus @default(Pending)
+  order       Int?     @db.SmallInt
+  completedAt DateTime? @db.Timestamptz(6)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([targetDate])
+  @@index([status])
+  @@index([createdAt])
+  @@map("project_milestones")
 }
 
 model Task {
@@ -123,14 +164,17 @@ model Task {
 
   size             TaskSize?
   urgency          TaskUrgency?
-  protected        Boolean       @default(false)
-  protectionReason String?       @db.VarChar(100)
-  tags             String[]      @db.VarChar(50)
+  protected        Boolean      @default(false)
+  protectionReason String?      @db.VarChar(100)
+  tags             String[]     @db.VarChar(50)
 
-  priority          Int?  @db.Integer
-  estimatedSessions Int?  @db.SmallInt
-  completedSessions Int   @default(0) @db.SmallInt
-  deadline          DateTime? @db.Timestamptz(6)
+  priority               Int?      @db.Integer
+  priorityOverride       Int?      @db.Integer
+  priorityOverrideUntil  DateTime? @db.Timestamptz(6)
+  priorityOverrideReason String?   @db.VarChar(200)
+  estimatedSessions      Int?      @db.SmallInt
+  completedSessions      Int       @default(0) @db.SmallInt
+  deadline               DateTime? @db.Timestamptz(6)
 
   parentId String? @db.Uuid
   parent   Task?   @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
@@ -158,6 +202,7 @@ model Task {
   @@index([projectId])
   @@index([state])
   @@index([priority])
+  @@index([priorityOverrideUntil])
   @@index([deadline])
   @@index([parentId])
   @@index([createdAt])
@@ -191,7 +236,7 @@ model StateHistory {
 model Session {
   id String @id @default(uuid()) @db.Uuid
 
-  state   SessionState   @default(Active)
+  state   SessionState    @default(Active)
   outcome SessionOutcome?
 
   duration       Int       @default(30) @db.SmallInt
@@ -253,8 +298,8 @@ model Integration {
 }
 
 model EventLog {
-  id        String  @id @default(uuid()) @db.Uuid
-  eventType String  @db.VarChar(100)
+  id        String @id @default(uuid()) @db.Uuid
+  eventType String @db.VarChar(100)
   payload   Json
 
   userId    String? @db.Uuid
