@@ -1,135 +1,178 @@
-# Turborepo starter
+# Execution OS
 
-This Turborepo starter is maintained by the Turborepo core team.
+Execution OS is a monorepo for planning and execution workflows with:
+- AI-assisted document planning (PRD/TSD/contract -> phases/tasks/milestones)
+- Separate Ideas and Tasks domains (mutually exclusive)
+- Session-based focus execution with scratchpad and history
+- Projects with parts and milestones
 
-## Using this example
+## Monorepo structure
 
-Run the following command:
+### Apps
+- `apps/api`: Bun + Elysia backend API
+- `apps/dashboard`: React + Vite dashboard (TanStack Router/Query)
+- `apps/auth`: auth app
+- `apps/mobile`: mobile app
+- `apps/desktop`: desktop app
+- `apps/web`: legacy/auxiliary web app
 
-```sh
-npx create-turbo@latest
+### Packages
+- `packages/database`: Prisma schema, migrations, generated client
+- `packages/ui`: shared UI components
+- `packages/ui-native`: shared native UI
+- `packages/biome-config`, `packages/tailwind-config`, `packages/typescript-config`
+
+## Current system highlights
+
+- PM AI planner now uses a draft -> review -> approve flow.
+- Planner output is document-driven by default (no required task/milestone count caps).
+- If full-plan JSON fails, segmented generation fallback is used instead of truncation.
+- Approving a draft without a selected project prompts creation of a destination project.
+- Ideas have a separate lifecycle from tasks.
+- Task/Idea title+description edits trigger AI reclassification flows where implemented.
+- Session focus page (`/sessions/$sessionId`) supports custom timer extension input.
+- Search query filtering is available on Tasks, Ideas, and Projects lists.
+
+## Prerequisites
+
+- Bun `1.2.x`
+- Node `>=18`
+- PostgreSQL + Redis (see `infrastructure/`)
+
+## Install
+
+```bash
+bun install
 ```
 
-## What's inside?
+## Run (common local setup)
 
-This Turborepo includes the following packages/apps:
-
-### Apps and Packages
-
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/biome-config`: `biome` configurations
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [Biome](https://biomejs.dev/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build
-yarn dlx turbo build
-pnpm exec turbo build
+```bash
+# Starts API + dashboard + auth (repo default)
+bun run dev
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+You can also run one app:
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo build --filter=docs
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo build --filter=docs
-yarn exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+```bash
+bun --filter @repo/api run dev
+bun --filter dashboard run dev
 ```
 
-### Develop
+## Deployment
 
-To develop all apps and packages, run the following command:
+Deployment is Docker Compose based and split into:
+- infrastructure services (`postgres`, `redis`)
+- application services (`migrate`, `api`, `web`, `auth`, `dashboard`)
 
-```
-cd my-turborepo
+### 1. Prepare env file
 
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev
+Use one of:
+- `infrastructure/docker/.env.staging`
+- `infrastructure/docker/.env.production`
 
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev
-yarn exec turbo dev
-pnpm exec turbo dev
-```
+Or copy from `infrastructure/docker/.env.example` and fill values.
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+### 2. Start infrastructure
 
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo dev --filter=web
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo dev --filter=web
-yarn exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+```bash
+docker compose \
+  --env-file infrastructure/docker/.env.staging \
+  -f infrastructure/docker/infra.compose.yml \
+  up -d
 ```
 
-### Remote Caching
+### 3. Start app services (includes migrate job)
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
-
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
-
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-```
-cd my-turborepo
-
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo login
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo login
-yarn exec turbo login
-pnpm exec turbo login
+```bash
+docker compose \
+  --env-file infrastructure/docker/.env.staging \
+  -f infrastructure/docker/infra.compose.yml \
+  -f infrastructure/docker/app.compose.yml \
+  up -d --build
 ```
 
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
+### 4. Verify
 
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-```
-# With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended)
-turbo link
-
-# Without [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation), use your package manager
-npx turbo link
-yarn exec turbo link
-pnpm exec turbo link
+```bash
+docker compose \
+  --env-file infrastructure/docker/.env.staging \
+  -f infrastructure/docker/infra.compose.yml \
+  -f infrastructure/docker/app.compose.yml \
+  ps
 ```
 
-## Useful Links
+### 5. Rollout updates
 
-Learn more about the power of Turborepo:
+```bash
+docker compose \
+  --env-file infrastructure/docker/.env.staging \
+  -f infrastructure/docker/infra.compose.yml \
+  -f infrastructure/docker/app.compose.yml \
+  up -d --build
+```
 
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+### 6. Stop
+
+```bash
+docker compose \
+  --env-file infrastructure/docker/.env.staging \
+  -f infrastructure/docker/infra.compose.yml \
+  -f infrastructure/docker/app.compose.yml \
+  down
+```
+
+To also remove data volumes:
+
+```bash
+docker compose \
+  --env-file infrastructure/docker/.env.staging \
+  -f infrastructure/docker/infra.compose.yml \
+  -f infrastructure/docker/app.compose.yml \
+  down -v
+```
+
+### Production
+
+Use the production env file in the same commands:
+
+```bash
+--env-file infrastructure/docker/.env.production
+```
+
+## Database (Prisma 7)
+
+```bash
+# generate prisma client
+bun --filter @repo/database run db:generate
+
+# apply local migrations
+bun --filter @repo/database run db:migrate:dev
+
+# deploy migrations (staging/prod style)
+bun --filter @repo/database run db:migrate:deploy
+```
+
+## Type checks
+
+```bash
+bun run check-types
+
+# scoped
+bun run check-types --filter=@repo/api
+bun run check-types --filter=dashboard
+```
+
+## Key routes
+
+- `/tasks` and `/tasks/$taskId`
+- `/ideas` and `/ideas/$ideaId`
+- `/projects` and `/projects/$projectId`
+- `/sessions`, `/sessions/$sessionId`, `/sessions/history`
+- `/ai` (planner + PM AI operations)
+
+## Notes
+
+- Project type enum uses `Clients | Core | InHouse | Office`.
+- Search filters use `searchQuery` end-to-end; backend also supports legacy `search`.
+- Keep migrations committed in `packages/database/prisma/migrations`.
