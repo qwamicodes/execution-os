@@ -4,7 +4,7 @@
 # =============================================================================
 
 # --- Stage 1: Install dependencies ---
-FROM oven/bun:1.2-debian AS base
+FROM node:22-slim AS base
 
 WORKDIR /app
 
@@ -26,8 +26,8 @@ COPY packages/typescript-config/package.json packages/typescript-config/package.
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/ui-native/package.json packages/ui-native/package.json
 
-# Install all dependencies
-RUN bun install --frozen-lockfile
+# Install all dependencies (workspace-aware)
+RUN npm install
 
 # --- Stage 2: Build ---
 FROM base AS builder
@@ -41,8 +41,8 @@ COPY packages/ui packages/ui
 COPY packages/tailwind-config packages/tailwind-config
 COPY apps/web apps/web
 
-# Build Next.js (standalone output)
-RUN bunx turbo run build --filter=web
+# Build Next.js (standalone output) with Node
+RUN npx turbo run build --filter=web
 
 # --- Stage 3: Production ---
 FROM node:22-slim AS production

@@ -77,8 +77,7 @@ COPY --from=builder /app/apps/api/dist apps/api/dist
 
 # Copy Prisma schema and generated client
 COPY --from=builder /app/packages/database/prisma packages/database/prisma
-COPY --from=builder /app/node_modules/.prisma node_modules/.prisma
-COPY --from=builder /app/node_modules/@prisma node_modules/@prisma
+COPY --from=builder /app/packages/database/generated packages/database/generated
 
 ENV NODE_ENV=production
 ENV PORT=8901
