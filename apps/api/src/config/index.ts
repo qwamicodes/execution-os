@@ -19,12 +19,14 @@ export const EnvSchema = z.object({
 			}
 			return value;
 		},
-		z.array(z.string()).default([
-			"http://localhost:8900",
-			"http://localhost:8901",
-			"http://localhost:8902",
-			"http://localhost:8903",
-		]),
+		z
+			.array(z.string())
+			.default([
+				"http://localhost:8900",
+				"http://localhost:8901",
+				"http://localhost:8902",
+				"http://localhost:8903",
+			]),
 	),
 	REDIS_URL: z.string().default("redis://localhost:8911"),
 	AUTH_APP_URL: z.string().default("http://localhost:8902"),
@@ -131,8 +133,10 @@ const SENSITIVE_ENV_KEY_PARTS = [
 	"REDIS_URL",
 ];
 
-function maskEnvValue(key: string, value: unknown): unknown {
-	const isSensitive = SENSITIVE_ENV_KEY_PARTS.some((part) => key.includes(part));
+export function maskEnvValue(key: string, value: unknown): unknown {
+	const isSensitive = SENSITIVE_ENV_KEY_PARTS.some((part) =>
+		key.includes(part),
+	);
 	if (!isSensitive) return value;
 	if (typeof value !== "string") return "***";
 	if (value.length <= 8) return "***";
@@ -141,9 +145,9 @@ function maskEnvValue(key: string, value: unknown): unknown {
 
 export const env = EnvSchema.parse(process.env);
 
-const maskedEnv = Object.fromEntries(
-	Object.entries(env).map(([key, value]) => [key, maskEnvValue(key, value)]),
-);
-console.info("[env] loaded_config", maskedEnv);
+// const maskedEnv = Object.fromEntries(
+// 	Object.entries(env).map(([key, value]) => [key, maskEnvValue(key, value)]),
+// );
+// console.info("[env] loaded_config", maskedEnv);
 
 export type Env = z.infer<typeof EnvSchema>;
