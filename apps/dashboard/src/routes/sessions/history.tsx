@@ -1,6 +1,6 @@
 import { Button } from "@repo/ui/components/ui/button";
 import { Card, CardContent } from "@repo/ui/components/ui/card";
-import { Input } from "@repo/ui/components/ui/input";
+import { DatePicker } from "@repo/ui/components/ui/date-picker";
 import {
 	Select,
 	SelectContent,
@@ -14,6 +14,7 @@ import { SessionHistoryCard } from "@/components/sessions/session-history-card";
 import { EmptyState } from "@/components/shared/empty-state";
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { Pagination } from "@/components/shared/pagination";
+import { formatLoggedDuration } from "@/lib/constants";
 import {
 	RouteHeroBadge,
 	RouteHeroHeader,
@@ -52,8 +53,8 @@ function SessionHistoryPage() {
 	});
 
 	const sessions = data?.data ?? [];
-	const total = data?.meta.total ?? 0;
-	const totalPages = data?.meta.pages ?? 1;
+	const total = data?.meta?.total ?? 0;
+	const totalPages = data?.meta?.pages ?? 1;
 	const hasFilters = search.outcome || search.startDate || search.endDate;
 
 	function updateSearch(updates: Partial<HistorySearch>) {
@@ -75,9 +76,7 @@ function SessionHistoryPage() {
 		(session) => session.outcome === "Done",
 	).length;
 	const totalMinutes = sessions.reduce((sum, session) => {
-		const actualMinutes = session.actualDuration
-			? Math.round(session.actualDuration / 60)
-			: session.duration;
+		const actualMinutes = session.actualDuration ?? session.duration;
 		return sum + actualMinutes;
 	}, 0);
 
@@ -138,10 +137,10 @@ function SessionHistoryPage() {
 				<Card className="border-slate-200 bg-white/85">
 					<CardContent className="p-4">
 						<p className="text-xs font-medium tracking-[0.14em] text-slate-500 uppercase">
-							Minutes Logged
+							Time Logged
 						</p>
 						<p className="mt-1 text-2xl font-semibold text-slate-900">
-							{totalMinutes}
+							{formatLoggedDuration(totalMinutes)}
 						</p>
 					</CardContent>
 				</Card>
@@ -168,7 +167,7 @@ function SessionHistoryPage() {
 								})
 							}
 						>
-							<SelectTrigger className="w-[150px] border-slate-300 bg-white">
+							<SelectTrigger className="w-37.5 border-slate-300 bg-white">
 								<SelectValue placeholder="All outcomes" />
 							</SelectTrigger>
 							<SelectContent>
@@ -181,29 +180,33 @@ function SessionHistoryPage() {
 							</SelectContent>
 						</Select>
 
-						<Input
-							type="date"
-							className="w-[170px] border-slate-300 bg-white"
-							value={search.startDate || ""}
-							onChange={(e) =>
-								updateSearch({
-									startDate: e.target.value || undefined,
-								})
-							}
-							placeholder="Start date"
-						/>
+						<div className="w-42.5">
+							<DatePicker
+								value={search.startDate}
+								onChange={(next) =>
+									updateSearch({
+										startDate: next || undefined,
+									})
+								}
+								placeholder="Start date"
+								className="border-slate-300 bg-white"
+								boundary="start"
+							/>
+						</div>
 
-						<Input
-							type="date"
-							className="w-[170px] border-slate-300 bg-white"
-							value={search.endDate || ""}
-							onChange={(e) =>
-								updateSearch({
-									endDate: e.target.value || undefined,
-								})
-							}
-							placeholder="End date"
-						/>
+						<div className="w-42.5">
+							<DatePicker
+								value={search.endDate}
+								onChange={(next) =>
+									updateSearch({
+										endDate: next || undefined,
+									})
+								}
+								placeholder="End date"
+								className="border-slate-300 bg-white"
+								boundary="end"
+							/>
+						</div>
 
 						{hasFilters && (
 							<Button variant="ghost" size="sm" onClick={clearFilters}>

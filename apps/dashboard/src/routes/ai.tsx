@@ -5,6 +5,14 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/ui/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@repo/ui/components/ui/dialog";
 import { Input } from "@repo/ui/components/ui/input";
 import { Label } from "@repo/ui/components/ui/label";
 import {
@@ -28,6 +36,7 @@ import {
 	BrainCircuit,
 	FileStack,
 	Layers3,
+	Loader2,
 	ShieldCheck,
 	Sparkles,
 } from "lucide-react";
@@ -39,10 +48,12 @@ import {
 	RouteHeroHeader,
 } from "@/components/shared/route-hero-header";
 import { ApiClientError } from "@/lib/api";
+import { runWithPromiseToast } from "@/lib/toast";
 import { useAIProviders, useTaskRecommendation } from "@/hooks/use-ai";
 import {
 	usePMAIAnalyzeImages,
 	usePMAIAnalyzeVideo,
+	usePMAIApproveDocumentPlan,
 	usePMAIDecomposeTask,
 	usePMAIIngestDocument,
 	usePMAIIngestDocumentUpload,
@@ -54,8 +65,10 @@ import {
 	useTaskPriorityOverride,
 	useTaskPriorityRecalculate,
 } from "@/hooks/use-pm-ai";
-import { useProjects } from "@/hooks/use-projects";
+import { useCreateProject, useProjects } from "@/hooks/use-projects";
+import { useIdeas } from "@/hooks/use-ideas";
 import { useTasks } from "@/hooks/use-tasks";
+import type { ProjectType } from "@/lib/types";
 import { z } from "zod";
 
 const AiSearchParams = z.object({
@@ -78,6 +91,49 @@ function parseCsvList(value: string) {
 
 function prettyJson(value: unknown) {
 	return JSON.stringify(value, null, 2);
+}
+
+function generateCreativeProjectName(
+	documentTitle: string,
+	documentType: "tsd" | "prd" | "contract" | "feature_spec",
+) {
+	const cleaned = documentTitle
+		.replace(/\.[a-z0-9]+$/i, "")
+		.replace(/[_-]+/g, " ")
+		.replace(/\s+/g, " ")
+		.trim();
+	const base = cleaned || "Untitled Initiative";
+	const prefix =
+		documentType === "tsd"
+			? "Blueprint"
+			: documentType === "prd"
+				? "Launchpad"
+				: documentType === "contract"
+					? "Pact"
+					: "Catalyst";
+	const suffix = new Date().toLocaleDateString("en-GB", {
+		month: "short",
+		year: "2-digit",
+	});
+	return `${prefix}: ${base} (${suffix})`;
+}
+
+interface PMAIDraftPlanOutput {
+	analysisId: string;
+	documentType: "tsd" | "prd" | "contract" | "feature_spec";
+	documentTitle: string;
+	usageMode: "individual" | "team";
+	generation?: {
+		provider?: string | null;
+		model?: string | null;
+	};
+	phases: unknown[];
+	milestones: unknown[];
+	summary: string;
+	constraints: string[];
+	deliverables: string[];
+	risks: string[];
+	confidence: number;
 }
 
 function OutputCard({
@@ -120,16 +176,20 @@ function AIRoute() {
 		useTaskRecommendation();
 	const { data: projects = [] } = useProjects();
 	const { data: taskListData } = useTasks({ limit: 100 });
+	const { data: ideaListData } = useIdeas({ limit: 100 });
 	const taskOptions = taskListData?.tasks ?? [];
+	const ideaOptions = ideaListData?.ideas ?? [];
 
 	const ingestDocument = usePMAIIngestDocument();
 	const ingestDocumentUpload = usePMAIIngestDocumentUpload();
+	const approveDocumentPlan = usePMAIApproveDocumentPlan();
 	const analyzeVideo = usePMAIAnalyzeVideo();
 	const analyzeImages = usePMAIAnalyzeImages();
 	const decomposeTask = usePMAIDecomposeTask();
 	const suggestAssignee = usePMAISuggestAssignee();
 	const planSprint = usePMAIPlanSprint();
 	const rebalanceSprint = usePMAIRebalanceSprint();
+	const createProject = useCreateProject();
 	const explainPriority = useTaskPriorityExplain();
 	const overridePriority = useTaskPriorityOverride();
 	const clearPriority = useTaskPriorityClearOverride();
@@ -151,12 +211,15 @@ function AIRoute() {
 	const [documentProjectId, setDocumentProjectId] = useState("none");
 	const [documentIdeaTaskId, setDocumentIdeaTaskId] = useState("none");
 	const [documentTeamIds, setDocumentTeamIds] = useState("");
+	const [documentFeedbackInstructions, setDocumentFeedbackInstructions] =
+		useState("");
 	const [documentCreateTasks, setDocumentCreateTasks] = useState(true);
 	const [documentCreateMilestones, setDocumentCreateMilestones] = useState(true);
 	const [documentSelectedMilestones, setDocumentSelectedMilestones] =
 		useState("");
-	const [documentMaxTasks, setDocumentMaxTasks] = useState(30);
-	const [documentMaxMilestones, setDocumentMaxMilestones] = useState(8);
+	const [createProjectPromptOpen, setCreateProjectPromptOpen] = useState(false);
+	const [draftProjectName, setDraftProjectName] = useState("");
+	const [draftProjectType, setDraftProjectType] = useState<ProjectType>("Core");
 
 	const [videoSource, setVideoSource] = useState<
 		"jam.dev" | "loom" | "upload" | "youtube"
@@ -201,55 +264,204 @@ function AIRoute() {
 
 	const [lastAction, setLastAction] = useState("No action yet");
 	const [lastOutput, setLastOutput] = useState<unknown>(null);
-	const ideaTaskOptions = taskOptions.filter((task) =>
-		task.tags.some((tag) => tag.toLowerCase().startsWith("idea")),
+	const [documentDraft, setDocumentDraft] = useState<PMAIDraftPlanOutput | null>(
+		null,
 	);
+	const ideaTaskOptions = ideaOptions;
 
 	const providerBadges = useMemo(
 		() => providers?.enabledProviders ?? [],
 		[providers?.enabledProviders],
 	);
 
-async function runAction(
-	action: string,
-	runner: () => Promise<unknown>,
-	options?: {
-		successMessage?: string;
-		successAction?: {
-			label: string;
-			onClick: () => void;
-			successLabel?: string;
-		};
-	},
-) {
-		try {
-			const result = await runner();
-			setLastAction(action);
-			setLastOutput(result);
-			toast.success(options?.successMessage ?? `${action} completed`, {
-				action: options?.successAction,
-			});
-		} catch (error) {
-			if (error instanceof ApiClientError) {
-				if (error.status === 503 && error.code === "SERVICE_UNAVAILABLE") {
-					const nested = error.details?.details as
-						| { errors?: Array<{ provider?: string; message?: string }> }
-						| undefined;
-					const first = nested?.errors?.[0];
-					const provider = first?.provider?.toUpperCase() ?? "AI provider";
-					const providerMessage = first?.message ?? error.message;
-					toast.error(
-						`${provider} failed: ${providerMessage}. Retry now. Check API key, network, and configured model.`,
-					);
-					return;
+	async function runAction(
+		action: string,
+		runner: () => Promise<unknown>,
+		options?: {
+			successMessage?: string;
+			successAction?: {
+				label: string;
+				onClick: () => void;
+				successLabel?: string;
+			};
+		},
+	) {
+		const result = await runWithPromiseToast(action, runner, {
+			successMessage: options?.successMessage ?? `${action} completed`,
+			errorMessage: (error) => {
+				if (error instanceof ApiClientError) {
+					if (error.status === 503 && error.code === "SERVICE_UNAVAILABLE") {
+						let nested:
+							| { errors?: Array<{ provider?: string; message?: string }> }
+							| undefined;
+						if (error.details) {
+							try {
+								const parsed = JSON.parse(error.details) as
+									| {
+											details?: {
+												errors?: Array<{
+													provider?: string;
+													message?: string;
+												}>;
+											};
+											errors?: Array<{
+												provider?: string;
+												message?: string;
+											}>;
+									  }
+									| undefined;
+								nested = parsed?.details ?? parsed;
+							} catch {
+								nested = undefined;
+							}
+						}
+						const first = nested?.errors?.[0];
+						const provider = first?.provider?.toUpperCase() ?? "AI provider";
+						const providerMessage = first?.message ?? error.message;
+						return `${provider} failed: ${providerMessage}. Retry now. Check API key, network, and configured model.`;
+					}
+					return error.message;
 				}
-				toast.error(error.message);
-				return;
-			}
-
-			const message = error instanceof Error ? error.message : "Unknown error";
-			toast.error(message);
+				return error instanceof Error ? error.message : "Unknown error";
+			},
+		});
+		setLastAction(action);
+		setLastOutput(result);
+		if (options?.successAction) {
+			toast.success(options.successMessage ?? `${action} completed`, {
+				action: options.successAction,
+			});
 		}
+	}
+
+	async function generateDocumentDraftFromText() {
+		const result = (await ingestDocument.mutateAsync({
+			documentType,
+			title: documentTitle || undefined,
+			documentText,
+			feedbackInstructions: documentFeedbackInstructions || undefined,
+			projectId: documentProjectId === "none" ? undefined : documentProjectId,
+			ideaTaskId: documentIdeaTaskId === "none" ? undefined : documentIdeaTaskId,
+			usageMode,
+			teamMemberIds: parseCsvList(documentTeamIds),
+			createTasks: false,
+			createMilestones: false,
+			selectedMilestoneTitles: parseCsvList(documentSelectedMilestones),
+		})) as PMAIDraftPlanOutput;
+		setDocumentDraft(result);
+		return result;
+	}
+
+	async function generateDocumentDraftFromUpload() {
+		if (!documentFile) {
+			throw new Error("Select a document file first");
+		}
+		const result = (await ingestDocumentUpload.mutateAsync({
+			file: documentFile,
+			documentType,
+			title: documentTitle || undefined,
+			feedbackInstructions: documentFeedbackInstructions || undefined,
+			projectId: documentProjectId === "none" ? undefined : documentProjectId,
+			ideaTaskId: documentIdeaTaskId === "none" ? undefined : documentIdeaTaskId,
+			usageMode,
+			teamMemberIds: parseCsvList(documentTeamIds),
+			createTasks: false,
+			createMilestones: false,
+			selectedMilestoneTitles: parseCsvList(documentSelectedMilestones),
+		})) as PMAIDraftPlanOutput;
+		setDocumentDraft(result);
+		return result;
+	}
+
+	async function approveDraft(projectId?: string) {
+		if (!documentDraft) {
+			throw new Error("Generate and review a draft before approval.");
+		}
+		return approveDocumentPlan.mutateAsync({
+			analysisId: documentDraft.analysisId,
+			documentType: documentDraft.documentType,
+			documentTitle: documentDraft.documentTitle,
+			projectId,
+			ideaTaskId: documentIdeaTaskId === "none" ? undefined : documentIdeaTaskId,
+			usageMode,
+			teamMemberIds: parseCsvList(documentTeamIds),
+			createTasks: documentCreateTasks,
+			createMilestones: documentCreateMilestones,
+			selectedMilestoneTitles: parseCsvList(documentSelectedMilestones),
+			generation: documentDraft.generation,
+			plan: {
+				summary: documentDraft.summary,
+				constraints: documentDraft.constraints,
+				deliverables: documentDraft.deliverables,
+				risks: documentDraft.risks,
+				phases: documentDraft.phases,
+				milestones: documentDraft.milestones,
+				confidence: documentDraft.confidence,
+			},
+		});
+	}
+
+	async function handleApproveDraft() {
+		if (!documentDraft) {
+			throw new Error("Generate and review a draft before approval.");
+		}
+		const selectedProjectId =
+			documentProjectId === "none" ? undefined : documentProjectId;
+		const needsDestinationProject =
+			(documentCreateTasks || documentCreateMilestones) && !selectedProjectId;
+
+		if (needsDestinationProject) {
+			setDraftProjectName(
+				generateCreativeProjectName(
+					documentDraft.documentTitle,
+					documentDraft.documentType,
+				),
+			);
+			setDraftProjectType("Core");
+			setCreateProjectPromptOpen(true);
+			return;
+		}
+
+		await runAction(
+			"PM AI approve document draft",
+			() => approveDraft(selectedProjectId),
+			{
+				successMessage: "Draft approved and persisted to database.",
+			},
+		);
+	}
+
+	async function handleCreateProjectAndApprove() {
+		if (!documentDraft) {
+			throw new Error("Generate and review a draft before approval.");
+		}
+		const createdProject = (await runWithPromiseToast(
+			"Create destination project",
+			() =>
+				createProject.mutateAsync({
+					name: draftProjectName.trim(),
+					type: draftProjectType,
+					description: `Generated from ${documentDraft.documentType.toUpperCase()} planning draft.`,
+				}),
+		)) as { id: string };
+
+		setDocumentProjectId(createdProject.id);
+		setCreateProjectPromptOpen(false);
+		await runAction(
+			"PM AI approve document draft",
+			() => approveDraft(createdProject.id),
+			{
+				successMessage: "Draft approved and persisted to database.",
+				successAction: {
+					label: "View project",
+					onClick: () =>
+						navigate({
+							to: "/projects/$projectId",
+							params: { projectId: createdProject.id },
+						}),
+				},
+			},
+		);
 	}
 
 	function addBacklogTask(taskId: string) {
@@ -541,30 +753,6 @@ async function runAction(
 									placeholder="Team member IDs (comma-separated, optional)"
 								/>
 								<div className="grid gap-3 sm:grid-cols-2">
-									<Input
-										type="number"
-										min={1}
-										max={100}
-										value={documentMaxTasks}
-										onChange={(event) =>
-											setDocumentMaxTasks(Number(event.target.value || 30))
-										}
-										placeholder="Max tasks"
-									/>
-									<Input
-										type="number"
-										min={1}
-										max={30}
-										value={documentMaxMilestones}
-										onChange={(event) =>
-											setDocumentMaxMilestones(
-												Number(event.target.value || 8),
-											)
-										}
-										placeholder="Max milestones"
-									/>
-								</div>
-								<div className="grid gap-3 sm:grid-cols-2">
 									<label className="flex items-center gap-2 text-sm text-slate-700">
 										<input
 											type="checkbox"
@@ -573,7 +761,7 @@ async function runAction(
 												setDocumentCreateTasks(event.target.checked)
 											}
 										/>
-										Create tasks automatically
+										Create tasks on approval
 									</label>
 									<label className="flex items-center gap-2 text-sm text-slate-700">
 										<input
@@ -583,7 +771,7 @@ async function runAction(
 												setDocumentCreateMilestones(event.target.checked)
 											}
 										/>
-										Create milestones automatically
+										Create milestones on approval
 									</label>
 								</div>
 								<Input
@@ -594,46 +782,50 @@ async function runAction(
 									placeholder="Selected milestone titles (comma-separated, optional)"
 								/>
 								<Textarea
+									value={documentFeedbackInstructions}
+									onChange={(event) =>
+										setDocumentFeedbackInstructions(event.target.value)
+									}
+									rows={3}
+									placeholder="Review instructions for AI (optional): what to improve before approval"
+								/>
+								<Textarea
 									value={documentText}
 									onChange={(event) => setDocumentText(event.target.value)}
 									rows={6}
 									placeholder="Paste TSD/PRD/contract text here"
 								/>
+								{documentDraft ? (
+									<div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+										Draft ready: {documentDraft.analysisId} |{" "}
+										{documentDraft.phases.length} phases |{" "}
+										{documentDraft.milestones.length} milestones. Review output,
+										then click approve to persist.
+									</div>
+								) : null}
 								<div className="flex flex-col gap-2">
 									<div className="flex items-center gap-x-2">
 										<Button
 											onClick={() =>
-												runAction("PM AI ingest document (text)", () =>
-													ingestDocument.mutateAsync({
-														documentType,
-														title: documentTitle || undefined,
-														documentText,
-														projectId:
-															documentProjectId === "none"
-																? undefined
-																: documentProjectId,
-														ideaTaskId:
-															documentIdeaTaskId === "none"
-																? undefined
-																: documentIdeaTaskId,
-														usageMode,
-														teamMemberIds: parseCsvList(documentTeamIds),
-														createTasks: documentCreateTasks,
-														createMilestones: documentCreateMilestones,
-														selectedMilestoneTitles: parseCsvList(
-															documentSelectedMilestones,
-														),
-														maxTasks: documentMaxTasks,
-														maxMilestones: documentMaxMilestones,
-													}),
+												runAction(
+													"PM AI generate document draft (text)",
+													() => generateDocumentDraftFromText(),
+													{
+														successMessage:
+															"Draft generated. Review output before approval.",
+													},
 												)
 											}
 											disabled={
 												!documentText.trim() || ingestDocument.isPending
 											}
 										>
+											{ingestDocument.isPending ? (
+												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											) : (
 											<Sparkles className="mr-2 h-4 w-4" />
-											Generate from Text
+											)}
+											Generate Draft (Text)
 										</Button>
 										<HelpTooltip
 											feature="Generate from Text"
@@ -653,37 +845,21 @@ async function runAction(
 										<Button
 											variant="outline"
 											onClick={() =>
-												runAction("PM AI ingest document (upload)", () => {
-													if (!documentFile) {
-														throw new Error("Select a document file first");
-													}
-													return ingestDocumentUpload.mutateAsync({
-														file: documentFile,
-														documentType,
-														title: documentTitle || undefined,
-														projectId:
-															documentProjectId === "none"
-																? undefined
-																: documentProjectId,
-														ideaTaskId:
-															documentIdeaTaskId === "none"
-																? undefined
-																: documentIdeaTaskId,
-														usageMode,
-														teamMemberIds: parseCsvList(documentTeamIds),
-														createTasks: documentCreateTasks,
-														createMilestones: documentCreateMilestones,
-														selectedMilestoneTitles: parseCsvList(
-															documentSelectedMilestones,
-														),
-														maxTasks: documentMaxTasks,
-														maxMilestones: documentMaxMilestones,
-													});
-												})
+												runAction(
+													"PM AI generate document draft (upload)",
+													() => generateDocumentDraftFromUpload(),
+													{
+														successMessage:
+															"Draft generated. Review output before approval.",
+													},
+												)
 											}
 											disabled={!documentFile || ingestDocumentUpload.isPending}
 										>
-											Upload + Generate
+											{ingestDocumentUpload.isPending ? (
+												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											) : null}
+											Upload + Draft
 										</Button>
 										<HelpTooltip
 											feature="Upload + Generate"
@@ -692,11 +868,92 @@ async function runAction(
 											works="Runs server-side extraction first, then routes extracted text through planner prompts."
 										/>
 									</div>
+									<div className="flex items-center gap-2">
+										<Button
+											variant="default"
+											onClick={() =>
+												handleApproveDraft()
+											}
+											disabled={!documentDraft || approveDocumentPlan.isPending}
+										>
+											{approveDocumentPlan.isPending ? (
+												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+											) : null}
+											Approve Draft & Create
+										</Button>
+										<p className="text-xs text-slate-500">
+											No tasks or milestones are persisted until approval. Plan
+											size is inferred from the document.
+										</p>
+									</div>
 								</div>
 							</CardContent>
 						</Card>
 						<OutputCard lastAction={lastAction} lastOutput={lastOutput} />
 					</div>
+					<Dialog
+						open={createProjectPromptOpen}
+						onOpenChange={setCreateProjectPromptOpen}
+					>
+						<DialogContent className="sm:max-w-lg">
+							<DialogHeader>
+								<DialogTitle>Create Destination Project</DialogTitle>
+								<DialogDescription>
+									Choose where approved tasks and milestones should be created.
+								</DialogDescription>
+							</DialogHeader>
+							<div className="space-y-3">
+								<div className="space-y-1.5">
+									<Label>Project name</Label>
+									<Input
+										value={draftProjectName}
+										onChange={(event) => setDraftProjectName(event.target.value)}
+										placeholder="Project name"
+									/>
+								</div>
+								<div className="space-y-1.5">
+									<Label>Project type</Label>
+									<Select
+										value={draftProjectType}
+										onValueChange={(value) =>
+											setDraftProjectType(value as ProjectType)
+										}
+									>
+										<SelectTrigger>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="Clients">Clients</SelectItem>
+											<SelectItem value="Core">Core</SelectItem>
+											<SelectItem value="InHouse">InHouse</SelectItem>
+											<SelectItem value="Office">Office</SelectItem>
+										</SelectContent>
+									</Select>
+								</div>
+							</div>
+							<DialogFooter>
+								<Button
+									variant="outline"
+									onClick={() => setCreateProjectPromptOpen(false)}
+								>
+									Cancel
+								</Button>
+								<Button
+									onClick={() => handleCreateProjectAndApprove()}
+									disabled={
+										!draftProjectName.trim() ||
+										createProject.isPending ||
+										approveDocumentPlan.isPending
+									}
+								>
+									{createProject.isPending || approveDocumentPlan.isPending ? (
+										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									) : null}
+									Create project and approve
+								</Button>
+							</DialogFooter>
+						</DialogContent>
+					</Dialog>
 				</TabsContent>
 
 				<TabsContent value="generation" className="mt-4">

@@ -26,7 +26,7 @@ export function RouteHeroHeader({
 	help,
 }: RouteHeroHeaderProps) {
 	return (
-		<Card className="overflow-hidden border-sky-100 bg-gradient-to-br from-white via-slate-50/70 to-sky-50/80 shadow-lg shadow-slate-200/60">
+		<Card className="overflow-hidden border-sky-800 bg-linear-to-br from-white via-slate-50/70 to-sky-50/80 shadow-lg shadow-slate-200/60">
 			<CardContent className="flex flex-wrap items-start justify-between gap-4 p-6 sm:p-7">
 				<div>
 					<p className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">

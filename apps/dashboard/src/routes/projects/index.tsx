@@ -1,6 +1,7 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card, CardContent } from "@repo/ui/components/ui/card";
+import { Input } from "@repo/ui/components/ui/input";
 import { Switch } from "@repo/ui/components/ui/switch";
 import {
 	Tabs,
@@ -36,6 +37,7 @@ export const Route = createFileRoute("/projects/")({
 
 function ProjectsPage() {
 	const navigate = useNavigate();
+	const [searchQuery, setSearchQuery] = useState("");
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editProject, setEditProject] = useState<Project | null>(null);
 	const [includeArchived, setIncludeArchived] = useState(false);
@@ -47,6 +49,7 @@ function ProjectsPage() {
 	const { data: projectList, isLoading } = useProjects({
 		type: activeTab === "all" ? undefined : (activeTab as ProjectType),
 		includeArchived,
+		searchQuery: searchQuery || undefined,
 	});
 
 	const updateProject = useUpdateProject();
@@ -131,7 +134,7 @@ function ProjectsPage() {
 					<div className="flex items-center gap-1.5">
 						<Button
 							onClick={() => setCreateOpen(true)}
-							className="h-10 gap-2 bg-slate-950 px-4 text-white hover:bg-slate-800"
+							className="h-10 gap-2 bg-slate-950 px-4 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
 						>
 							<Plus className="h-4 w-4" />
 							New project
@@ -154,9 +157,9 @@ function ProjectsPage() {
 			</div>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
-				<div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 bg-white/85 p-3">
+				<div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/85 dark:bg-slate-900 p-3">
 					<div className="w-full overflow-x-auto pb-1 sm:w-auto sm:pb-0">
-						<TabsList className="inline-flex w-max min-w-full bg-slate-100/80 sm:min-w-0">
+						<TabsList className="inline-flex w-max min-w-full bg-slate-100/80 dark:bg-slate-800 sm:min-w-0">
 							{types.map((type) => (
 								<TabsTrigger
 									key={type.value}
@@ -170,6 +173,12 @@ function ProjectsPage() {
 					</div>
 
 					<div className="flex w-full flex-wrap items-center gap-3 text-sm text-slate-600 sm:w-auto">
+						<Input
+							placeholder="Search projects..."
+							value={searchQuery}
+							onChange={(event) => setSearchQuery(event.target.value)}
+							className="h-8 w-56 bg-white dark:bg-slate-900"
+						/>
 						<div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
 							<Button
 								size="sm"

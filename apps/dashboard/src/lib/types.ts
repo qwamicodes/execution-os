@@ -8,6 +8,13 @@ export type TaskState =
 	| "Blocked"
 	| "Paused"
 	| "Done";
+export type IdeaState =
+	| "Captured"
+	| "Classified"
+	| "Clarified"
+	| "Planned"
+	| "Incubating"
+	| "Archived";
 
 export type TaskSize = "Small" | "Medium" | "Large" | "Huge";
 
@@ -17,7 +24,7 @@ export type SessionState = "Active" | "Paused" | "Completed" | "Abandoned";
 
 export type SessionOutcome = "Done" | "Continue" | "Blocked" | "TooBig";
 
-export type ProjectType = "Clients" | "Core" | "SideQuest" | "Office";
+export type ProjectType = "Clients" | "Core" | "InHouse" | "Office";
 export type IntegrationProvider =
 	| "slack"
 	| "gmail"
@@ -70,6 +77,17 @@ export interface ProjectMilestone {
 	updatedAt: string;
 }
 
+export interface ProjectPart {
+	id: string;
+	projectId: string;
+	userId: string;
+	name: string;
+	description: string | null;
+	order: number | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface Task {
 	id: string;
 	title: string;
@@ -79,6 +97,8 @@ export interface Task {
 	urgency: TaskUrgency | null;
 	protected: boolean;
 	protectionReason: string | null;
+	featureBlocked?: boolean;
+	featureBlockReason?: string | null;
 	tags: string[];
 	priority: number | null;
 	estimatedSessions: number | null;
@@ -90,6 +110,19 @@ export interface Task {
 	sourceMetadata: Record<string, unknown> | null;
 	userId: string;
 	projectId: string | null;
+	partId?: string | null;
+	part?: {
+		id: string;
+		name: string;
+		order: number | null;
+	} | null;
+	milestoneId?: string | null;
+	milestone?: {
+		id: string;
+		title: string;
+		targetDate: string | null;
+		status: MilestoneStatus;
+	} | null;
 	createdAt: string;
 	updatedAt: string;
 	stateChangedAt: string | null;
@@ -98,6 +131,25 @@ export interface Task {
 	project?: { id: string; name: string; type: ProjectType } | null;
 	subtasks?: Task[];
 	stateHistory?: StateHistory[];
+}
+
+export interface Idea {
+	id: string;
+	title: string;
+	description: string | null;
+	state: IdeaState;
+	size: TaskSize | null;
+	urgency: TaskUrgency | null;
+	protected: boolean;
+	protectionReason: string | null;
+	deadline: string | null;
+	source: string;
+	sourceMetadata: Record<string, unknown> | null;
+	userId: string;
+	createdAt: string;
+	updatedAt: string;
+	stateChangedAt: string | null;
+	deletedAt: string | null;
 }
 
 export interface Session {
@@ -203,7 +255,15 @@ export interface CreateTaskInput {
 	title: string;
 	description?: string;
 	projectId?: string;
+	partId?: string;
+	milestoneId?: string;
 	deadline?: string;
+	featureBlocked?: boolean;
+	featureBlockReason?: string | null;
+	blockingTaskIds?: string[];
+	blockingTaskId?: string | null;
+	blocksTaskIds?: string[];
+	blocksTaskId?: string | null;
 	tags?: string[];
 	source?: string;
 }
@@ -212,9 +272,21 @@ export interface UpdateTaskInput {
 	title?: string;
 	description?: string;
 	projectId?: string | null;
+	partId?: string | null;
+	milestoneId?: string | null;
 	deadline?: string | null;
+	featureBlocked?: boolean;
+	featureBlockReason?: string | null;
+	blockingTaskIds?: string[];
+	blockingTaskId?: string | null;
+	blocksTaskIds?: string[];
+	blocksTaskId?: string | null;
 	tags?: string[];
 	state?: TaskState;
+}
+
+export interface DecomposeTaskInput {
+	feedback?: string;
 }
 
 export interface CreateProjectInput {
@@ -241,6 +313,12 @@ export interface CreateProjectMilestoneInput {
 	order?: number;
 }
 
+export interface CreateProjectPartInput {
+	name: string;
+	description?: string;
+	order?: number;
+}
+
 export interface UpdateProjectMilestoneInput {
 	title?: string;
 	description?: string | null;
@@ -250,9 +328,19 @@ export interface UpdateProjectMilestoneInput {
 	completedAt?: string | null;
 }
 
+export interface UpdateProjectPartInput {
+	name?: string;
+	description?: string | null;
+	order?: number;
+}
+
 export interface StartSessionInput {
 	taskId: string;
 	duration?: number;
+}
+
+export interface ExtendSessionInput {
+	minutes: number;
 }
 
 export interface CompleteSessionInput {
@@ -278,19 +366,32 @@ export interface TaskFilters {
 	limit?: number;
 	sortBy?: "createdAt" | "updatedAt" | "deadline" | "priority" | "title";
 	sortOrder?: "asc" | "desc";
-	kind?: "execution" | "idea";
 	state?: TaskState;
 	projectId?: string;
 	size?: TaskSize;
 	protected?: boolean;
 	hasDeadline?: boolean;
 	search?: string;
+	searchQuery?: string;
 	tag?: string;
+}
+
+export interface IdeaFilters {
+	page?: number;
+	limit?: number;
+	sortBy?: "createdAt" | "updatedAt" | "deadline" | "title";
+	sortOrder?: "asc" | "desc";
+	state?: IdeaState;
+	size?: TaskSize;
+	search?: string;
+	searchQuery?: string;
 }
 
 export interface ProjectFilters {
 	type?: ProjectType;
 	includeArchived?: boolean;
+	search?: string;
+	searchQuery?: string;
 }
 
 export interface SessionHistoryFilters {
@@ -313,6 +414,29 @@ export interface SearchParams {
 export interface TaskListResponse {
 	tasks: Task[];
 	total: number;
+}
+
+export interface IdeaListResponse {
+	ideas: Idea[];
+	total: number;
+}
+
+export interface CreateIdeaInput {
+	title: string;
+	description?: string;
+	size?: TaskSize;
+	urgency?: TaskUrgency;
+	deadline?: string;
+	source?: string;
+}
+
+export interface UpdateIdeaInput {
+	title?: string;
+	description?: string;
+	size?: TaskSize;
+	urgency?: TaskUrgency;
+	deadline?: string | null;
+	state?: IdeaState;
 }
 
 export interface InboxResponse {
@@ -346,7 +470,7 @@ export interface TaskRecommendationEntry {
 	task: {
 		id: string;
 		title: string;
-		state: "Ready";
+		state: "Ready" | "Active";
 		size: TaskSize | null;
 		urgency: TaskUrgency | null;
 		protected: boolean;
@@ -428,6 +552,7 @@ export interface PMAIIngestDocumentInput {
 	title?: string;
 	documentText?: string;
 	documentBase64?: string;
+	feedbackInstructions?: string;
 	projectId?: string;
 	ideaTaskId?: string;
 	usageMode?: "individual" | "team";
@@ -437,6 +562,26 @@ export interface PMAIIngestDocumentInput {
 	selectedMilestoneTitles?: string[];
 	maxTasks?: number;
 	maxMilestones?: number;
+}
+
+export interface PMAIApproveDocumentPlanInput {
+	analysisId: string;
+	documentType: "tsd" | "prd" | "contract" | "feature_spec";
+	documentTitle: string;
+	projectId?: string;
+	ideaTaskId?: string;
+	usageMode?: "individual" | "team";
+	teamMemberIds?: string[];
+	createTasks?: boolean;
+	createMilestones?: boolean;
+	selectedMilestoneTitles?: string[];
+	maxTasks?: number;
+	maxMilestones?: number;
+	generation?: {
+		provider?: string | null;
+		model?: string | null;
+	};
+	plan: unknown;
 }
 
 export interface PMAIAnalyzeVideoInput {

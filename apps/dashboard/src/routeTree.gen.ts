@@ -20,6 +20,7 @@ import { Route as SessionsIndexRouteImport } from './routes/sessions/index'
 import { Route as ProjectsIndexRouteImport } from './routes/projects/index'
 import { Route as TasksTaskIdRouteImport } from './routes/tasks/$taskId'
 import { Route as SessionsHistoryRouteImport } from './routes/sessions/history'
+import { Route as SessionsSessionIdRouteImport } from './routes/sessions/$sessionId'
 import { Route as ProjectsProjectIdRouteImport } from './routes/projects/$projectId'
 import { Route as IdeasIdeaIdRouteImport } from './routes/ideas/$ideaId'
 
@@ -78,6 +79,11 @@ const SessionsHistoryRoute = SessionsHistoryRouteImport.update({
   path: '/sessions/history',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SessionsSessionIdRoute = SessionsSessionIdRouteImport.update({
+  id: '/sessions/$sessionId',
+  path: '/sessions/$sessionId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProjectsProjectIdRoute = ProjectsProjectIdRouteImport.update({
   id: '/projects/$projectId',
   path: '/projects/$projectId',
@@ -98,6 +104,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/ideas/$ideaId': typeof IdeasIdeaIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/sessions/history': typeof SessionsHistoryRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/projects/': typeof ProjectsIndexRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/onboarding': typeof OnboardingRoute
   '/ideas/$ideaId': typeof IdeasIdeaIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/sessions/history': typeof SessionsHistoryRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/projects': typeof ProjectsIndexRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/onboarding': typeof OnboardingRoute
   '/ideas/$ideaId': typeof IdeasIdeaIdRoute
   '/projects/$projectId': typeof ProjectsProjectIdRoute
+  '/sessions/$sessionId': typeof SessionsSessionIdRoute
   '/sessions/history': typeof SessionsHistoryRoute
   '/tasks/$taskId': typeof TasksTaskIdRoute
   '/projects/': typeof ProjectsIndexRoute
@@ -146,6 +155,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/ideas/$ideaId'
     | '/projects/$projectId'
+    | '/sessions/$sessionId'
     | '/sessions/history'
     | '/tasks/$taskId'
     | '/projects/'
@@ -161,6 +171,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/ideas/$ideaId'
     | '/projects/$projectId'
+    | '/sessions/$sessionId'
     | '/sessions/history'
     | '/tasks/$taskId'
     | '/projects'
@@ -176,6 +187,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/ideas/$ideaId'
     | '/projects/$projectId'
+    | '/sessions/$sessionId'
     | '/sessions/history'
     | '/tasks/$taskId'
     | '/projects/'
@@ -191,6 +203,7 @@ export interface RootRouteChildren {
   IntegrationsRoute: typeof IntegrationsRoute
   OnboardingRoute: typeof OnboardingRoute
   ProjectsProjectIdRoute: typeof ProjectsProjectIdRoute
+  SessionsSessionIdRoute: typeof SessionsSessionIdRoute
   SessionsHistoryRoute: typeof SessionsHistoryRoute
   TasksTaskIdRoute: typeof TasksTaskIdRoute
   ProjectsIndexRoute: typeof ProjectsIndexRoute
@@ -277,6 +290,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SessionsHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sessions/$sessionId': {
+      id: '/sessions/$sessionId'
+      path: '/sessions/$sessionId'
+      fullPath: '/sessions/$sessionId'
+      preLoaderRoute: typeof SessionsSessionIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/projects/$projectId': {
       id: '/projects/$projectId'
       path: '/projects/$projectId'
@@ -312,6 +332,7 @@ const rootRouteChildren: RootRouteChildren = {
   IntegrationsRoute: IntegrationsRoute,
   OnboardingRoute: OnboardingRoute,
   ProjectsProjectIdRoute: ProjectsProjectIdRoute,
+  SessionsSessionIdRoute: SessionsSessionIdRoute,
   SessionsHistoryRoute: SessionsHistoryRoute,
   TasksTaskIdRoute: TasksTaskIdRoute,
   ProjectsIndexRoute: ProjectsIndexRoute,

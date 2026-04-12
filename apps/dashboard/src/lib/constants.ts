@@ -10,6 +10,7 @@ import {
 	XCircle,
 	Zap,
 } from "lucide-react";
+import moment from "moment";
 import type {
 	ProjectType,
 	SessionOutcome,
@@ -85,7 +86,7 @@ export const PROJECT_TYPE_CONFIG: Record<
 > = {
 	Clients: { label: "Clients", emoji: "👥" },
 	Core: { label: "Core", emoji: "🎯" },
-	SideQuest: { label: "SideQuest", emoji: "🧪" },
+	InHouse: { label: "InHouse", emoji: "🧪" },
 	Office: { label: "Office", emoji: "🏢" },
 };
 
@@ -151,43 +152,50 @@ export const VALID_TRANSITIONS: Record<TaskState, TaskState[]> = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 export function formatRelativeTime(dateString: string): string {
-	const date = new Date(dateString);
-	const now = new Date();
-	const diffMs = now.getTime() - date.getTime();
-	const diffMins = Math.floor(diffMs / 60000);
-	const diffHours = Math.floor(diffMs / 3600000);
-	const diffDays = Math.floor(diffMs / 86400000);
-
-	if (diffMins < 1) return "just now";
-	if (diffMins < 60) return `${diffMins}m ago`;
-	if (diffHours < 24) return `${diffHours}h ago`;
-	if (diffDays < 7) return `${diffDays}d ago`;
-
-	return date.toLocaleDateString();
+	const m = moment(dateString);
+	if (!m.isValid()) return "Invalid date";
+	return m.fromNow();
 }
 
 export function formatDate(dateString: string): string {
-	return new Date(dateString).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
+	const m = moment(dateString);
+	if (!m.isValid()) return "Invalid date";
+	return m.format("MMM D, YYYY");
 }
 
 export function isOverdue(deadline: string): boolean {
-	return new Date(deadline) < new Date();
+	const due = moment(deadline);
+	if (!due.isValid()) return false;
+	return due.isBefore(moment());
 }
 
 export function formatSessionTime(seconds: number): string {
-	const mins = Math.floor(seconds / 60);
-	const secs = seconds % 60;
+	const safeSeconds = Math.max(0, Math.floor(seconds));
+	const mins = Math.floor(safeSeconds / 60);
+	const secs = safeSeconds % 60;
 	return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+export function formatLoggedDuration(minutes: number): string {
+	const safeMinutes = Math.max(0, Math.floor(minutes));
+	if (safeMinutes < 60) return `${safeMinutes}m`;
+
+	const totalHours = Math.floor(safeMinutes / 60);
+	const remMinutes = safeMinutes % 60;
+	if (totalHours < 24) {
+		return remMinutes > 0 ? `${totalHours}h ${remMinutes}m` : `${totalHours}h`;
+	}
+
+	const days = Math.floor(totalHours / 24);
+	const remHours = totalHours % 24;
+	if (remHours > 0) return `${days}d ${remHours}h`;
+	return `${days}d`;
 }
 
 const PROJECT_TYPE_BRANCH_PREFIX: Record<string, string> = {
 	Clients: "client",
 	Core: "feat",
-	SideQuest: "experiment",
+	InHouse: "inhouse",
 	Office: "office",
 };
 

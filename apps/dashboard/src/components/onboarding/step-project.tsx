@@ -29,7 +29,7 @@ const PROJECT_COLORS = [
 
 const projectSchema = z.object({
 	name: z.string().min(1, "Project name is required").max(100),
-	type: z.enum(["Clients", "Core", "SideQuest", "Office"]),
+	type: z.enum(["Clients", "Core", "InHouse", "Office"]),
 	color: z.string(),
 });
 
@@ -66,10 +66,10 @@ export function StepProject({
 			desc: "SaaS products and company growth",
 		},
 		{
-			value: "SideQuest",
+			value: "InHouse",
 			emoji: "🧪",
-			label: "SideQuest",
-			desc: "Playful experiments and learning",
+			label: "InHouse",
+			desc: "Internal projects that grow the agency and team",
 		},
 	] as const;
 
@@ -94,8 +94,8 @@ export function StepProject({
 			<p className="mb-8 max-w-md text-center text-muted-foreground">
 				Projects organize your tasks by priority tier. <strong>Clients</strong>{" "}
 				and <strong>Office</strong> are top priority, <strong>Core</strong> is
-				important growth work, and <strong>SideQuest</strong> is for free-time
-				exploration.
+				important growth work, and <strong>InHouse</strong> drives internal
+				capability and delivery strength.
 			</p>
 
 			<Form {...form}>

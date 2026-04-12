@@ -14,14 +14,18 @@ import {
 	Command,
 	FolderOpen,
 	Inbox,
+	Laptop,
 	LayoutDashboard,
 	Lightbulb,
 	Menu,
+	Moon,
 	PlugZap,
+	Sun,
 	Timer,
 } from "lucide-react";
 import { useState } from "react";
 import { useSessionTimer } from "@/hooks/use-session-timer";
+import { useThemePreference } from "@/hooks/use-theme-preference";
 import type { Session, User } from "@/lib/types";
 
 interface AppHeaderProps {
@@ -60,6 +64,7 @@ export function AppHeader({
 	const isPaused = activeSession?.state === "Paused";
 	const [mobileOpen, setMobileOpen] = useState(false);
 	const matchRoute = useMatchRoute();
+	const { preference, setPreference } = useThemePreference();
 
 	return (
 		<header className="flex h-14 items-center justify-between gap-2 border-b px-3 sm:px-6">
@@ -72,7 +77,14 @@ export function AppHeader({
 					</SheetTrigger>
 					<SheetContent side="left" className="w-[84vw] max-w-sm p-0">
 						<SheetHeader className="border-b border-slate-200 p-4">
-							<SheetTitle>Execution OS</SheetTitle>
+							<SheetTitle className="inline-flex items-center gap-2">
+								<img
+									src="/favicon.svg"
+									alt="Execution OS logo"
+									className="h-6 w-6 rounded-md"
+								/>
+								Execution OS
+							</SheetTitle>
 							{user ? (
 								<p className="text-sm text-slate-500">
 									{user.name} · {user.email}
@@ -119,6 +131,39 @@ export function AppHeader({
 			<div className="hidden md:block" />
 
 			<div className="flex min-w-0 items-center gap-2 sm:gap-3">
+				<div className="inline-flex items-center rounded-md border border-border bg-muted/50 p-0.5">
+					<Button
+						variant={preference === "system" ? "default" : "ghost"}
+						size="sm"
+						className="h-7 w-7 p-0"
+						onClick={() => setPreference("system")}
+						aria-label="Theme: system"
+						title="System theme"
+					>
+						<Laptop className="h-3.5 w-3.5" />
+					</Button>
+					<Button
+						variant={preference === "light" ? "default" : "ghost"}
+						size="sm"
+						className="h-7 w-7 p-0"
+						onClick={() => setPreference("light")}
+						aria-label="Theme: light"
+						title="Light theme"
+					>
+						<Sun className="h-3.5 w-3.5" />
+					</Button>
+					<Button
+						variant={preference === "dark" ? "default" : "ghost"}
+						size="sm"
+						className="h-7 w-7 p-0"
+						onClick={() => setPreference("dark")}
+						aria-label="Theme: dark"
+						title="Dark theme"
+					>
+						<Moon className="h-3.5 w-3.5" />
+					</Button>
+				</div>
+
 				{!isOnline ? (
 					<Badge
 						variant="secondary"
@@ -137,7 +182,11 @@ export function AppHeader({
 				) : null}
 
 				{activeSession ? (
-					<Link to="/" className="flex min-w-0 items-center gap-2">
+					<Link
+						to="/sessions/$sessionId"
+						params={{ sessionId: activeSession.id }}
+						className="flex min-w-0 items-center gap-2"
+					>
 						<span
 							className={`relative flex h-2 w-2 ${isPaused ? "" : "animate-pulse"}`}
 						>

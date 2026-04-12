@@ -91,6 +91,7 @@ export function usePMAIIngestDocumentUpload() {
 			file: File;
 			documentType: "tsd" | "prd" | "contract" | "feature_spec";
 			title?: string;
+			feedbackInstructions?: string;
 			projectId?: string;
 			ideaTaskId?: string;
 			usageMode?: "individual" | "team";
@@ -101,6 +102,39 @@ export function usePMAIIngestDocumentUpload() {
 			maxTasks?: number;
 			maxMilestones?: number;
 		}) => pmAi.ingestDocumentUpload(data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+			queryClient.invalidateQueries({ queryKey: queryKeys.inbox });
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.ai.recommendation(),
+			});
+		},
+	});
+}
+
+export function usePMAIApproveDocumentPlan() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (data: {
+			analysisId: string;
+			documentType: "tsd" | "prd" | "contract" | "feature_spec";
+			documentTitle: string;
+			projectId?: string;
+			ideaTaskId?: string;
+			usageMode?: "individual" | "team";
+			teamMemberIds?: string[];
+			createTasks?: boolean;
+			createMilestones?: boolean;
+			selectedMilestoneTitles?: string[];
+			maxTasks?: number;
+			maxMilestones?: number;
+			generation?: {
+				provider?: string | null;
+				model?: string | null;
+			};
+			plan: unknown;
+		}) => pmAi.approveDocumentPlan(data),
 		onSuccess: () => {
 			queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
 			queryClient.invalidateQueries({ queryKey: queryKeys.inbox });

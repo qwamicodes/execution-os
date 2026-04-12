@@ -19,7 +19,6 @@ import {
 	LogOut,
 	PlugZap,
 	Timer,
-	Zap,
 } from "lucide-react";
 import { useLogout } from "@/hooks/use-user";
 import type { User } from "@/lib/types";
@@ -60,9 +59,11 @@ export function AppSidebar({ user, inboxCount }: AppSidebarProps) {
 		<aside className="flex h-screen w-64 flex-col border-r bg-sidebar">
 			{/* Logo */}
 			<div className="flex h-14 items-center gap-2 px-4">
-				<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-					<Zap className="h-4 w-4 text-primary-foreground" />
-				</div>
+				<img
+					src="/favicon.svg"
+					alt="Execution OS logo"
+					className="h-8 w-8 rounded-lg"
+				/>
 				<span className="font-semibold text-sidebar-foreground">
 					Execution OS
 				</span>

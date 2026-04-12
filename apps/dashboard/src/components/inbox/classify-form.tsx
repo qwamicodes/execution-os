@@ -9,6 +9,7 @@ import {
 	FormMessage,
 } from "@repo/ui/components/ui/form";
 import { Input } from "@repo/ui/components/ui/input";
+import { DatePicker } from "@repo/ui/components/ui/date-picker";
 import { Label } from "@repo/ui/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
 import {
@@ -35,7 +36,7 @@ const classifySchema = z.object({
 	protectionReason: z
 		.enum(["contract", "sla", "client", "investor"])
 		.optional(),
-	deadline: z.string().optional(),
+	deadline: z.union([z.string().datetime(), z.literal("")]).optional(),
 	tags: z.string().optional(),
 });
 
@@ -82,7 +83,7 @@ export function ClassifyForm({ taskId, onDone }: ClassifyFormProps) {
 							? data.protectionReason
 							: undefined,
 					deadline: data.deadline
-						? new Date(`${data.deadline}T23:59:59.000Z`).toISOString()
+						? data.deadline
 						: undefined,
 					tags: tags?.length ? tags : undefined,
 				},
@@ -286,10 +287,11 @@ export function ClassifyForm({ taskId, onDone }: ClassifyFormProps) {
 						<FormItem>
 							<FormLabel>Deadline</FormLabel>
 							<FormControl>
-								<Input
-									type="date"
+								<DatePicker
+									value={field.value}
+									onChange={(next) => field.onChange(next ?? "")}
 									className="border-slate-300 bg-white"
-									{...field}
+									boundary="end"
 								/>
 							</FormControl>
 							<FormMessage />

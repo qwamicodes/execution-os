@@ -4,9 +4,11 @@ import { projects } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type {
 	CreateProjectMilestoneInput,
+	CreateProjectPartInput,
 	CreateProjectInput,
 	ProjectFilters,
 	UpdateProjectMilestoneInput,
+	UpdateProjectPartInput,
 	UpdateProjectInput,
 } from "@/lib/types";
 
@@ -115,6 +117,63 @@ export function useDeleteProjectMilestone(projectId: string) {
 		onSuccess: () => {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.projects.milestones(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useProjectParts(projectId: string) {
+	return useQuery({
+		queryKey: queryKeys.projects.parts(projectId),
+		queryFn: () => projects.listParts(projectId),
+		enabled: !!projectId,
+	});
+}
+
+export function useCreateProjectPart(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (data: CreateProjectPartInput) =>
+			projects.createPart(projectId, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.parts(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useUpdateProjectPart(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({
+			partId,
+			data,
+		}: {
+			partId: string;
+			data: UpdateProjectPartInput;
+		}) => projects.updatePart(projectId, partId, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.parts(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useDeleteProjectPart(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (partId: string) => projects.deletePart(projectId, partId),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.parts(projectId),
 			});
 			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
 			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });

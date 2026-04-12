@@ -1,16 +1,24 @@
+import { canQueueRequest, enqueueOfflineOperation } from "./offline-queue";
 import type {
 	AIRoutingStatusResponse,
 	ClassifyTaskInput,
 	CompleteSessionInput,
 	CreateProjectInput,
 	CreateProjectMilestoneInput,
+	CreateProjectPartInput,
 	CreateTaskInput,
+	DecomposeTaskInput,
+	ExtendSessionInput,
 	GitConnectInput,
 	GitImportCommitInput,
+	Idea,
+	IdeaFilters,
+	IdeaListResponse,
 	InboxResponse,
 	IntegrationRecord,
 	PMAIAnalyzeImagesInput,
 	PMAIAnalyzeVideoInput,
+	PMAIApproveDocumentPlanInput,
 	PMAIDecomposeTaskInput,
 	PMAIIngestDocumentInput,
 	PMAIPlanSprintInput,
@@ -19,6 +27,7 @@ import type {
 	Project,
 	ProjectFilters,
 	ProjectMilestone,
+	ProjectPart,
 	SearchParams,
 	SearchResponse,
 	Session,
@@ -35,15 +44,14 @@ import type {
 	TaskRecommendationResponse,
 	UpdateProjectInput,
 	UpdateProjectMilestoneInput,
+	UpdateProjectPartInput,
+	UpdateIdeaInput,
 	UpdateTaskInput,
 	User,
 	VoiceConnectInput,
 	VoiceTranscribeInput,
+	CreateIdeaInput,
 } from "./types";
-import {
-	canQueueRequest,
-	enqueueOfflineOperation,
-} from "./offline-queue";
 
 // ─── Base Request ─────────────────────────────────────────────────────────────
 
@@ -52,28 +60,43 @@ export const API_BASE_URL =
 
 interface ApiError {
 	error: {
-		code: string;
+		status_code?: string;
+		code?: string;
 		message: string;
-		details?: Record<string, unknown>;
+		details?: string | Record<string, unknown>;
+		suggestion?: string;
 	};
 }
 
 export class ApiClientError extends Error {
 	status: number;
 	code?: string;
-	details?: Record<string, unknown>;
+	details?: string;
+	suggestion?: string;
 
 	constructor(params: {
 		message: string;
 		status: number;
 		code?: string;
-		details?: Record<string, unknown>;
+		details?: string;
+		suggestion?: string;
 	}) {
 		super(params.message);
 		this.name = "ApiClientError";
 		this.status = params.status;
 		this.code = params.code;
 		this.details = params.details;
+		this.suggestion = params.suggestion;
+	}
+}
+
+function normalizeErrorDetails(details: unknown): string | undefined {
+	if (!details) return undefined;
+	if (typeof details === "string") return details;
+	try {
+		return JSON.stringify(details);
+	} catch {
+		return String(details);
 	}
 }
 
@@ -141,11 +164,13 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 
 	if (!response.ok) {
 		const error = json as ApiError | null;
+		const code = error?.error?.status_code ?? error?.error?.code;
 		throw new ApiClientError({
 			message: error?.error?.message || "Something went wrong",
 			status: response.status,
-			code: error?.error?.code,
-			details: error?.error?.details,
+			code,
+			details: normalizeErrorDetails(error?.error?.details),
+			suggestion: error?.error?.suggestion,
 		});
 	}
 
@@ -174,11 +199,13 @@ async function requestPaginated<T>(
 
 	if (!response.ok) {
 		const error = json as ApiError | null;
+		const code = error?.error?.status_code ?? error?.error?.code;
 		throw new ApiClientError({
 			message: error?.error?.message || "Something went wrong",
 			status: response.status,
-			code: error?.error?.code,
-			details: error?.error?.details,
+			code,
+			details: normalizeErrorDetails(error?.error?.details),
+			suggestion: error?.error?.suggestion,
 		});
 	}
 
@@ -248,10 +275,13 @@ export const tasks = {
 	restore: (id: string) =>
 		request<Task>(`/tasks/${id}/restore`, { method: "POST" }),
 
-	decompose: (id: string) =>
+	decompose: (id: string, data?: DecomposeTaskInput) =>
 		request<{ message: string; taskId: string; jobId: string }>(
 			`/tasks/${id}/decompose`,
-			{ method: "POST" },
+			{
+				method: "POST",
+				body: JSON.stringify(data ?? {}),
+			},
 		),
 
 	classifyAI: (id: string) =>
@@ -272,6 +302,12 @@ export const tasks = {
 
 	clearPriorityOverride: (id: string) =>
 		request<Task>(`/tasks/${id}/priority/override`, { method: "DELETE" }),
+
+	convertToIdea: (id: string) =>
+		request<{
+			idea: Idea;
+			migration: { applied: string[]; reset: string[]; suggestion: string };
+		}>(`/tasks/${id}/convert-to-idea`, { method: "POST" }),
 
 	createBranch: (
 		id: string,
@@ -297,6 +333,46 @@ export const tasks = {
 			{
 				method: "POST",
 				body: JSON.stringify({ userScope: "self" }),
+			},
+		),
+};
+
+export const ideas = {
+	list: async (filters?: IdeaFilters): Promise<IdeaListResponse> => {
+		const response = await requestPaginated<Idea>(
+			`/ideas${buildQuery(filters || {})}`,
+		);
+		return {
+			ideas: response.data,
+			total: response.meta.total,
+		};
+	},
+	get: (id: string) => request<Idea>(`/ideas/${id}`),
+	create: (data: CreateIdeaInput) =>
+		request<Idea>("/ideas", {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+	update: (id: string, data: UpdateIdeaInput) =>
+		request<Idea>(`/ideas/${id}`, {
+			method: "PATCH",
+			body: JSON.stringify(data),
+		}),
+	classifyAI: (id: string) =>
+		request<Idea>(`/ideas/${id}/classify/ai`, { method: "POST" }),
+	delete: (id: string) => request<null>(`/ideas/${id}`, { method: "DELETE" }),
+	convertToTask: (id: string) =>
+		request<{ task: Task }>(`/ideas/${id}/convert-to-task`, { method: "POST" }),
+	convertToProject: (id: string) =>
+		request<{
+			project: Project;
+			migration: { applied: string[]; suggestion: string };
+		}>(`/ideas/${id}/convert-to-project`, { method: "POST" }),
+	migrateLegacyIdeas: () =>
+		request<{ scanned: number; migrated: number }>(
+			"/tasks/migrations/legacy-ideas",
+			{
+				method: "POST",
 			},
 		),
 };
@@ -350,12 +426,37 @@ export const projects = {
 		request<null>(`/projects/${projectId}/milestones/${milestoneId}`, {
 			method: "DELETE",
 		}),
+
+	listParts: (projectId: string) =>
+		request<ProjectPart[]>(`/projects/${projectId}/parts`),
+
+	createPart: (projectId: string, data: CreateProjectPartInput) =>
+		request<ProjectPart>(`/projects/${projectId}/parts`, {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+
+	updatePart: (
+		projectId: string,
+		partId: string,
+		data: UpdateProjectPartInput,
+	) =>
+		request<ProjectPart>(`/projects/${projectId}/parts/${partId}`, {
+			method: "PATCH",
+			body: JSON.stringify(data),
+		}),
+
+	deletePart: (projectId: string, partId: string) =>
+		request<null>(`/projects/${projectId}/parts/${partId}`, {
+			method: "DELETE",
+		}),
 };
 
 // ─── Sessions ─────────────────────────────────────────────────────────────────
 
 export const sessions = {
 	getActive: () => request<Session | null>("/sessions/active"),
+	getById: (id: string) => request<Session>(`/sessions/${id}`),
 
 	start: (data: StartSessionInput) =>
 		request<Session>("/sessions/start", {
@@ -368,6 +469,12 @@ export const sessions = {
 
 	resume: (id: string) =>
 		request<Session>(`/sessions/${id}/resume`, { method: "PATCH" }),
+
+	extend: (id: string, data: ExtendSessionInput) =>
+		request<Session>(`/sessions/${id}/extend`, {
+			method: "PATCH",
+			body: JSON.stringify(data),
+		}),
 
 	complete: (id: string, data: CompleteSessionInput) =>
 		request<SessionCompleteResponse>(`/sessions/${id}/complete`, {
@@ -384,10 +491,20 @@ export const sessions = {
 			},
 		),
 
-	history: (filters?: SessionHistoryFilters) =>
-		request<SessionHistoryResponse>(
+	history: async (filters?: SessionHistoryFilters) => {
+		const response = await requestPaginated<Session>(
 			`/sessions/history${buildQuery(filters || {})}`,
-		),
+		);
+		return {
+			data: response.data,
+			meta: {
+				total: response.meta.total,
+				page: response.meta.page,
+				limit: response.meta.limit,
+				pages: response.meta.totalPages,
+			},
+		} as SessionHistoryResponse;
+	},
 };
 
 // ─── Inbox ────────────────────────────────────────────────────────────────────
@@ -635,10 +752,17 @@ export const pmAi = {
 			body: JSON.stringify(data),
 		}),
 
+	approveDocumentPlan: (data: PMAIApproveDocumentPlanInput) =>
+		request<unknown>("/pm-ai/approve-document-plan", {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+
 	ingestDocumentUpload: (data: {
 		file: File;
 		documentType: "tsd" | "prd" | "contract" | "feature_spec";
 		title?: string;
+		feedbackInstructions?: string;
 		projectId?: string;
 		ideaTaskId?: string;
 		usageMode?: "individual" | "team";
@@ -653,6 +777,9 @@ export const pmAi = {
 		form.set("file", data.file);
 		form.set("documentType", data.documentType);
 		if (data.title) form.set("title", data.title);
+		if (data.feedbackInstructions) {
+			form.set("feedbackInstructions", data.feedbackInstructions);
+		}
 		if (data.projectId) form.set("projectId", data.projectId);
 		if (data.ideaTaskId) form.set("ideaTaskId", data.ideaTaskId);
 		if (data.usageMode) form.set("usageMode", data.usageMode);

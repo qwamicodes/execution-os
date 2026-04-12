@@ -103,7 +103,9 @@ export function ProjectCard({
 	const activeTasks = project.activeTasks ?? 0;
 	const completedTasks = project.completedTasks ?? 0;
 	const completionRate =
-		totalTasks > 0 ? Math.min(100, Math.round((completedTasks / totalTasks) * 100)) : 0;
+		totalTasks > 0
+			? Math.min(100, Math.round((completedTasks / totalTasks) * 100))
+			: 0;
 	const updatedLabel = formatRelativeTime(project.updatedAt);
 	const health = getProjectHealth({
 		isArchived,
@@ -117,7 +119,7 @@ export function ProjectCard({
 
 	return (
 		<Card
-			className={`group relative cursor-pointer overflow-hidden border-slate-200 bg-white shadow-sm transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl focus-within:ring-2 focus-within:ring-sky-300/70 ${isArchived ? "opacity-70" : ""}`}
+			className={`group relative cursor-pointer overflow-hidden border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm transition-[transform,border-color,box-shadow] duration-300 hover:-translate-y-1 hover:border-slate-300 dark:hover:border-slate-300 hover:shadow-xl focus-within:ring-2 focus-within:ring-sky-300/70 ${isArchived ? "opacity-70" : ""}`}
 			onClick={() => onSelect(project.id)}
 			style={{
 				animationName: "project-card-enter",
@@ -135,7 +137,9 @@ export function ProjectCard({
 						: "linear-gradient(90deg, rgba(56,189,248,0.9), rgba(15,23,42,0.55))",
 				}}
 			/>
-			<CardContent className={`space-y-3.5 ${isCompact ? "p-3.5 pt-4.5" : "p-4 pt-5"}`}>
+			<CardContent
+				className={`space-y-3.5 ${isCompact ? "p-3.5 pt-4.5" : "p-4 pt-5"}`}
+			>
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 flex-1 space-y-2">
 						<div className="flex flex-wrap items-center gap-2">
@@ -145,7 +149,10 @@ export function ProjectCard({
 							>
 								{typeConfig.emoji} {typeConfig.label}
 							</Badge>
-							<Badge variant="outline" className={`text-[11px] ${health.className}`}>
+							<Badge
+								variant="outline"
+								className={`text-[11px] ${health.className}`}
+							>
 								<Activity className="mr-1 h-3 w-3" />
 								{health.label}
 							</Badge>
@@ -223,24 +230,26 @@ export function ProjectCard({
 					)
 				) : null}
 
-				<div className={`grid grid-cols-3 gap-2 ${isCompact ? "text-[11px]" : ""}`}>
+				<div
+					className={`grid grid-cols-3 gap-2 ${isCompact ? "text-[11px]" : ""}`}
+				>
 					<StatChip
 						icon={ListChecks}
 						label="Tasks"
 						value={totalTasks}
-						className="bg-slate-50 text-slate-700"
+						className="bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-400"
 					/>
 					<StatChip
 						icon={Clock3}
 						label="Active"
 						value={activeTasks}
-						className="bg-sky-50 text-sky-700"
+						className="bg-sky-50 dark:bg-slate-800 text-sky-700 dark:text-sky-400"
 					/>
 					<StatChip
 						icon={CheckCircle2}
 						label="Done"
 						value={completedTasks}
-						className="bg-emerald-50 text-emerald-700"
+						className="bg-emerald-50 dark:bg-emerald-600 text-emerald-700 dark:text-emerald-200"
 					/>
 				</div>
 
@@ -251,7 +260,7 @@ export function ProjectCard({
 					</div>
 					<div className="h-2 rounded-full bg-slate-100">
 						<div
-							className="h-2 rounded-full bg-gradient-to-r from-sky-500 to-emerald-500 transition-all duration-500"
+							className="h-2 rounded-full bg-linear-to-r from-sky-500 to-emerald-500 transition-all duration-500"
 							style={{ width: `${completionRate}%` }}
 						/>
 					</div>
@@ -276,7 +285,9 @@ function StatChip({
 	className: string;
 }) {
 	return (
-		<div className={`rounded-lg border border-slate-200 px-2.5 py-2 ${className}`}>
+		<div
+			className={`rounded-lg border border-slate-200 px-2.5 py-2 ${className}`}
+		>
 			<div className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide opacity-80">
 				<Icon className="h-3 w-3" />
 				{label}

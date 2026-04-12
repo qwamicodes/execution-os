@@ -1,4 +1,5 @@
 import type {
+	IdeaFilters,
 	ProjectFilters,
 	SessionHistoryFilters,
 	TaskFilters,
@@ -13,6 +14,7 @@ export const queryKeys = {
 		detail: (id: string) => ["projects", "detail", id] as const,
 		milestones: (projectId: string) =>
 			["projects", "milestones", projectId] as const,
+		parts: (projectId: string) => ["projects", "parts", projectId] as const,
 	},
 
 	tasks: {
@@ -21,9 +23,15 @@ export const queryKeys = {
 		detail: (id: string) => ["tasks", "detail", id] as const,
 		subtasks: (id: string) => ["tasks", "subtasks", id] as const,
 	},
+	ideas: {
+		all: ["ideas"] as const,
+		list: (filters?: IdeaFilters) => ["ideas", "list", filters] as const,
+		detail: (id: string) => ["ideas", "detail", id] as const,
+	},
 
 	sessions: {
 		active: ["sessions", "active"] as const,
+		detail: (id: string) => ["sessions", "detail", id] as const,
 		history: (filters?: SessionHistoryFilters) =>
 			["sessions", "history", filters] as const,
 	},

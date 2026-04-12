@@ -3,6 +3,7 @@ import { tasks } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type {
 	CreateTaskInput,
+	DecomposeTaskInput,
 	TaskFilters,
 	UpdateTaskInput,
 } from "@/lib/types";
@@ -81,8 +82,10 @@ export function useDecomposeTask() {
 	const queryClient = useQueryClient();
 
 	return useMutation({
-		mutationFn: (id: string) => tasks.decompose(id),
-		onSuccess: (_data, id) => {
+		mutationFn: ({ id, data }: { id: string; data?: DecomposeTaskInput }) =>
+			tasks.decompose(id, data),
+		onSuccess: (_data, variables) => {
+			const { id } = variables;
 			const refreshKeys = () => {
 				queryClient.invalidateQueries({
 					queryKey: queryKeys.tasks.detail(id),

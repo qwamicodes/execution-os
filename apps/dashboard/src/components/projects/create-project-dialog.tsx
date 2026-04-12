@@ -16,17 +16,18 @@ import {
 } from "@repo/ui/components/ui/form";
 import { Input } from "@repo/ui/components/ui/input";
 import { Textarea } from "@repo/ui/components/ui/textarea";
+import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
-import { goeyToast as toast } from "goey-toast";
 import { z } from "zod";
 import { useCreateProject } from "@/hooks/use-projects";
 import { PROJECT_COLORS } from "@/lib/constants";
+import { runWithPromiseToast } from "@/lib/toast";
 import type { ProjectType } from "@/lib/types";
 
 const createProjectSchema = z.object({
 	name: z.string().min(1, "Name is required").max(100),
 	description: z.string().max(500).optional(),
-	type: z.enum(["Clients", "Core", "SideQuest", "Office"]),
+	type: z.enum(["Clients", "Core", "InHouse", "Office"]),
 	color: z.string(),
 });
 
@@ -53,25 +54,17 @@ export function CreateProjectDialog({
 		},
 	});
 
-	function onSubmit(data: CreateProjectValues) {
-		createProject.mutate(
-			{
+	async function onSubmit(data: CreateProjectValues) {
+		await runWithPromiseToast("Create project", () =>
+			createProject.mutateAsync({
 				name: data.name,
 				description: data.description || undefined,
 				type: data.type as ProjectType,
 				color: data.color,
-			},
-			{
-				onSuccess: () => {
-					toast.success("Project created");
-					form.reset();
-					onOpenChange(false);
-				},
-				onError: (error) => {
-					toast.error(error.message);
-				},
-			},
+			}),
 		);
+		form.reset();
+		onOpenChange(false);
 	}
 
 	const projectTypes = [
@@ -89,10 +82,10 @@ export function CreateProjectDialog({
 		},
 		{ value: "Core", emoji: "🎯", label: "Core", desc: "SaaS growth work" },
 		{
-			value: "SideQuest",
+			value: "InHouse",
 			emoji: "🧪",
-			label: "SideQuest",
-			desc: "Free-time experiments",
+			label: "InHouse",
+			desc: "Internal projects that strengthen the agency and team",
 		},
 	] as const;
 
@@ -209,6 +202,9 @@ export function CreateProjectDialog({
 								Cancel
 							</Button>
 							<Button type="submit" disabled={createProject.isPending}>
+								{createProject.isPending ? (
+									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+								) : null}
 								{createProject.isPending ? "Creating..." : "Create project"}
 							</Button>
 						</div>

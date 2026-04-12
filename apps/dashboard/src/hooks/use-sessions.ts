@@ -3,6 +3,7 @@ import { sessions } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type {
 	CompleteSessionInput,
+	ExtendSessionInput,
 	SessionHistoryFilters,
 	StartSessionInput,
 } from "@/lib/types";
@@ -18,6 +19,14 @@ export function useActiveSession() {
 	});
 }
 
+export function useSession(id: string) {
+	return useQuery({
+		queryKey: queryKeys.sessions.detail(id),
+		queryFn: () => sessions.getById(id),
+		enabled: Boolean(id),
+	});
+}
+
 export function useStartSession() {
 	const queryClient = useQueryClient();
 
@@ -27,6 +36,7 @@ export function useStartSession() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.sessions.active,
 			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.sessions.history() });
 			queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
 			queryClient.invalidateQueries({ queryKey: ["ai", "recommendation"] });
 		},
@@ -42,6 +52,8 @@ export function usePauseSession() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.sessions.active,
 			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.sessions.history() });
+			queryClient.invalidateQueries({ queryKey: ["sessions", "detail"] });
 		},
 	});
 }
@@ -55,6 +67,24 @@ export function useResumeSession() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.sessions.active,
 			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.sessions.history() });
+			queryClient.invalidateQueries({ queryKey: ["sessions", "detail"] });
+		},
+	});
+}
+
+export function useExtendSession() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data: ExtendSessionInput }) =>
+			sessions.extend(id, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.sessions.active,
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.sessions.history() });
+			queryClient.invalidateQueries({ queryKey: ["sessions", "detail"] });
 		},
 	});
 }
@@ -69,6 +99,7 @@ export function useCompleteSession() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.sessions.active,
 			});
+			queryClient.invalidateQueries({ queryKey: ["sessions", "detail"] });
 			queryClient.invalidateQueries({ queryKey: queryKeys.sessions.history() });
 			queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
 			queryClient.invalidateQueries({ queryKey: ["ai", "recommendation"] });

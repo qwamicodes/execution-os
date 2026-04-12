@@ -2,7 +2,11 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { Card, CardContent } from "@repo/ui/components/ui/card";
 import { Link } from "@tanstack/react-router";
 import { Clock } from "lucide-react";
-import { formatDate, SESSION_OUTCOME_CONFIG } from "@/lib/constants";
+import {
+	formatDate,
+	formatLoggedDuration,
+	SESSION_OUTCOME_CONFIG,
+} from "@/lib/constants";
 import type { Session } from "@/lib/types";
 
 interface SessionHistoryCardProps {
@@ -14,9 +18,7 @@ export function SessionHistoryCard({ session }: SessionHistoryCardProps) {
 		? SESSION_OUTCOME_CONFIG[session.outcome]
 		: null;
 
-	const actualMinutes = session.actualDuration
-		? Math.round(session.actualDuration / 60)
-		: session.duration;
+	const actualMinutes = session.actualDuration ?? session.duration;
 
 	return (
 		<Card className="border-slate-200 bg-white/95 shadow-sm transition-colors hover:border-slate-300">
@@ -48,7 +50,7 @@ export function SessionHistoryCard({ session }: SessionHistoryCardProps) {
 							)}
 							<span className="inline-flex items-center">
 								<Clock className="mr-1 h-3 w-3" />
-								{actualMinutes} min
+								{formatLoggedDuration(actualMinutes)}
 							</span>
 							<span>
 								{formatDate(session.completedAt || session.startedAt)}

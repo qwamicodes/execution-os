@@ -32,9 +32,11 @@ export function CompleteSessionDialog({
 	const [notes, setNotes] = useState("");
 	const [blockerNote, setBlockerNote] = useState("");
 	const completeSession = useCompleteSession();
-	const { playSessionComplete, playSessionError } = useSessionSounds();
+	const { primeSessionAudio, playSessionComplete, playSessionError } =
+		useSessionSounds();
 
-	function handleComplete() {
+	async function handleComplete() {
+		await primeSessionAudio();
 		completeSession.mutate(
 			{
 				id: session.id,

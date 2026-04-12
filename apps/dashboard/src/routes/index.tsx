@@ -1,15 +1,9 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@repo/ui/components/ui/card";
-import { Progress } from "@repo/ui/components/ui/progress";
+import { Card, CardContent, CardHeader } from "@repo/ui/components/ui/card";
 import { Skeleton } from "@repo/ui/components/ui/skeleton";
-import { Textarea } from "@repo/ui/components/ui/textarea";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { goeyToast as toast } from "goey-toast";
 import {
 	ClipboardCopy,
 	Inbox,
@@ -22,29 +16,15 @@ import {
 	Square,
 	Zap,
 } from "lucide-react";
-import {
-	type CSSProperties,
-	type ReactNode,
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-} from "react";
-import { goeyToast as toast } from "goey-toast";
-import { CompleteSessionDialog } from "@/components/sessions/complete-session-dialog";
+import { type CSSProperties, type ReactNode, useEffect, useState } from "react";
+import { LogIdeaDialog } from "@/components/ideas/log-idea-dialog";
 import { StartSessionDialog } from "@/components/sessions/start-session-dialog";
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { useTaskRecommendation } from "@/hooks/use-ai";
 import { useInbox } from "@/hooks/use-inbox";
-import { useSessionTimer } from "@/hooks/use-session-timer";
-import {
-	useActiveSession,
-	usePauseSession,
-	useResumeSession,
-	useUpdateScratchpad,
-} from "@/hooks/use-sessions";
-import { useTasks } from "@/hooks/use-tasks";
+
+import { useTasks, useUpdateTask } from "@/hooks/use-tasks";
 import { generateBranchName, TASK_SIZE_CONFIG } from "@/lib/constants";
 import type { Task } from "@/lib/types";
 
@@ -71,6 +51,7 @@ function copyBranchName(task: Task) {
 	const branch = generateBranchName(task);
 	navigator.clipboard.writeText(branch);
 	toast.success(`Copied: ${branch}`);
+	return branch;
 }
 
 function StaggerReveal({
@@ -98,13 +79,8 @@ function StaggerReveal({
 
 function DashboardPage() {
 	const { user } = Route.useRouteContext();
-	const { data: activeSession } = useActiveSession();
 
 	const firstName = user.name.split(" ")[0] ?? user.name;
-
-	if (activeSession) {
-		return <ActiveSessionView session={activeSession} />;
-	}
 
 	return <IdleView name={firstName} />;
 }
@@ -113,22 +89,24 @@ function IdleView({ name }: { name: string }) {
 	const navigate = useNavigate();
 	const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
 	const [createDialogOpen, setCreateDialogOpen] = useState(false);
-	const [ideaDialogOpen, setIdeaDialogOpen] = useState(false);
+	const [logIdeaOpen, setLogIdeaOpen] = useState(false);
 	const [isLoaded, setIsLoaded] = useState(false);
+	const updateTask = useUpdateTask();
 
 	const { data: inboxData, isLoading: inboxLoading } = useInbox();
 	const { data: recommendationData, isLoading: recommendationLoading } =
 		useTaskRecommendation();
 	const { data: readyData, isLoading: readyLoading } = useTasks({
-		state: "Ready",
 		sortBy: "priority",
 		sortOrder: "desc",
-		limit: 12,
+		limit: -1,
 	});
 	const isRecommendationLoading = recommendationLoading || readyLoading;
 
 	const inboxCount = inboxData?.meta?.total ?? 0;
-	const readyTasks = readyData?.tasks ?? [];
+	const readyTasks = (readyData?.tasks ?? []).filter(
+		(task) => task.state === "Ready" || task.state === "Active",
+	);
 	const recommendedTaskId =
 		recommendationData?.recommendedTask?.task.id ?? null;
 	const topTask = recommendedTaskId
@@ -140,6 +118,10 @@ function IdleView({ name }: { name: string }) {
 	const topTaskReason = recommendationData?.recommendedTask?.reason ?? null;
 	const nextTaskIds =
 		recommendationData?.nextTasks.map((entry) => entry.task.id) ?? [];
+
+	function handleQuickIdeaCapture() {
+		setLogIdeaOpen(true);
+	}
 	const topTaskBranch = topTask ? generateBranchName(topTask) : null;
 
 	const upNext = (() => {
@@ -160,17 +142,25 @@ function IdleView({ name }: { name: string }) {
 		return [...ranked, ...remainder].slice(0, 3);
 	})();
 
+	function handleCopyBranch(task: Task) {
+		copyBranchName(task);
+		if (task.state === "Active") {
+			updateTask.mutate({ id: task.id, data: { state: "Ready" } });
+			toast.info("Task moved to Ready");
+		}
+	}
+
 	useEffect(() => {
 		const frame = requestAnimationFrame(() => setIsLoaded(true));
 		return () => cancelAnimationFrame(frame);
 	}, []);
 
 	return (
-		<div className="relative min-h-screen overflow-hidden bg-[#f7f7f5]">
+		<div className="relative min-h-screen overflow-hidden bg-[#f7f7f5] text-slate-900 dark:bg-[hsl(220_24%_8%)] dark:text-slate-100">
 			<div aria-hidden className="pointer-events-none absolute inset-0">
-				<div className="absolute -left-20 top-16 h-80 w-80 rounded-full bg-[#dfe8ff]/55 blur-3xl" />
-				<div className="absolute -right-16 bottom-6 h-72 w-72 rounded-full bg-[#d7f3ed]/60 blur-3xl" />
-				<div className="absolute inset-0 opacity-[0.18] [background-image:linear-gradient(rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] [background-size:28px_28px]" />
+				<div className="absolute -left-20 top-16 h-80 w-80 rounded-full bg-[#dfe8ff]/55 blur-3xl dark:bg-[hsl(204_89%_53%/0.16)]" />
+				<div className="absolute -right-16 bottom-6 h-72 w-72 rounded-full bg-[#d7f3ed]/60 blur-3xl dark:bg-[hsl(218_36%_34%/0.24)]" />
+				<div className="absolute inset-0 opacity-[0.18] `bg-[linear-gradient(rgba(15,23,42,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.06)_1px,transparent_1px)] bg-size-[28px_28px] dark:opacity-[0.08] dark:bg-[linear-gradient(rgba(148,163,184,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.08)_1px,transparent_1px)]" />
 			</div>
 
 			<div className="absolute left-4 top-4 z-20 sm:left-6 sm:top-6">
@@ -227,7 +217,7 @@ function IdleView({ name }: { name: string }) {
 				</StaggerReveal>
 
 				<StaggerReveal visible={isLoaded} delayMs={110} className="w-full">
-					<Card className="mx-auto w-full max-w-3xl border-slate-200/90 bg-white/96 shadow-[0_24px_64px_-44px_rgba(15,23,42,0.45)] backdrop-blur">
+					<Card className="mx-auto w-full max-w-3xl border-slate-200/90 bg-white/96 dark:border-sky-800 dark:bg-slate-900 shadow-[0_24px_64px_-44px_rgba(15,23,42,0.45)] backdrop-blur">
 						<CardHeader className="pb-2 text-center">
 							<div className="mx-auto inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-slate-600 uppercase">
 								<Sparkles className="h-3.5 w-3.5 text-emerald-700" />
@@ -296,28 +286,30 @@ function IdleView({ name }: { name: string }) {
 											<p className="truncate font-mono text-xs text-slate-700">
 												{topTaskBranch}
 											</p>
-											<Button
-												size="icon"
-												variant="ghost"
-												className="h-8 w-8 rounded-lg"
-												onClick={() => copyBranchName(topTask)}
-												title="Copy branch name"
-											>
-												<ClipboardCopy className="h-3.5 w-3.5" />
-											</Button>
-											<HelpTooltip
-												feature="Branch Name"
-												what="Suggested git branch name generated from task metadata."
-												use="Copy and use as your branch when starting implementation."
-												works="Builds a standardized branch slug from task attributes."
-											/>
+											<div>
+												<Button
+													size="icon"
+													variant="ghost"
+													className="h-8 w-8 rounded-lg"
+													onClick={() => handleCopyBranch(topTask)}
+													title="Copy branch name"
+												>
+													<ClipboardCopy className="size-3.5" />
+												</Button>
+												<HelpTooltip
+													feature="Branch Name"
+													what="Suggested git branch name generated from task metadata."
+													use="Copy and use as your branch when starting implementation."
+													works="Builds a standardized branch slug from task attributes."
+												/>
+											</div>
 										</div>
 									)}
 
 									<div className="flex flex-wrap items-center justify-center gap-2 pt-1">
 										<Button
 											onClick={() => setSessionDialogOpen(true)}
-											className="h-10 rounded-xl bg-slate-900 px-4 text-white hover:bg-slate-800"
+											className="h-10 rounded-xl bg-slate-900 px-4 text-white hover:bg-slate-800 dark:bg-sky-800 dark:text-white dark:hover:bg-sky-700"
 										>
 											<Zap className="mr-2 size-4" />
 											Start Session
@@ -353,8 +345,8 @@ function IdleView({ name }: { name: string }) {
 										</Button>
 										<Button
 											variant="outline"
-											className="h-10 rounded-xl border-amber-300 bg-amber-50 px-4 text-amber-900 hover:bg-amber-100"
-											onClick={() => setIdeaDialogOpen(true)}
+											className="h-10 rounded-xl border-amber-300 bg-amber-50 px-4 text-amber-900 hover:bg-amber-100 dark:border-amber-500 dark:bg-amber-900 dark:text-amber-50 dark:hover:bg-amber-600"
+											onClick={handleQuickIdeaCapture}
 										>
 											<Lightbulb className="mr-2 size-4" />
 											Log Idea
@@ -401,7 +393,7 @@ function IdleView({ name }: { name: string }) {
 										<Button
 											variant="outline"
 											className="h-10 rounded-xl border-amber-300 bg-amber-50 px-4 text-amber-900 hover:bg-amber-100"
-											onClick={() => setIdeaDialogOpen(true)}
+											onClick={handleQuickIdeaCapture}
 										>
 											<Lightbulb className="mr-2 size-4" />
 											Log Idea
@@ -473,13 +465,7 @@ function IdleView({ name }: { name: string }) {
 				open={createDialogOpen}
 				onOpenChange={setCreateDialogOpen}
 			/>
-			<CreateTaskDialog
-				open={ideaDialogOpen}
-				onOpenChange={setIdeaDialogOpen}
-				mode="idea"
-				defaultTags={["idea", "idea/raw"]}
-			/>
-
+			<LogIdeaDialog open={logIdeaOpen} onOpenChange={setLogIdeaOpen} />
 			{topTask && (
 				<StartSessionDialog
 					task={topTask}
@@ -487,174 +473,6 @@ function IdleView({ name }: { name: string }) {
 					onOpenChange={setSessionDialogOpen}
 				/>
 			)}
-		</div>
-	);
-}
-
-function ActiveSessionView({
-	session,
-}: {
-	session: NonNullable<ReturnType<typeof useActiveSession>["data"]>;
-}) {
-	const { formattedTime, progress, isExpired } = useSessionTimer(session);
-	const pauseSession = usePauseSession();
-	const resumeSession = useResumeSession();
-	const updateScratchpad = useUpdateScratchpad();
-
-	const [scratchpad, setScratchpad] = useState(session.scratchpad ?? "");
-	const [completeOpen, setCompleteOpen] = useState(false);
-	const initialized = useRef(false);
-	const debounceTimer = useRef<ReturnType<typeof setTimeout>>(null);
-
-	useEffect(() => {
-		if (!initialized.current && session.scratchpad != null) {
-			setScratchpad(session.scratchpad);
-			initialized.current = true;
-		}
-	}, [session.scratchpad]);
-
-	const debouncedSave = useCallback(
-		(value: string) => {
-			if (debounceTimer.current) clearTimeout(debounceTimer.current);
-			debounceTimer.current = setTimeout(() => {
-				updateScratchpad.mutate({ id: session.id, content: value });
-			}, 500);
-		},
-		[session.id, updateScratchpad],
-	);
-
-	function handleScratchpadChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-		const value = e.target.value;
-		setScratchpad(value);
-		debouncedSave(value);
-	}
-
-	const isPaused = session.state === "Paused";
-	const task = session.task;
-
-	return (
-		<div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
-			<div aria-hidden className="pointer-events-none absolute inset-0">
-				<div className="absolute left-10 top-10 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
-				<div className="absolute right-0 bottom-0 h-64 w-64 rounded-full bg-sky-500/20 blur-3xl" />
-			</div>
-
-			<div className="relative mx-auto flex max-w-5xl flex-col gap-6 px-4 py-10 sm:px-6 lg:px-10">
-				<Card className="border-slate-800 bg-slate-900/90 text-slate-100 shadow-2xl shadow-black/30">
-					<CardContent className="space-y-6 p-6 sm:p-8">
-						<div className="space-y-4 text-center">
-							<Badge
-								variant="secondary"
-								className="rounded-full bg-slate-800 px-3 py-1 text-[11px] tracking-[0.14em] text-slate-300 uppercase"
-							>
-								Focus Mode
-							</Badge>
-							<p
-								className={`text-6xl font-mono font-bold tracking-tight tabular-nums sm:text-8xl ${isExpired ? "text-red-400" : "text-slate-50"}`}
-							>
-								{formattedTime}
-							</p>
-							<Progress value={progress} className="h-2 bg-slate-800" />
-							{isPaused && (
-								<Badge
-									variant="secondary"
-									className="bg-amber-950 text-amber-300"
-								>
-									Paused
-								</Badge>
-							)}
-						</div>
-
-						{task && (
-							<div className="text-center">
-								<p className="text-lg font-semibold text-slate-100">
-									{task.title}
-								</p>
-								<div className="mt-1 flex items-center justify-center gap-2 text-sm text-slate-400">
-									{task.project && <span>{task.project.name}</span>}
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-7 w-7 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
-										onClick={() => copyBranchName(task)}
-										title="Copy git branch name"
-									>
-										<ClipboardCopy className="h-3.5 w-3.5" />
-									</Button>
-								</div>
-							</div>
-						)}
-
-						<div className="flex flex-wrap items-center justify-center gap-3">
-							{isPaused ? (
-								<Button
-									size="lg"
-									variant="outline"
-									className="w-full gap-2 border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800 sm:w-auto"
-									onClick={() => resumeSession.mutate(session.id)}
-									disabled={resumeSession.isPending}
-								>
-									<Play className="size-4" />
-									Resume
-								</Button>
-							) : (
-								<Button
-									size="lg"
-									variant="outline"
-									className="w-full gap-2 border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800 sm:w-auto"
-									onClick={() => pauseSession.mutate(session.id)}
-									disabled={pauseSession.isPending}
-								>
-									<Pause className="size-4" />
-									Pause
-								</Button>
-							)}
-							<Button
-								size="lg"
-								variant="destructive"
-								className="w-full gap-2 sm:w-auto"
-								onClick={() => setCompleteOpen(true)}
-							>
-								<Square className="size-4" />
-								End Session
-							</Button>
-						</div>
-					</CardContent>
-				</Card>
-
-				<Card className="border-slate-800 bg-slate-900/85 text-slate-100">
-					<CardHeader className="pb-2">
-						<CardTitle className="text-sm font-medium text-slate-300">
-							Scratchpad
-							<HelpTooltip
-								feature="Scratchpad"
-								what="Temporary notes area during an active session."
-								use="Capture progress, blockers, and useful links while working."
-								works="Autosaves note updates to the active session record."
-							/>
-						</CardTitle>
-					</CardHeader>
-					<CardContent>
-						<Textarea
-							placeholder="Notes, thoughts, progress..."
-							className="min-h-[180px] resize-none border-0 bg-transparent p-0 text-slate-100 placeholder:text-slate-500 shadow-none focus-visible:ring-0"
-							value={scratchpad}
-							onChange={handleScratchpadChange}
-						/>
-					</CardContent>
-				</Card>
-			</div>
-
-			<CompleteSessionDialog
-				session={session}
-				open={completeOpen}
-				onOpenChange={setCompleteOpen}
-				onCompleted={(nextTask) => {
-					if (nextTask) {
-						toast.info(`Next up: ${nextTask.title}`);
-					}
-				}}
-			/>
 		</div>
 	);
 }

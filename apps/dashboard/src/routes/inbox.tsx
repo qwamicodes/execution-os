@@ -55,7 +55,7 @@ function InboxPage() {
 					<div className="flex items-center gap-1.5">
 						<Button
 							onClick={() => setCreateOpen(true)}
-							className="h-10 gap-2 bg-slate-950 px-4 text-white hover:bg-slate-800"
+							className="h-10 gap-2 bg-slate-950 px-4 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
 						>
 							<Plus className="h-4 w-4" />
 							Add task

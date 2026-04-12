@@ -1,4 +1,3 @@
-import { GoeyToaster } from "goey-toast";
 import { Spinner } from "@repo/ui/components/ui/spinner";
 import { TooltipProvider } from "@repo/ui/components/ui/tooltip";
 import type { QueryClient } from "@tanstack/react-query";
@@ -9,10 +8,12 @@ import {
 	useRouter,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import { GoeyToaster } from "goey-toast";
 import { AppHeader } from "@/components/app-header";
 import { AppSidebar } from "@/components/app-sidebar";
 import { KeyboardShortcutsDialog } from "@/components/shared/keyboard-shortcuts-dialog";
 import { SearchPalette } from "@/components/shared/search-palette";
+import { useActiveSessionReminder } from "@/hooks/use-active-session-reminder";
 import { useInbox } from "@/hooks/use-inbox";
 import { useOfflineSync } from "@/hooks/use-offline-sync";
 import { useRealtimeEvents } from "@/hooks/use-realtime-events";
@@ -68,11 +69,14 @@ function RootLayout() {
 
 	const isOnboarding = pathname === "/onboarding";
 	const isDashboard = pathname === "/";
+	const isSessionDetail =
+		pathname.startsWith("/sessions/") && pathname !== "/sessions/history";
 
 	const { data: activeSession } = useActiveSession();
 	const { data: inboxData } = useInbox();
 	const { isOnline, queueSize, isSyncing } = useOfflineSync();
 	useRealtimeEvents();
+	useActiveSessionReminder(activeSession ?? null, pathname);
 	const inboxCount = inboxData?.meta?.total ?? 0;
 
 	return (
@@ -84,8 +88,8 @@ function RootLayout() {
 					<GoeyToaster />
 					<TanStackRouterDevtools position="bottom-right" />
 				</>
-			) : isDashboard ? (
-				/* Dashboard — full-screen, no sidebar/header */
+			) : isDashboard || isSessionDetail ? (
+				/* Dashboard and session detail — full-screen, no sidebar/header */
 				<div className="h-screen overflow-auto">
 					<Outlet />
 					<SearchPalette />

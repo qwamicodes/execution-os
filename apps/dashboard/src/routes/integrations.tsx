@@ -31,7 +31,6 @@ import {
 	Radar,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
-import { goeyToast as toast } from "goey-toast";
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import {
 	RouteHeroBadge,
@@ -50,6 +49,7 @@ import {
 	useVoiceTranscriptionJob,
 } from "@/hooks/use-integrations";
 import { useCreateTaskBranch } from "@/hooks/use-tasks";
+import { runWithPromiseToast } from "@/lib/toast";
 import type { GitProvider } from "@/lib/types";
 
 export const Route = createFileRoute("/integrations")({
@@ -122,13 +122,7 @@ function IntegrationsRoute() {
 	}, [integrations]);
 
 	async function runAction(label: string, runner: () => Promise<unknown>) {
-		try {
-			await runner();
-			toast.success(`${label} completed`);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : "Action failed";
-			toast.error(message);
-		}
+		await runWithPromiseToast(label, runner);
 	}
 
 	return (

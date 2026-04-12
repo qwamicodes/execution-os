@@ -20,6 +20,9 @@ export function useSessionTimer(session: Session | null): SessionTimerResult {
 
 		function calculateRemaining() {
 			if (!session) return 0;
+			if (session.state === "Completed" || session.state === "Abandoned") {
+				return 0;
+			}
 
 			if (session.state === "Paused") {
 				// When paused, show frozen time based on when it was paused
@@ -37,12 +40,17 @@ export function useSessionTimer(session: Session | null): SessionTimerResult {
 			return Math.max(0, Math.floor((expiresAt - now) / 1000));
 		}
 
-		setRemainingSeconds(calculateRemaining());
+		const initialRemaining = calculateRemaining();
+		setRemainingSeconds(initialRemaining);
 
-		if (session.state === "Paused") return;
+		if (session.state === "Paused" || initialRemaining <= 0) return;
 
 		const interval = setInterval(() => {
-			setRemainingSeconds(calculateRemaining());
+			const nextRemaining = calculateRemaining();
+			setRemainingSeconds(nextRemaining);
+			if (nextRemaining <= 0) {
+				clearInterval(interval);
+			}
 		}, 1000);
 
 		return () => clearInterval(interval);

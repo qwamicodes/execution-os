@@ -32,7 +32,7 @@ const features = [
 	{
 		icon: FolderOpen,
 		title: "Projects",
-		description: "Organize tasks into Clients, Office, Core, and SideQuests",
+		description: "Organize tasks into Clients, Office, Core, and InHouse",
 	},
 ];
 

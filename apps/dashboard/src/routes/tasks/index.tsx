@@ -6,6 +6,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@repo/ui/components/ui/card";
+import { Input } from "@repo/ui/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -35,8 +36,10 @@ import { Pagination } from "@/components/shared/pagination";
 import { SkeletonList } from "@/components/shared/skeleton-list";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { TaskCard } from "@/components/tasks/task-card";
+import { useConvertTaskToIdea } from "@/hooks/use-ideas";
 import { useProjects } from "@/hooks/use-projects";
 import { useTasks, useUpdateTask } from "@/hooks/use-tasks";
+import { isTaskBlocked } from "@/lib/feature-gate";
 import type { TaskFilters, TaskSize, TaskState } from "@/lib/types";
 import { goeyToast as toast } from "goey-toast";
 
@@ -45,6 +48,7 @@ export interface TasksSearch {
 	projectId?: string;
 	size?: string;
 	tag?: string;
+	searchQuery?: string;
 	sortBy?: string;
 	sortOrder?: string;
 	page?: number;
@@ -56,6 +60,7 @@ export const Route = createFileRoute("/tasks/")({
 		projectId: search.projectId as string | undefined,
 		size: search.size as string | undefined,
 		tag: search.tag as string | undefined,
+		searchQuery: search.searchQuery as string | undefined,
 		sortBy: (search.sortBy as string) || "createdAt",
 		sortOrder: (search.sortOrder as string) || "desc",
 		page: Number(search.page) || 1,
@@ -129,14 +134,15 @@ function TasksPage() {
 	const [createOpen, setCreateOpen] = useState(false);
 	const [isLoaded, setIsLoaded] = useState(false);
 	const updateTask = useUpdateTask();
+	const convertTaskToIdea = useConvertTaskToIdea();
 	const { data: projectList } = useProjects();
 
 	const filters: TaskFilters = {
-		kind: "execution",
 		state: search.state as TaskState | undefined,
 		projectId: search.projectId,
 		size: search.size as TaskSize | undefined,
 		tag: search.tag,
+		searchQuery: search.searchQuery,
 		sortBy: search.sortBy as TaskFilters["sortBy"],
 		sortOrder: search.sortOrder as TaskFilters["sortOrder"],
 		page: search.page,
@@ -148,11 +154,15 @@ function TasksPage() {
 	const total = data?.total || 0;
 	const totalPages = Math.ceil(total / 20);
 	const readyCount = tasks.filter((task) => task.state === "Ready").length;
-	const blockedCount = tasks.filter((task) => task.state === "Blocked").length;
+	const blockedCount = tasks.filter((task) => isTaskBlocked(task)).length;
 	const doneCount = tasks.filter((task) => task.state === "Done").length;
 
 	const hasActiveFilters = Boolean(
-		search.state || search.projectId || search.size || search.tag,
+		search.state ||
+			search.projectId ||
+			search.size ||
+			search.tag ||
+			search.searchQuery,
 	);
 
 	useEffect(() => {
@@ -188,38 +198,17 @@ function TasksPage() {
 		navigate({ to: "/tasks/$taskId", params: { taskId } });
 	}
 
-	function handleToggleIdea(task: (typeof tasks)[number]) {
-		const normalized = task.tags.map((tag) => tag.toLowerCase());
-		const isIdeaTask = normalized.some(
-			(tag) => tag === "idea" || tag.startsWith("idea/"),
-		);
-		const withoutIdeaTags = normalized.filter(
-			(tag) =>
-				tag !== "idea" &&
-				tag !== "idea/raw" &&
-				tag !== "idea/validated" &&
-				tag !== "idea/next",
-		);
-		const nextTags = isIdeaTask
-			? Array.from(new Set(withoutIdeaTags))
-			: Array.from(new Set([...withoutIdeaTags, "idea", "idea/raw"]));
-
-		updateTask.mutate(
-			{
-				id: task.id,
-				data: { tags: nextTags },
+	function handleConvertToIdea(task: (typeof tasks)[number]) {
+		convertTaskToIdea.mutate(task.id, {
+			onSuccess: (result) => {
+				toast.success("Task converted to idea", {
+					description: result.migration.suggestion,
+				});
 			},
-			{
-				onSuccess: () => {
-					toast.success(
-						isIdeaTask ? "Converted to execution task" : "Converted to idea",
-					);
-				},
-				onError: (error) => {
-					toast.error(error.message);
-				},
+			onError: (error) => {
+				toast.error(error.message);
 			},
-		);
+		});
 	}
 
 	const states: TaskState[] = [
@@ -242,7 +231,7 @@ function TasksPage() {
 
 			<div className="relative space-y-6">
 				<StaggerReveal visible={isLoaded} delayMs={20}>
-					<Card className="overflow-hidden border-sky-100 bg-linear-to-br from-white via-slate-50/70 to-sky-50/80 shadow-lg shadow-slate-200/60">
+					<Card className="overflow-hidden border-sky-100 dark:border-sky-800 bg-linear-to-br from-white via-slate-50/70 to-sky-50/80 shadow-lg shadow-slate-200/60">
 						<CardContent className="flex flex-wrap items-start justify-between gap-4 p-6 sm:p-7">
 							<div>
 								<p className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
@@ -288,7 +277,7 @@ function TasksPage() {
 							<div className="flex items-center gap-1.5">
 								<Button
 									onClick={() => setCreateOpen(true)}
-									className="h-10 gap-2 bg-slate-950 px-4 text-white hover:bg-slate-800"
+									className="h-10 gap-2 bg-slate-950 px-4 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
 								>
 									<Plus className="h-4 w-4" />
 									Add task
@@ -360,7 +349,17 @@ function TasksPage() {
 								)}
 							</CardTitle>
 						</CardHeader>
-						<CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[140px_170px_130px_170px_44px]">
+						<CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[200px_140px_170px_130px_170px_44px]">
+							<Input
+								placeholder="Search tasks..."
+								value={search.searchQuery || ""}
+								onChange={(event) =>
+									updateSearch({
+										searchQuery: event.target.value || undefined,
+									})
+								}
+								className="w-full bg-white"
+							/>
 							<Select
 								value={search.state || "all"}
 								onValueChange={(v) =>
@@ -497,7 +496,7 @@ function TasksPage() {
 											showProject
 											onStateChange={handleStateChange}
 											onSelect={handleSelect}
-											onToggleIdea={handleToggleIdea}
+											onConvertToIdea={handleConvertToIdea}
 										/>
 									))}
 								</div>

@@ -8,6 +8,7 @@ import { useAutoClassifyTask, useClassifyTask } from "@/hooks/use-inbox";
 import { formatRelativeTime } from "@/lib/constants";
 import type { Task } from "@/lib/types";
 import { ClassifyForm } from "./classify-form";
+import { useNavigate } from "@tanstack/react-router";
 
 interface InboxTaskCardProps {
 	task: Task;
@@ -23,17 +24,15 @@ function toStringArray(value: unknown): string[] {
 	return value.filter((item): item is string => typeof item === "string");
 }
 
-function isIdeaTag(tag: string) {
-	const normalized = tag.toLowerCase();
-	return normalized === "idea" || normalized.startsWith("idea/");
-}
-
 export function InboxTaskCard({ task }: InboxTaskCardProps) {
+	const navigate = useNavigate();
 	const [showClassify, setShowClassify] = useState(false);
 	const autoClassify = useAutoClassifyTask();
 	const classifyTask = useClassifyTask();
 
-	const aiClassification = toObject(toObject(task.sourceMetadata)?.aiClassification);
+	const aiClassification = toObject(
+		toObject(task.sourceMetadata)?.aiClassification,
+	);
 	const aiStatus =
 		typeof aiClassification?.status === "string"
 			? aiClassification.status
@@ -48,7 +47,9 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 	const suggestedUrgency =
 		typeof aiSuggested?.urgency === "string" ? aiSuggested.urgency : undefined;
 	const suggestedDeadline =
-		typeof aiSuggested?.deadline === "string" ? aiSuggested.deadline : undefined;
+		typeof aiSuggested?.deadline === "string"
+			? aiSuggested.deadline
+			: undefined;
 	const suggestedProtected =
 		typeof aiSuggested?.protected === "boolean"
 			? aiSuggested.protected
@@ -67,9 +68,6 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 			: undefined;
 	const suggestedTags = toStringArray(aiSuggested?.tags);
 	const needsReview = aiStatus === "needs_review";
-	const isIdeaTask = task.tags.some((tag) =>
-		tag.toLowerCase().startsWith("idea"),
-	);
 	const hasSuggestedFields =
 		Boolean(suggestedTitle) ||
 		Boolean(suggestedDescription) ||
@@ -102,12 +100,10 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 	}
 
 	function handleApplyAISuggestion() {
-		const existingIdeaTags = task.tags.filter((tag) => isIdeaTag(tag));
 		const mergedSuggestedTags =
 			suggestedTags.length > 0
 				? Array.from(
 						new Set([
-							...existingIdeaTags.map((tag) => tag.toLowerCase()),
 							...suggestedTags.map((tag) => tag.toLowerCase()),
 						]),
 					)
@@ -119,8 +115,18 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 				data: {
 					title: suggestedTitle,
 					description: suggestedDescription,
-					size: suggestedSize as "Small" | "Medium" | "Large" | "Huge" | undefined,
-					urgency: suggestedUrgency as "Urgent" | "High" | "Medium" | "Low" | undefined,
+					size: suggestedSize as
+						| "Small"
+						| "Medium"
+						| "Large"
+						| "Huge"
+						| undefined,
+					urgency: suggestedUrgency as
+						| "Urgent"
+						| "High"
+						| "Medium"
+						| "Low"
+						| undefined,
 					protected: suggestedProtected,
 					protectionReason: suggestedProtectionReason as
 						| "contract"
@@ -134,33 +140,14 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 			},
 			{
 				onSuccess: () => {
-					toast.success("AI suggestion applied");
-				},
-				onError: (error) => {
-					toast.error(error.message);
-				},
-			},
-		);
-	}
-
-	function handlePromoteIdea() {
-		const normalized = task.tags.map((tag) => tag.toLowerCase());
-		const withoutStage = normalized.filter(
-			(tag) =>
-				tag !== "idea/raw" && tag !== "idea/validated" && tag !== "idea/next",
-		);
-		const nextTags = Array.from(new Set([...withoutStage, "idea", "idea/next"]));
-
-		classifyTask.mutate(
-			{
-				id: task.id,
-				data: {
-					tags: nextTags,
-				},
-			},
-			{
-				onSuccess: () => {
-					toast.success("Idea promoted to Next");
+					toast.success("AI suggestion applied", {
+						description: `The AI suggestion has been applied successfully on ${task.title}.`,
+						action: {
+							label: "View task",
+							onClick: () =>
+								navigate({ to: "/tasks/$taskId", params: { taskId: task.id } }),
+						},
+					});
 				},
 				onError: (error) => {
 					toast.error(error.message);
@@ -187,7 +174,10 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 								{formatRelativeTime(task.createdAt)}
 							</span>
 							{needsReview && (
-								<Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-700">
+								<Badge
+									variant="outline"
+									className="border-amber-300 bg-amber-50 text-amber-700"
+								>
 									Needs review
 								</Badge>
 							)}
@@ -210,17 +200,6 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 					</div>
 
 					<div className="flex shrink-0 items-center gap-2">
-						{isIdeaTask && (
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={handlePromoteIdea}
-								disabled={classifyTask.isPending}
-								className="border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
-							>
-								Promote to Next
-							</Button>
-						)}
 						<Button
 							variant="outline"
 							size="sm"
@@ -261,21 +240,41 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 					<div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50/60 p-3">
 						<p className="text-xs font-medium text-amber-900">
 							AI suggested values
-							{aiConfidence !== null ? ` (${Math.round(aiConfidence * 100)}% confidence)` : ""}
+							{aiConfidence !== null
+								? ` (${Math.round(aiConfidence * 100)}% confidence)`
+								: ""}
 						</p>
 						<div className="flex flex-wrap gap-1.5 text-xs text-amber-900">
-							{suggestedTitle && <Badge variant="outline">title improved</Badge>}
-							{suggestedDescription && <Badge variant="outline">description improved</Badge>}
-							{suggestedSize && <Badge variant="outline">size: {suggestedSize}</Badge>}
-							{suggestedUrgency && <Badge variant="outline">urgency: {suggestedUrgency}</Badge>}
-							{suggestedDeadline && <Badge variant="outline">deadline: {suggestedDeadline.slice(0, 10)}</Badge>}
+							{suggestedTitle && (
+								<Badge variant="outline">title improved</Badge>
+							)}
+							{suggestedDescription && (
+								<Badge variant="outline">description improved</Badge>
+							)}
+							{suggestedSize && (
+								<Badge variant="outline">size: {suggestedSize}</Badge>
+							)}
+							{suggestedUrgency && (
+								<Badge variant="outline">urgency: {suggestedUrgency}</Badge>
+							)}
+							{suggestedDeadline && (
+								<Badge variant="outline">
+									deadline: {suggestedDeadline.slice(0, 10)}
+								</Badge>
+							)}
 							{typeof suggestedProtected === "boolean" && (
-								<Badge variant="outline">protected: {String(suggestedProtected)}</Badge>
+								<Badge variant="outline">
+									protected: {String(suggestedProtected)}
+								</Badge>
 							)}
 							{suggestedProtectionReason && (
-								<Badge variant="outline">reason: {suggestedProtectionReason}</Badge>
+								<Badge variant="outline">
+									reason: {suggestedProtectionReason}
+								</Badge>
 							)}
-							{suggestedProject && <Badge variant="outline">project: {suggestedProject}</Badge>}
+							{suggestedProject && (
+								<Badge variant="outline">project: {suggestedProject}</Badge>
+							)}
 							{suggestedTags.map((tag) => (
 								<Badge key={tag} variant="outline">
 									tag: {tag}

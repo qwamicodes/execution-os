@@ -21,6 +21,7 @@ import {
 } from "@repo/ui/components/ui/select";
 import { Spinner } from "@repo/ui/components/ui/spinner";
 import { Input } from "@repo/ui/components/ui/input";
+import { DatePicker } from "@repo/ui/components/ui/date-picker";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
 	Archive,
@@ -28,12 +29,14 @@ import {
 	CheckCircle2,
 	ChevronRight,
 	FolderOpen,
+	GitBranchPlus,
 	MoreHorizontal,
 	Pencil,
 	Plus,
 	Trash2,
 	Undo2,
 } from "lucide-react";
+import moment from "moment";
 import { useState } from "react";
 import { goeyToast as toast } from "goey-toast";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
@@ -50,10 +53,14 @@ import { TaskCard } from "@/components/tasks/task-card";
 import {
 	useDeleteProject,
 	useDeleteProjectMilestone,
+	useDeleteProjectPart,
 	useCreateProjectMilestone,
+	useCreateProjectPart,
 	useProject,
 	useProjectMilestones,
+	useProjectParts,
 	useUpdateProjectMilestone,
+	useUpdateProjectPart,
 	useUpdateProject,
 } from "@/hooks/use-projects";
 import { useTasks, useUpdateTask } from "@/hooks/use-tasks";
@@ -81,14 +88,28 @@ function ProjectDetailPage() {
 	const [createTaskOpen, setCreateTaskOpen] = useState(false);
 	const [milestoneTitle, setMilestoneTitle] = useState("");
 	const [milestoneDate, setMilestoneDate] = useState("");
+	const [partName, setPartName] = useState("");
+	const [editingMilestoneId, setEditingMilestoneId] = useState<string | null>(
+		null,
+	);
+	const [editingMilestoneTitle, setEditingMilestoneTitle] = useState("");
+	const [editingMilestoneDate, setEditingMilestoneDate] = useState("");
+	const [editingPartId, setEditingPartId] = useState<string | null>(null);
+	const [editingPartName, setEditingPartName] = useState("");
+	const [editingPartDescription, setEditingPartDescription] = useState("");
+	const [editingPartOrder, setEditingPartOrder] = useState("");
 
 	const { data: project, isLoading: projectLoading } = useProject(projectId);
 	const updateProject = useUpdateProject();
 	const deleteProject = useDeleteProject();
 	const { data: milestones = [] } = useProjectMilestones(projectId);
+	const { data: parts = [] } = useProjectParts(projectId);
 	const createMilestone = useCreateProjectMilestone(projectId);
 	const updateMilestone = useUpdateProjectMilestone(projectId);
 	const deleteMilestone = useDeleteProjectMilestone(projectId);
+	const createPart = useCreateProjectPart(projectId);
+	const updatePart = useUpdateProjectPart(projectId);
+	const deletePart = useDeleteProjectPart(projectId);
 	const updateTask = useUpdateTask();
 
 	const { data: taskData, isLoading: tasksLoading } = useTasks({
@@ -171,9 +192,7 @@ function ProjectDetailPage() {
 		createMilestone.mutate(
 			{
 				title: milestoneTitle.trim(),
-				targetDate: milestoneDate
-					? new Date(`${milestoneDate}T23:59:59.000Z`).toISOString()
-					: null,
+				targetDate: milestoneDate || null,
 			},
 			{
 				onSuccess: () => {
@@ -192,7 +211,7 @@ function ProjectDetailPage() {
 				milestoneId,
 				data: {
 					status: "Completed",
-					completedAt: new Date().toISOString(),
+					completedAt: moment().toISOString(),
 				},
 			},
 			{
@@ -207,6 +226,120 @@ function ProjectDetailPage() {
 			onSuccess: () => toast.success("Milestone deleted"),
 			onError: (error) => toast.error(error.message),
 		});
+	}
+
+	function handleStartMilestoneEdit(milestone: {
+		id: string;
+		title: string;
+		targetDate: string | null;
+	}) {
+		setEditingMilestoneId(milestone.id);
+		setEditingMilestoneTitle(milestone.title);
+		setEditingMilestoneDate(milestone.targetDate ?? "");
+	}
+
+	function handleCancelMilestoneEdit() {
+		setEditingMilestoneId(null);
+		setEditingMilestoneTitle("");
+		setEditingMilestoneDate("");
+	}
+
+	function handleSaveMilestoneEdit(milestoneId: string) {
+		if (!editingMilestoneTitle.trim()) {
+			toast.error("Milestone title is required");
+			return;
+		}
+		updateMilestone.mutate(
+			{
+				milestoneId,
+				data: {
+					title: editingMilestoneTitle.trim(),
+					targetDate: editingMilestoneDate || null,
+				},
+			},
+			{
+				onSuccess: () => {
+					toast.success("Milestone updated");
+					handleCancelMilestoneEdit();
+				},
+				onError: (error) => toast.error(error.message),
+			},
+		);
+	}
+
+	function handleCreatePart() {
+		if (!partName.trim()) return;
+		createPart.mutate(
+			{
+				name: partName.trim(),
+			},
+			{
+				onSuccess: () => {
+					setPartName("");
+					toast.success("Project part created");
+				},
+				onError: (error) => toast.error(error.message),
+			},
+		);
+	}
+
+	function handleDeletePart(partId: string) {
+		deletePart.mutate(partId, {
+			onSuccess: () => toast.success("Project part deleted"),
+			onError: (error) => toast.error(error.message),
+		});
+	}
+
+	function handleStartPartEdit(part: {
+		id: string;
+		name: string;
+		description: string | null;
+		order: number | null;
+	}) {
+		setEditingPartId(part.id);
+		setEditingPartName(part.name);
+		setEditingPartDescription(part.description ?? "");
+		setEditingPartOrder(part.order == null ? "" : String(part.order));
+	}
+
+	function handleCancelPartEdit() {
+		setEditingPartId(null);
+		setEditingPartName("");
+		setEditingPartDescription("");
+		setEditingPartOrder("");
+	}
+
+	function handleSavePartEdit(partId: string) {
+		if (!editingPartName.trim()) {
+			toast.error("Part name is required");
+			return;
+		}
+		const parsedOrder =
+			editingPartOrder.trim() === "" ? null : Number(editingPartOrder);
+		if (
+			parsedOrder !== null &&
+			(Number.isNaN(parsedOrder) || !Number.isInteger(parsedOrder))
+		) {
+			toast.error("Order must be a whole number");
+			return;
+		}
+		updatePart.mutate(
+			{
+				partId,
+				data: {
+					name: editingPartName.trim(),
+					description: editingPartDescription.trim() || null,
+					order: parsedOrder ?? undefined,
+				},
+			},
+			{
+				onSuccess: () => {
+					toast.success("Project part updated");
+					handleCancelPartEdit();
+				},
+				onError: (error) => toast.error(error.message),
+			},
+		);
 	}
 
 	const states: TaskState[] = [
@@ -319,19 +452,19 @@ function ProjectDetailPage() {
 						<Calendar className="h-4 w-4" />
 						Milestones
 					</CardTitle>
-					<Badge variant="secondary">{milestones.length}</Badge>
+					<Badge variant="secondary" className="w-fit">{milestones.length}</Badge>
 				</CardHeader>
 				<CardContent className="space-y-3">
-					<div className="grid gap-2 sm:grid-cols-[1fr_180px_auto]">
+				<div className="grid gap-2 sm:grid-cols-[1fr_180px_auto]">
 						<Input
 							value={milestoneTitle}
 							onChange={(event) => setMilestoneTitle(event.target.value)}
 							placeholder="Milestone title"
 						/>
-						<Input
-							type="date"
+						<DatePicker
 							value={milestoneDate}
-							onChange={(event) => setMilestoneDate(event.target.value)}
+							onChange={(next) => setMilestoneDate(next ?? "")}
+							boundary="end"
 						/>
 						<Button onClick={handleCreateMilestone} disabled={!milestoneTitle.trim()}>
 							Add milestone
@@ -356,34 +489,197 @@ function ProjectDetailPage() {
 									key={milestone.id}
 									className="flex items-center justify-between rounded-md border border-slate-200 p-3"
 								>
-									<div>
-										<p className="text-sm font-medium">{milestone.title}</p>
-										<p className="text-xs text-slate-500">
-											{milestone.targetDate
-												? `${formatDate(milestone.targetDate)}${isOverdue(milestone.targetDate) && milestone.status !== "Completed" ? " (overdue)" : ""}`
-												: "No target date"}
-										</p>
-									</div>
+									{editingMilestoneId === milestone.id ? (
+										<div className="grid w-full gap-2 pr-3 sm:grid-cols-[1fr_180px]">
+											<Input
+												value={editingMilestoneTitle}
+												onChange={(event) =>
+													setEditingMilestoneTitle(event.target.value)
+												}
+												placeholder="Milestone title"
+											/>
+											<DatePicker
+												value={editingMilestoneDate}
+												onChange={(next) => setEditingMilestoneDate(next ?? "")}
+												boundary="end"
+											/>
+										</div>
+									) : (
+										<div>
+											<p className="text-sm font-medium">{milestone.title}</p>
+											<p className="text-xs text-slate-500">
+												{milestone.targetDate
+													? `${formatDate(milestone.targetDate)}${isOverdue(milestone.targetDate) && milestone.status !== "Completed" ? " (overdue)" : ""}`
+													: "No target date"}
+											</p>
+										</div>
+									)}
 									<div className="flex items-center gap-2">
 										<Badge variant="outline">{milestone.status}</Badge>
-										{milestone.status !== "Completed" && (
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => handleCompleteMilestone(milestone.id)}
-											>
-												<CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-												Complete
-											</Button>
+										{editingMilestoneId === milestone.id ? (
+											<>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => handleSaveMilestoneEdit(milestone.id)}
+												>
+													Save
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={handleCancelMilestoneEdit}
+												>
+													Cancel
+												</Button>
+											</>
+										) : (
+											<>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => handleStartMilestoneEdit(milestone)}
+												>
+													<Pencil className="mr-1 h-3.5 w-3.5" />
+													Edit
+												</Button>
+												{milestone.status !== "Completed" && (
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => handleCompleteMilestone(milestone.id)}
+													>
+														<CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+														Complete
+													</Button>
+												)}
+												<Button
+													variant="ghost"
+													size="sm"
+													className="text-destructive"
+													onClick={() => handleDeleteMilestone(milestone.id)}
+												>
+													Delete
+												</Button>
+											</>
 										)}
-										<Button
-											variant="ghost"
-											size="sm"
-											className="text-destructive"
-											onClick={() => handleDeleteMilestone(milestone.id)}
-										>
-											Delete
-										</Button>
+									</div>
+								</div>
+							))}
+						</div>
+					)}
+				</CardContent>
+			</Card>
+
+			<Card className="border-slate-200 bg-white/90">
+				<CardHeader className="flex-row items-center justify-between space-y-0">
+					<CardTitle className="inline-flex items-center gap-2 text-base">
+						<GitBranchPlus className="h-4 w-4" />
+						Project Parts
+					</CardTitle>
+					<Badge variant="secondary" className="w-fit">{parts.length}</Badge>
+				</CardHeader>
+				<CardContent className="space-y-3">
+					<div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+						<Input
+							value={partName}
+							onChange={(event) => setPartName(event.target.value)}
+							placeholder="Part name (e.g. api, auth, dashboard)"
+						/>
+						<Button onClick={handleCreatePart} disabled={!partName.trim()}>
+							Add part
+						</Button>
+					</div>
+					{parts.length === 0 ? (
+						<p className="text-sm text-muted-foreground">
+							No project parts yet. Add one to assign tasks by monorepo area.
+						</p>
+					) : (
+						<div className="space-y-2">
+							{parts.map((part) => (
+								<div
+									key={part.id}
+									className="flex items-center justify-between rounded-md border border-slate-200 p-3"
+								>
+									{editingPartId === part.id ? (
+										<div className="grid w-full gap-2 pr-3 sm:grid-cols-[1fr_1fr_100px]">
+											<Input
+												value={editingPartName}
+												onChange={(event) =>
+													setEditingPartName(event.target.value)
+												}
+												placeholder="Part name"
+											/>
+											<Input
+												value={editingPartDescription}
+												onChange={(event) =>
+													setEditingPartDescription(event.target.value)
+												}
+												placeholder="Description (optional)"
+											/>
+											<Input
+												value={editingPartOrder}
+												onChange={(event) =>
+													setEditingPartOrder(event.target.value)
+												}
+												placeholder="Order"
+												type="number"
+												step={1}
+											/>
+										</div>
+									) : (
+										<div>
+											<p className="text-sm font-medium">{part.name}</p>
+											{part.description && (
+												<p className="text-xs text-slate-500">
+													{part.description}
+												</p>
+											)}
+											{part.order != null && (
+												<p className="text-xs text-slate-500">
+													Order: {part.order}
+												</p>
+											)}
+										</div>
+									)}
+									<div className="flex items-center gap-2">
+										{editingPartId === part.id ? (
+											<>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => handleSavePartEdit(part.id)}
+												>
+													Save
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													onClick={handleCancelPartEdit}
+												>
+													Cancel
+												</Button>
+											</>
+										) : (
+											<>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => handleStartPartEdit(part)}
+												>
+													<Pencil className="mr-1 h-3.5 w-3.5" />
+													Edit
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="text-destructive"
+													onClick={() => handleDeletePart(part.id)}
+												>
+													Delete
+												</Button>
+											</>
+										)}
 									</div>
 								</div>
 							))}
@@ -411,7 +707,7 @@ function ProjectDetailPage() {
 							})
 						}
 					>
-						<SelectTrigger className="w-[140px] border-slate-300 bg-white">
+						<SelectTrigger className="w-35 border-slate-300 bg-white">
 							<SelectValue placeholder="All states" />
 						</SelectTrigger>
 						<SelectContent>
