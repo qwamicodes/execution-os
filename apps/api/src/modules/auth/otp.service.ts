@@ -6,11 +6,12 @@ import { RateLimitError } from "../../shared/errors";
 import { redis } from "../../shared/redis";
 import type { RequestLogger } from "../../shared/wide-event";
 import { createSession, findOrCreateUser } from "./auth.service";
+import { log } from "node:console";
 
 const OTP_TTL = 5 * 60; // 5 minutes
-const OTP_MAX_ATTEMPTS = 3;
+const OTP_MAX_ATTEMPTS = 5;
 const OTP_RATE_LIMIT_TTL = 15 * 60; // 15 minutes
-const OTP_RATE_LIMIT_MAX = 3;
+const OTP_RATE_LIMIT_MAX = 5;
 
 function generateOtp(): string {
 	return String(randomInt(100000, 999999));
@@ -53,38 +54,46 @@ export async function requestOtp(
 	// Send email (don't leak user existence — always send)
 	// If brrr webhook is configured, prefer that for OTP delivery.
 	// Otherwise fallback to email. Always swallow failures to avoid leaking identity.
-	try {
-		if (getBrrrWebhookUrl()) {
-			await sendBrrrNotification({
-				title: "Execution OS OTP",
-				message: `Your OTP is ${code}. Expires in 5 minutes.`,
-				threadId: "auth-otp",
-				interruptionLevel: "time-sensitive",
+	if (getBrrrWebhookUrl()) {
+		await sendBrrrNotification({
+			title: "Execution OS OTP",
+			message: `Your OTP is ${code}. Expires in 5 minutes.`,
+			threadId: "auth-otp",
+			interruptionLevel: "time-sensitive",
+		}, logger)
+			.then(() => {
+				logger?.set("otp_delivery", {
+					channel: "brrr",
+					delivered: true,
+				});
+			})
+			.catch((err) => {
+				logger?.set("otp_delivery", {
+					channel: "brrr",
+					delivered: false,
+					error: err,
+				});
 			});
-			logger?.set("otp_delivery", {
-				channel: "brrr",
-				delivered: true,
+	} else {
+		const template = otpTemplate(code);
+		await sendEmail({
+			to: email,
+			subject: template.subject,
+			body: template.body,
+		})
+			.then(() => {
+				logger?.set("otp_delivery", {
+					channel: "email",
+					delivered: true,
+				});
+			})
+			.catch((err) => {
+				logger?.set("otp_delivery", {
+					channel: "email",
+					delivered: false,
+					error: err,
+				});
 			});
-		} else {
-			const template = otpTemplate(code);
-			await sendEmail({
-				to: email,
-				subject: template.subject,
-				body: template.body,
-			});
-			logger?.set("otp_delivery", {
-				channel: "email",
-				delivered: true,
-			});
-		}
-	} catch (err) {
-		// Intentionally swallowed — wide event will show outcome: "success"
-		// from the user's perspective (no information leaked)
-		logger?.set("otp_delivery", {
-			channel: getBrrrWebhookUrl() ? "brrr" : "email",
-			delivered: false,
-			error: err,
-		});
 	}
 }
 

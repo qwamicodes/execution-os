@@ -1,4 +1,5 @@
 import { env } from "../config";
+import { RequestLogger } from "./wide-event";
 
 interface BrrrNotificationInput {
 	title?: string;
@@ -34,11 +35,15 @@ export function getBrrrWebhookUrl(): string | null {
 
 export async function sendBrrrNotification(
 	input: BrrrNotificationInput,
+	logger?: RequestLogger,
 ): Promise<void> {
 	const webhookUrl = getBrrrWebhookUrl();
-	if (!webhookUrl) {
-		throw new Error("brrr webhook is not configured");
-	}
+	logger?.set("brrr_delivery", {
+		channel: "brrr",
+		webhookUrl,
+	});
+
+	if (!webhookUrl) throw new Error("brrr webhook is not configured");
 
 	const response = await fetch(webhookUrl, {
 		method: "POST",
@@ -59,8 +64,19 @@ export async function sendBrrrNotification(
 
 	if (!response.ok) {
 		const details = await response.text().catch(() => "");
+		logger?.set("brrr_delivery", {
+			channel: "brrr",
+			request_fulfilled: false,
+			status: response.status,
+			details,
+		});
 		throw new Error(
 			`Failed to send brrr notification: ${response.status} ${details}`,
 		);
 	}
+
+	logger?.set("brrr_delivery", {
+		channel: "brrr",
+		request_fulfilled: true,
+	});
 }
