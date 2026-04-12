@@ -6,6 +6,13 @@ import { defineConfig, loadEnv } from "vite";
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
 	const port = parseInt(env.PORT);
+	const previewAllowedHosts = (
+		env.VITE_PREVIEW_ALLOWED_HOSTS ||
+		"localhost,127.0.0.1,eos-auth.topsociety.agency,eos.topsociety.agency"
+	)
+		.split(",")
+		.map((host) => host.trim())
+		.filter(Boolean);
 
 	return {
 		plugins: [
@@ -14,6 +21,12 @@ export default defineConfig(({ mode }) => {
 			tailwindcss(),
 		],
 		server: { port },
+		preview: {
+			port,
+			host: "0.0.0.0",
+			strictPort: true,
+			allowedHosts: previewAllowedHosts,
+		},
 		resolve: { alias: { "@": "/src" } },
 
 		// Tauri support — these settings are used when running inside Tauri desktop
