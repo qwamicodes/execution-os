@@ -34,6 +34,11 @@ FROM base AS builder
 
 WORKDIR /app
 
+ARG VITE_API_URL=http://localhost:8901
+ARG VITE_AUTH_URL=http://localhost:8902
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_AUTH_URL=$VITE_AUTH_URL
+
 # Copy source code needed for dashboard build
 COPY packages/typescript-config packages/typescript-config
 COPY packages/biome-config packages/biome-config
@@ -49,6 +54,9 @@ FROM builder AS production
 
 WORKDIR /app
 
-EXPOSE 8903
+ARG APP_PORT=8903
+ENV PORT=$APP_PORT
 
-CMD ["vite", "preview"]
+EXPOSE ${PORT}
+
+CMD ["sh", "-c", "cd apps/dashboard && bunx vite preview --host 0.0.0.0 --port ${PORT} --strictPort"]

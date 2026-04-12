@@ -63,12 +63,13 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8901}
         VITE_DASHBOARD_URL: ${VITE_DASHBOARD_URL:-http://localhost:8903}
+        APP_PORT: ${AUTH_CONTAINER_PORT:-8902}
     container_name: eos-auth
     restart: unless-stopped
     ports:
-      - "${AUTH_PORT:-8902}:8902"
+      - "${AUTH_PORT:-8902}:${AUTH_CONTAINER_PORT:-8902}"
     environment:
-      PORT: 8902
+      PORT: ${AUTH_CONTAINER_PORT:-8902}
     networks:
       - eos-network
 
@@ -79,12 +80,13 @@ services:
       args:
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8901}
         VITE_AUTH_URL: ${VITE_AUTH_URL:-http://localhost:8902}
+        APP_PORT: ${DASHBOARD_CONTAINER_PORT:-8903}
     container_name: eos-dashboard
     restart: unless-stopped
     ports:
-      - "${DASHBOARD_PORT:-8903}:8903"
+      - "${DASHBOARD_PORT:-8903}:${DASHBOARD_CONTAINER_PORT:-8903}"
     environment:
-      PORT: 8903
+      PORT: ${DASHBOARD_CONTAINER_PORT:-8903}
     depends_on:
       api:
         condition: service_healthy
