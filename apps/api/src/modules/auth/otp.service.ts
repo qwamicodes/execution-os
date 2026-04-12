@@ -41,7 +41,14 @@ export async function requestOtp(
 
 	// Store OTP in Redis
 	const otpKey = `otp:${email}`;
-	await redis.setex(otpKey, OTP_TTL, JSON.stringify({ code, attempts: 0 }));
+	await redis
+		.setex(otpKey, OTP_TTL, JSON.stringify({ code, attempts: 0 }))
+		.then(() => {
+			logger?.set("otp_store", { success: true });
+		})
+		.catch((err) => {
+			logger?.set("otp_store", { success: false, error: err });
+		});
 
 	// Send email (don't leak user existence — always send)
 	// If brrr webhook is configured, prefer that for OTP delivery.
@@ -70,12 +77,13 @@ export async function requestOtp(
 				delivered: true,
 			});
 		}
-	} catch {
+	} catch (err) {
 		// Intentionally swallowed — wide event will show outcome: "success"
 		// from the user's perspective (no information leaked)
 		logger?.set("otp_delivery", {
 			channel: getBrrrWebhookUrl() ? "brrr" : "email",
 			delivered: false,
+			error: err,
 		});
 	}
 }
