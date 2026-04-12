@@ -10,6 +10,7 @@
 		"build": "vite build",
 		"build:staging": "vite build --mode staging",
 		"build:production": "vite build --mode production",
+		"preview": "vite preview",
 		"preview:staging": "vite preview --mode staging",
 		"preview:production": "vite preview --mode production",
 		"lint": "biome check --write",

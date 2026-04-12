@@ -34,11 +34,6 @@ FROM base AS builder
 
 WORKDIR /app
 
-ARG VITE_API_URL=http://localhost:8901
-ARG VITE_DASHBOARD_URL=http://localhost:8903
-ENV VITE_API_URL=$VITE_API_URL
-ENV VITE_DASHBOARD_URL=$VITE_DASHBOARD_URL
-
 # Copy source code needed for auth build
 COPY packages/typescript-config packages/typescript-config
 COPY packages/biome-config packages/biome-config
@@ -56,4 +51,4 @@ WORKDIR /app
 
 EXPOSE 8902
 
-CMD ["sh", "-c", "bunx vite preview --host 0.0.0.0 --port ${PORT:-8902} --strictPort --outDir apps/auth/dist"]
+CMD ["vite", "preview"]
