@@ -1,6 +1,6 @@
 # =============================================================================
-# Dashboard Dockerfile — Vite SPA served by nginx
-# Multi-stage: Bun install/build → nginx static serve
+# Dashboard Dockerfile — Vite SPA served by vite preview (no nginx)
+# Multi-stage: Bun install/build → Bun runtime preview
 # =============================================================================
 
 # --- Stage 1: Install dependencies ---
@@ -49,15 +49,11 @@ COPY apps/dashboard apps/dashboard
 # Build Vite SPA
 RUN bunx turbo run build --filter=dashboard
 
-# --- Stage 3: Production (nginx) ---
-FROM nginx:alpine AS production
+# --- Stage 3: Production ---
+FROM builder AS production
 
-# Copy custom nginx config
-COPY apps/dashboard/nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copy built static files
-COPY --from=builder /app/apps/dashboard/dist /usr/share/nginx/html
+WORKDIR /app
 
 EXPOSE 8903
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["sh", "-c", "bunx vite preview --host 0.0.0.0 --port ${PORT:-8903} --strictPort --outDir apps/dashboard/dist"]

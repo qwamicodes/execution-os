@@ -1,6 +1,6 @@
 # =============================================================================
-# Auth Dockerfile — Vite SPA served by nginx
-# Multi-stage: Bun install/build → nginx static serve
+# Auth Dockerfile — Vite SPA served by vite preview (no nginx)
+# Multi-stage: Bun install/build → Bun runtime preview
 # =============================================================================
 
 # --- Stage 1: Install dependencies ---
@@ -49,15 +49,11 @@ COPY apps/auth apps/auth
 # Build Vite SPA
 RUN bunx turbo run build --filter=auth
 
-# --- Stage 3: Production (nginx) ---
-FROM nginx:alpine AS production
+# --- Stage 3: Production ---
+FROM builder AS production
 
-# Copy custom nginx config
-COPY apps/auth/nginx.conf /etc/nginx/conf.d/default.conf
-
-# Copy built static files
-COPY --from=builder /app/apps/auth/dist /usr/share/nginx/html
+WORKDIR /app
 
 EXPOSE 8902
 
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["sh", "-c", "bunx vite preview --host 0.0.0.0 --port ${PORT:-8902} --strictPort --outDir apps/auth/dist"]

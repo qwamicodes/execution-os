@@ -67,6 +67,8 @@ services:
     restart: unless-stopped
     ports:
       - "${AUTH_PORT:-8902}:8902"
+    environment:
+      PORT: 8902
     networks:
       - eos-network
 
@@ -81,6 +83,8 @@ services:
     restart: unless-stopped
     ports:
       - "${DASHBOARD_PORT:-8903}:8903"
+    environment:
+      PORT: 8903
     depends_on:
       api:
         condition: service_healthy
