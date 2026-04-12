@@ -20,7 +20,12 @@ export default defineConfig(({ mode }) => {
 			react(),
 			tailwindcss(),
 		],
-		server: { port },
+		server: {
+			port,
+			host: "0.0.0.0",
+			strictPort: true,
+			allowedHosts: previewAllowedHosts,
+		},
 		preview: {
 			port,
 			host: "0.0.0.0",
