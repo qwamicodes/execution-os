@@ -122,5 +122,28 @@ export const EnvSchema = z.object({
 		.default(86_400),
 });
 
+const SENSITIVE_ENV_KEY_PARTS = [
+	"SECRET",
+	"PASSWORD",
+	"KEY",
+	"TOKEN",
+	"DATABASE_URL",
+	"REDIS_URL",
+];
+
+function maskEnvValue(key: string, value: unknown): unknown {
+	const isSensitive = SENSITIVE_ENV_KEY_PARTS.some((part) => key.includes(part));
+	if (!isSensitive) return value;
+	if (typeof value !== "string") return "***";
+	if (value.length <= 8) return "***";
+	return `${value.slice(0, 4)}***${value.slice(-4)}`;
+}
+
 export const env = EnvSchema.parse(process.env);
+
+const maskedEnv = Object.fromEntries(
+	Object.entries(env).map(([key, value]) => [key, maskEnvValue(key, value)]),
+);
+console.info("[env] loaded_config", maskedEnv);
+
 export type Env = z.infer<typeof EnvSchema>;

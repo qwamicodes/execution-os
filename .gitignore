@@ -58,3 +58,4 @@ infrastructure/docker/.env.production
 .agents
 .claude
 docs/
+execution_os.bump.dump
