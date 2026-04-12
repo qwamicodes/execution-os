@@ -87,7 +87,6 @@ docker compose \
 ```bash
 docker compose \
   --env-file infrastructure/docker/.env.staging \
-  -f infrastructure/docker/infra.compose.yml \
   -f infrastructure/docker/app.compose.yml \
   up -d --build
 ```
@@ -97,7 +96,6 @@ docker compose \
 ```bash
 docker compose \
   --env-file infrastructure/docker/.env.staging \
-  -f infrastructure/docker/infra.compose.yml \
   -f infrastructure/docker/app.compose.yml \
   ps
 ```
@@ -107,7 +105,6 @@ docker compose \
 ```bash
 docker compose \
   --env-file infrastructure/docker/.env.staging \
-  -f infrastructure/docker/infra.compose.yml \
   -f infrastructure/docker/app.compose.yml \
   up -d --build
 ```
@@ -117,7 +114,6 @@ docker compose \
 ```bash
 docker compose \
   --env-file infrastructure/docker/.env.staging \
-  -f infrastructure/docker/infra.compose.yml \
   -f infrastructure/docker/app.compose.yml \
   down
 ```
@@ -128,7 +124,6 @@ To also remove data volumes:
 docker compose \
   --env-file infrastructure/docker/.env.staging \
   -f infrastructure/docker/infra.compose.yml \
-  -f infrastructure/docker/app.compose.yml \
   down -v
 ```
 
