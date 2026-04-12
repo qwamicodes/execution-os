@@ -22,9 +22,11 @@ export interface PaginatedResponse<T> {
 
 export interface ErrorResponse {
 	error: {
-		code: string;
+		status_code: string;
+		code?: string;
 		message: string;
-		details?: Record<string, unknown>;
+		details?: string;
+		suggestion?: string;
 		requestId: string;
 	};
 }
@@ -49,31 +51,35 @@ export function paginated<T>(
 	page: number,
 	limit: number,
 ): PaginatedResponse<T> {
-	const totalPages = Math.ceil(total / limit);
+	const normalizedPage = limit === -1 ? 1 : page;
+	const totalPages = limit === -1 ? (total > 0 ? 1 : 0) : Math.ceil(total / limit);
 	return {
 		data,
 		meta: {
-			page,
+			page: normalizedPage,
 			limit,
 			total,
 			totalPages,
-			hasNext: page < totalPages,
-			hasPrev: page > 1,
+			hasNext: normalizedPage < totalPages,
+			hasPrev: normalizedPage > 1,
 		},
 	};
 }
 
 export function error(
-	code: string,
+	statusCode: string,
 	message: string,
-	details?: Record<string, unknown>,
+	details?: string,
+	suggestion?: string,
 	requestId?: string,
 ): ErrorResponse {
 	return {
 		error: {
-			code,
+			status_code: statusCode,
+			code: statusCode,
 			message,
 			details,
+			suggestion,
 			requestId: requestId || randomUUID(),
 		},
 	};

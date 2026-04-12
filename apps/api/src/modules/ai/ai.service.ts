@@ -1,4 +1,4 @@
-import type { ProjectType, TaskSize, TaskUrgency } from "@repo/database";
+import type { Prisma, ProjectType, TaskSize, TaskUrgency } from "@repo/database";
 import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../../config";
@@ -105,7 +105,7 @@ interface AIRecommendationOptions {
 interface TaskRecommendationSnapshot {
 	id: string;
 	title: string;
-	state: "Ready";
+	state: "Ready" | "Active";
 	size: TaskSize | null;
 	urgency: TaskUrgency | null;
 	protected: boolean;
@@ -358,8 +358,19 @@ async function generateStructured<T>(
 	params: StructuredGenerationInput<T>,
 ): Promise<{ data: T; provider: AIProvider; model: string }> {
 	const parseStructured = (raw: string) => {
-		const parsedRaw = JSON.parse(extractJsonPayload(raw)) as unknown;
-		return params.schema.safeParse(parsedRaw);
+		try {
+			const parsedRaw = JSON.parse(extractJsonPayload(raw)) as unknown;
+			return {
+				parseError: null as string | null,
+				result: params.schema.safeParse(parsedRaw),
+			};
+		} catch (error) {
+			return {
+				parseError:
+					error instanceof Error ? error.message : "Unknown JSON parse error",
+				result: null as z.SafeParseReturnType<T, T> | null,
+			};
+		}
 	};
 
 	const primary = await generateText({
@@ -372,9 +383,9 @@ async function generateStructured<T>(
 	});
 
 	const primaryParsed = parseStructured(primary.content);
-	if (primaryParsed.success) {
+	if (!primaryParsed.parseError && primaryParsed.result?.success) {
 		return {
-			data: primaryParsed.data,
+			data: primaryParsed.result.data,
 			provider: primary.provider,
 			model: primary.model,
 		};
@@ -404,12 +415,12 @@ async function generateStructured<T>(
 	});
 
 	const repairedParsed = parseStructured(repaired.content);
-	if (!repairedParsed.success) {
+	if (repairedParsed.parseError || !repairedParsed.result?.success) {
 		throw new UnprocessableError("AI response was invalid JSON");
 	}
 
 	return {
-		data: repairedParsed.data,
+		data: repairedParsed.result.data,
 		provider: primary.provider,
 		model: primary.model,
 	};
@@ -779,8 +790,8 @@ function protectedScore(protectedFlag: boolean, reason: string | null) {
 
 function projectTypePriorityScore(projectType: string | null) {
 	if (projectType === "Clients" || projectType === "Office") return 15;
-	if (projectType === "Core") return 5;
-	if (projectType === "SideQuest") return -15;
+	if (projectType === "Core") return 10;
+	if (projectType === "InHouse") return 8;
 	return 0;
 }
 
@@ -859,6 +870,27 @@ function parseCachedRecommendation(
 	}
 }
 
+function isFeatureBlockedByMetadata(
+	sourceMetadata: Prisma.JsonValue | null | undefined,
+) {
+	if (!sourceMetadata || typeof sourceMetadata !== "object") return false;
+	const metadata = sourceMetadata as Record<string, unknown>;
+	const featureGate = metadata.featureGate;
+	if (!featureGate || typeof featureGate !== "object") return false;
+	return (featureGate as Record<string, unknown>).blocked === true;
+}
+
+function getBlockingTaskIdFromMetadata(
+	sourceMetadata: Prisma.JsonValue | null | undefined,
+) {
+	if (!sourceMetadata || typeof sourceMetadata !== "object") return null;
+	const metadata = sourceMetadata as Record<string, unknown>;
+	const featureGate = metadata.featureGate;
+	if (!featureGate || typeof featureGate !== "object") return null;
+	const candidate = (featureGate as Record<string, unknown>).blockingTaskId;
+	return typeof candidate === "string" ? candidate : null;
+}
+
 export async function recommendTaskForFocus(
 	userId: string,
 	options: AIRecommendationOptions = {},
@@ -889,7 +921,7 @@ export async function recommendTaskForFocus(
 		prisma.task.findMany({
 			where: {
 				userId,
-				state: "Ready",
+				state: { in: ["Ready", "Active"] },
 				deletedAt: null,
 			},
 			include: {
@@ -919,16 +951,50 @@ export async function recommendTaskForFocus(
 		}),
 	]);
 
+	const blockingIds = Array.from(
+		new Set(
+			tasks
+				.map((task) =>
+					getBlockingTaskIdFromMetadata(task.sourceMetadata as Prisma.JsonValue),
+				)
+				.filter((id): id is string => Boolean(id)),
+		),
+	);
+
+	const blockingTasks = blockingIds.length
+		? await prisma.task.findMany({
+				where: {
+					userId,
+					id: { in: blockingIds },
+					deletedAt: null,
+				},
+				select: { id: true, state: true },
+			})
+		: [];
+
+	const unresolvedBlockingTaskIds = new Set(
+		blockingTasks
+			.filter((task) => task.state !== "Done")
+			.map((task) => task.id),
+	);
+
 	const eligibleTasks = tasks.filter((task) => {
+		if (isFeatureBlockedByMetadata(task.sourceMetadata as Prisma.JsonValue))
+			return false;
+		const blockingTaskId = getBlockingTaskIdFromMetadata(
+			task.sourceMetadata as Prisma.JsonValue,
+		);
+		if (blockingTaskId && unresolvedBlockingTaskIds.has(blockingTaskId))
+			return false;
 		if (!task.project) return true;
 		if (task.project.archivedAt || task.project.deletedAt) return false;
 		return true;
 	});
-	const nonSideQuestTasks = eligibleTasks.filter(
-		(task) => task.project?.type !== "SideQuest",
-	);
-	const visibleTasks =
-		nonSideQuestTasks.length > 0 ? nonSideQuestTasks : eligibleTasks;
+	const visibleTasks = eligibleTasks;
+	requestLogger?.set("recommendation_pool", {
+		eligible: eligibleTasks.length,
+		final_pool: visibleTasks.length,
+	});
 
 	if (visibleTasks.length === 0) {
 		const emptyResult: TaskRecommendationResult = {
@@ -996,7 +1062,7 @@ export async function recommendTaskForFocus(
 					task: {
 						id: task.id,
 						title: task.title,
-						state: "Ready",
+						state: task.state as "Ready" | "Active",
 						size: task.size,
 						urgency: task.urgency,
 						protected: task.protected,

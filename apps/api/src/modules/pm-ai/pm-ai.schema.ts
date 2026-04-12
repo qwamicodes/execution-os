@@ -85,6 +85,7 @@ export const PMAIIngestDocumentSchema = z
 		title: z.string().min(1).max(200).optional(),
 		documentText: z.string().min(1).max(500_000).optional(),
 		documentBase64: z.string().min(1).max(1_500_000).optional(),
+		feedbackInstructions: z.string().max(2000).optional(),
 		projectId: z.string().uuid().optional(),
 		ideaTaskId: z.string().uuid().optional(),
 		usageMode: z.enum(["individual", "team"]).default("individual"),
@@ -95,8 +96,8 @@ export const PMAIIngestDocumentSchema = z
 			.array(z.string().min(1).max(200))
 			.max(50)
 			.optional(),
-		maxTasks: z.number().int().min(1).max(100).default(30),
-		maxMilestones: z.number().int().min(1).max(30).default(8),
+		maxTasks: z.number().int().min(1).max(300).optional(),
+		maxMilestones: z.number().int().min(1).max(120).optional(),
 	})
 	.refine((value) => Boolean(value.documentText || value.documentBase64), {
 		message: "Provide either documentText or documentBase64",
@@ -106,6 +107,7 @@ export const PMAIIngestDocumentSchema = z
 export const PMAIIngestDocumentUploadSchema = z.object({
 	documentType: PMAIDocumentTypeSchema,
 	title: z.string().min(1).max(200).optional(),
+	feedbackInstructions: z.string().max(2000).optional(),
 	projectId: z.string().uuid().optional(),
 	ideaTaskId: z.string().uuid().optional(),
 	usageMode: z.enum(["individual", "team"]).default("individual"),
@@ -116,8 +118,33 @@ export const PMAIIngestDocumentUploadSchema = z.object({
 		.array(z.string().min(1).max(200))
 		.max(50)
 		.optional(),
-	maxTasks: z.coerce.number().int().min(1).max(100).default(30),
-	maxMilestones: z.coerce.number().int().min(1).max(30).default(8),
+	maxTasks: z.coerce.number().int().min(1).max(300).optional(),
+	maxMilestones: z.coerce.number().int().min(1).max(120).optional(),
+});
+
+export const PMAIApproveDocumentPlanSchema = z.object({
+	analysisId: z.string().min(1).max(120),
+	documentType: PMAIDocumentTypeSchema,
+	documentTitle: z.string().min(1).max(200),
+	projectId: z.string().uuid().optional(),
+	ideaTaskId: z.string().uuid().optional(),
+	usageMode: z.enum(["individual", "team"]).default("individual"),
+	teamMemberIds: z.array(z.string().uuid()).max(50).optional(),
+	createTasks: z.boolean().default(true),
+	createMilestones: z.boolean().default(true),
+	selectedMilestoneTitles: z
+		.array(z.string().min(1).max(200))
+		.max(50)
+		.optional(),
+	maxTasks: z.number().int().min(1).max(300).optional(),
+	maxMilestones: z.number().int().min(1).max(120).optional(),
+	generation: z
+		.object({
+			provider: z.string().nullable().optional(),
+			model: z.string().nullable().optional(),
+		})
+		.optional(),
+	plan: z.unknown(),
 });
 
 export type AnalyzeVideoInput = z.infer<typeof AnalyzeVideoSchema>;
@@ -134,4 +161,7 @@ export type PMAIDocumentType = z.infer<typeof PMAIDocumentTypeSchema>;
 export type PMAIIngestDocumentInput = z.infer<typeof PMAIIngestDocumentSchema>;
 export type PMAIIngestDocumentUploadInput = z.infer<
 	typeof PMAIIngestDocumentUploadSchema
+>;
+export type PMAIApproveDocumentPlanInput = z.infer<
+	typeof PMAIApproveDocumentPlanSchema
 >;

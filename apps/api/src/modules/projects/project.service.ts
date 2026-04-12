@@ -5,9 +5,11 @@ import { ConflictError, NotFoundError } from "../../shared/errors";
 import type { RequestLogger } from "../../shared/wide-event";
 import type {
 	CreateMilestoneInput,
+	CreateProjectPartInput,
 	CreateProjectInput,
 	ProjectQuery,
 	UpdateMilestoneInput,
+	UpdateProjectPartInput,
 	UpdateProjectInput,
 } from "./project.schema";
 
@@ -65,6 +67,13 @@ export async function listProjects(
 
 	if (query.type) where.type = query.type as ProjectType;
 	if (!query.includeArchived) where.archivedAt = null;
+	const searchQuery = query.searchQuery ?? query.search;
+	if (searchQuery) {
+		where.OR = [
+			{ name: { contains: searchQuery, mode: "insensitive" } },
+			{ description: { contains: searchQuery, mode: "insensitive" } },
+		];
+	}
 
 	const projects = await prisma.project.findMany({
 		where,
@@ -358,4 +367,100 @@ export async function deleteMilestone(
 		where: { id: milestoneId },
 	});
 	await recalculateProjectTargetCompletionDate(projectId);
+}
+
+export async function listParts(
+	userId: string,
+	projectId: string,
+	logger?: RequestLogger,
+) {
+	logger?.set("project_service", {
+		operation: "list_parts",
+		user_id: userId,
+		project_id: projectId,
+	});
+	await getProject(userId, projectId, logger);
+	return prisma.projectPart.findMany({
+		where: { projectId, userId },
+		orderBy: [{ order: "asc" }, { name: "asc" }],
+	});
+}
+
+export async function createPart(
+	userId: string,
+	projectId: string,
+	input: CreateProjectPartInput,
+	logger?: RequestLogger,
+) {
+	logger?.set("project_service", {
+		operation: "create_part",
+		user_id: userId,
+		project_id: projectId,
+	});
+	await getProject(userId, projectId, logger);
+
+	return prisma.projectPart.create({
+		data: {
+			projectId,
+			userId,
+			name: input.name.trim(),
+			description: input.description,
+			order: input.order,
+		},
+	});
+}
+
+export async function updatePart(
+	userId: string,
+	projectId: string,
+	partId: string,
+	input: UpdateProjectPartInput,
+	logger?: RequestLogger,
+) {
+	logger?.set("project_service", {
+		operation: "update_part",
+		user_id: userId,
+		project_id: projectId,
+		part_id: partId,
+	});
+	await getProject(userId, projectId, logger);
+	const existing = await prisma.projectPart.findFirst({
+		where: { id: partId, projectId, userId },
+		select: { id: true },
+	});
+	if (!existing) throw new NotFoundError("Project part");
+
+	return prisma.projectPart.update({
+		where: { id: partId },
+		data: {
+			name: input.name?.trim(),
+			description:
+				input.description === undefined ? undefined : (input.description ?? null),
+			order: input.order,
+		},
+	});
+}
+
+export async function deletePart(
+	userId: string,
+	projectId: string,
+	partId: string,
+	logger?: RequestLogger,
+) {
+	logger?.set("project_service", {
+		operation: "delete_part",
+		user_id: userId,
+		project_id: projectId,
+		part_id: partId,
+	});
+	await getProject(userId, projectId, logger);
+	const existing = await prisma.projectPart.findFirst({
+		where: { id: partId, projectId, userId },
+		select: { id: true },
+	});
+	if (!existing) throw new NotFoundError("Project part");
+
+	await prisma.projectPart.delete({
+		where: { id: partId },
+	});
 }

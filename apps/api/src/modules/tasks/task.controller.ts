@@ -130,6 +130,25 @@ export const taskController = new Elysia({ prefix: "/tasks" })
 		return success(task);
 	})
 
+	.post("/:id/convert-to-idea", async ({ params, userId, internal_logger }) => {
+		internal_logger.set("flow", "tasks_convert_to_idea");
+		const result = await taskService.convertTaskToIdea(
+			userId,
+			params.id,
+			internal_logger,
+		);
+		return success(result);
+	})
+
+	.post("/migrations/legacy-ideas", async ({ userId, internal_logger }) => {
+		internal_logger.set("flow", "tasks_migrate_legacy_ideas");
+		const result = await taskService.migrateLegacyIdeaTasks(
+			userId,
+			internal_logger,
+		);
+		return success(result);
+	})
+
 	.post(
 		"/:id/create-branch",
 		async ({ params, body, userId, internal_logger }) => {

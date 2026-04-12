@@ -29,29 +29,6 @@ function manualClassifiedState(
 	return "Ready" as const;
 }
 
-function isIdeaTag(tag: string) {
-	const normalized = tag.toLowerCase();
-	return normalized === "idea" || normalized.startsWith("idea/");
-}
-
-function mergeIdeaTags(existingTags: string[], incomingTags?: string[]) {
-	if (!incomingTags) return incomingTags;
-
-	const normalizedExisting = existingTags
-		.map((tag) => tag.trim().toLowerCase())
-		.filter(Boolean);
-	const normalizedIncoming = incomingTags
-		.map((tag) => tag.trim().toLowerCase())
-		.filter(Boolean);
-
-	const existingIdeaTags = normalizedExisting.filter(isIdeaTag);
-	const hasIdeaContext = existingIdeaTags.length > 0;
-	if (!hasIdeaContext) return Array.from(new Set(normalizedIncoming));
-
-	const incomingNonIdea = normalizedIncoming.filter((tag) => !isIdeaTag(tag));
-	return Array.from(new Set([...existingIdeaTags, ...incomingNonIdea]));
-}
-
 export const inboxController = new Elysia({ prefix: "/inbox" })
 	.use(basePlugin)
 	.use(authMiddleware)
@@ -138,7 +115,7 @@ export const inboxController = new Elysia({ prefix: "/inbox" })
 				input.urgency as TaskUrgency | undefined,
 				deadline ?? null,
 			);
-			const mergedTags = mergeIdeaTags(task.tags, input.tags);
+			const mergedTags = input.tags;
 
 			const updated = await prisma.task.update({
 				where: { id: params.id },

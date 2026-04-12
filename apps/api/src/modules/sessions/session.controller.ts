@@ -1,11 +1,12 @@
 import Elysia from "elysia";
 import { authMiddleware } from "../../middleware/auth";
 import { basePlugin } from "../../plugins/base";
-import { publishRealtimeEvent } from "../events/realtime.service";
 import { ValidationError } from "../../shared/errors";
 import { created, paginated, success } from "../../shared/response";
+import { publishRealtimeEvent } from "../events/realtime.service";
 import {
 	CompleteSessionSchema,
+	ExtendSessionSchema,
 	ScratchpadUpdateSchema,
 	SessionHistoryQuerySchema,
 	StartSessionSchema,
@@ -68,6 +69,24 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
 		return success(session);
 	})
 
+	.get("/:id", async ({ params, userId, internal_logger }) => {
+		internal_logger.set("flow", "sessions_get_by_id");
+		internal_logger.set("session_ref", {
+			session_id: params.id,
+			user_id: userId,
+		});
+		const session = await sessionService.getSessionById(
+			userId,
+			params.id,
+			internal_logger,
+		);
+		internal_logger.set("result", {
+			session_id: session.id,
+			state: session.state,
+		});
+		return success(session);
+	})
+
 	.patch("/:id/pause", async ({ params, userId, internal_logger }) => {
 		internal_logger.set("flow", "sessions_pause");
 		internal_logger.set("session_ref", {
@@ -106,6 +125,36 @@ export const sessionController = new Elysia({ prefix: "/sessions" })
 		});
 		publishRealtimeEvent(userId, "session.resumed", {
 			sessionId: params.id,
+		});
+		return success(result);
+	})
+
+	.patch("/:id/extend", async ({ params, body, userId, internal_logger }) => {
+		internal_logger.set("flow", "sessions_extend");
+		const parsed = ExtendSessionSchema.safeParse(body ?? {});
+		if (!parsed.success) {
+			throw new ValidationError(parsed.error.flatten().fieldErrors);
+		}
+		internal_logger.set("session_extend_input", {
+			session_id: params.id,
+			user_id: userId,
+			minutes: parsed.data.minutes,
+		});
+
+		const result = await sessionService.extendSession(
+			userId,
+			params.id,
+			parsed.data,
+			internal_logger,
+		);
+		internal_logger.set("result", {
+			session_id: result.id,
+			state: result.state,
+			duration: result.duration,
+		});
+		publishRealtimeEvent(userId, "session.extended", {
+			sessionId: params.id,
+			minutes: parsed.data.minutes,
 		});
 		return success(result);
 	})

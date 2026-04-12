@@ -38,6 +38,14 @@ export function isValidTransition(from: string, to: string): boolean {
 	return VALID_TRANSITIONS[from]?.includes(to) ?? false;
 }
 
+function mapTaskStateToIdeaState(state: TaskState) {
+	if (state === "Inbox") return "Captured";
+	if (state === "Ongoing") return "Classified";
+	if (state === "Ready" || state === "Active") return "Clarified";
+	if (state === "Blocked" || state === "Paused") return "Incubating";
+	return "Archived";
+}
+
 type PriorityLayer = "Now" | "Next" | "ThisWeek" | "Hidden";
 
 interface PriorityFactors {
@@ -75,7 +83,7 @@ interface TaskForPriority {
 	priorityOverrideReason: string | null;
 	project: {
 		id: string;
-		type: "Clients" | "Core" | "SideQuest" | "Office";
+		type: "Clients" | "Core" | "InHouse" | "Office";
 		updatedAt: Date;
 	} | null;
 }
@@ -122,11 +130,11 @@ function protectedScore(protectedFlag: boolean, reason: string | null) {
 }
 
 function projectTypePriorityScore(
-	projectType: "Clients" | "Core" | "SideQuest" | "Office" | undefined,
+	projectType: "Clients" | "Core" | "InHouse" | "Office" | undefined,
 ) {
 	if (projectType === "Clients" || projectType === "Office") return 15;
-	if (projectType === "Core") return 5;
-	if (projectType === "SideQuest") return -15;
+	if (projectType === "Core") return 10;
+	if (projectType === "InHouse") return 8;
 	return 0;
 }
 
@@ -219,6 +227,76 @@ function mergeAIClassificationMetadata(
 	} as Prisma.InputJsonValue;
 }
 
+function mergeFeatureGateMetadata(
+	existing: Prisma.JsonValue | null | undefined,
+	featureBlocked: boolean,
+	featureBlockReason: string | null,
+	blockingTaskIds?: string[] | null,
+	blocksTaskIds?: string[] | null,
+): Prisma.InputJsonValue {
+	const normalizedBlockingTaskIds = Array.from(
+		new Set((blockingTaskIds ?? []).filter(Boolean)),
+	);
+	const normalizedBlocksTaskIds = Array.from(
+		new Set((blocksTaskIds ?? []).filter(Boolean)),
+	);
+	const base = isJsonObject(existing) ? existing : {};
+	return {
+		...base,
+		featureGate: {
+			blocked: featureBlocked,
+			reason: featureBlocked ? featureBlockReason : null,
+			blockingTaskIds: featureBlocked ? normalizedBlockingTaskIds : [],
+			blockingTaskId: featureBlocked
+				? (normalizedBlockingTaskIds[0] ?? null)
+				: null,
+			blocksTaskIds: normalizedBlocksTaskIds,
+			blocksTaskId: normalizedBlocksTaskIds[0] ?? null,
+		},
+	} as Prisma.InputJsonValue;
+}
+
+function normalizeDependencyIds(
+	ids?: string[] | null,
+	singleId?: string | null,
+) {
+	const normalizedIds = Array.from(new Set((ids ?? []).filter(Boolean)));
+	if (singleId && !normalizedIds.includes(singleId)) {
+		normalizedIds.push(singleId);
+	}
+	return normalizedIds;
+}
+
+function readFeatureGateDependencies(
+	value: Prisma.JsonValue | null | undefined,
+) {
+	if (!isJsonObject(value) || !isJsonObject(value.featureGate)) {
+		return {
+			blocked: false,
+			reason: null as string | null,
+			blockingTaskIds: [] as string[],
+			blocksTaskIds: [] as string[],
+		};
+	}
+	const gate = value.featureGate as Record<string, unknown>;
+	const blockingTaskIds = Array.isArray(gate.blockingTaskIds)
+		? gate.blockingTaskIds.filter((id): id is string => typeof id === "string")
+		: typeof gate.blockingTaskId === "string"
+			? [gate.blockingTaskId]
+			: [];
+	const blocksTaskIds = Array.isArray(gate.blocksTaskIds)
+		? gate.blocksTaskIds.filter((id): id is string => typeof id === "string")
+		: typeof gate.blocksTaskId === "string"
+			? [gate.blocksTaskId]
+			: [];
+	return {
+		blocked: gate.blocked === true,
+		reason: typeof gate.reason === "string" ? gate.reason : null,
+		blockingTaskIds: Array.from(new Set(blockingTaskIds)),
+		blocksTaskIds: Array.from(new Set(blocksTaskIds)),
+	};
+}
+
 async function sleep(ms: number) {
 	await new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -264,18 +342,6 @@ function classifyStateFromClassification(
 	return size === "Large" || size === "Huge" ? "Ongoing" : "Ready";
 }
 
-function hasIdeaTag(tags: string[]) {
-	return tags.some((tag) => {
-		const normalized = tag.toLowerCase();
-		return normalized === "idea" || normalized.startsWith("idea/");
-	});
-}
-
-function isIdeaTagValue(tag: string) {
-	const normalized = tag.toLowerCase();
-	return normalized === "idea" || normalized.startsWith("idea/");
-}
-
 function normalizeUniqueTags(tags: string[]) {
 	return Array.from(
 		new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)),
@@ -285,14 +351,7 @@ function normalizeUniqueTags(tags: string[]) {
 function mergeClassificationTags(existingTags: string[], aiTags: string[]) {
 	const normalizedExisting = normalizeUniqueTags(existingTags);
 	const normalizedAI = normalizeUniqueTags(aiTags);
-
-	if (!hasIdeaTag(normalizedExisting)) {
-		return normalizedAI.length > 0 ? normalizedAI : existingTags;
-	}
-
-	const ideaTags = normalizedExisting.filter(isIdeaTagValue);
-	const aiNonIdeaTags = normalizedAI.filter((tag) => !isIdeaTagValue(tag));
-	return Array.from(new Set([...ideaTags, ...aiNonIdeaTags]));
+	return normalizedAI.length > 0 ? normalizedAI : normalizedExisting;
 }
 
 export async function createTask(
@@ -313,6 +372,38 @@ export async function createTask(
 			throw new NotFoundError("Project");
 		}
 	}
+	if (input.partId) {
+		if (!input.projectId) {
+			throw new UnprocessableError(
+				"Project part requires the task to belong to a project",
+			);
+		}
+		const part = await prisma.projectPart.findFirst({
+			where: { id: input.partId, userId, projectId: input.projectId },
+			select: { id: true },
+		});
+		if (!part) {
+			throw new UnprocessableError(
+				"Project part must belong to the selected project",
+			);
+		}
+	}
+	if (input.milestoneId) {
+		if (!input.projectId) {
+			throw new UnprocessableError(
+				"Milestone requires the task to belong to a project",
+			);
+		}
+		const milestone = await prisma.projectMilestone.findFirst({
+			where: { id: input.milestoneId, userId, projectId: input.projectId },
+			select: { id: true },
+		});
+		if (!milestone) {
+			throw new UnprocessableError(
+				"Milestone must belong to the selected project",
+			);
+		}
+	}
 
 	if (
 		input.deadline &&
@@ -325,23 +416,144 @@ export async function createTask(
 		throw new UnprocessableError("Deadline cannot be in the past");
 	}
 
-	const task = await prisma.task.create({
-		data: {
-			title: input.title,
-			description: input.description,
-			projectId: input.projectId,
-			deadline: input.deadline ? new Date(input.deadline) : undefined,
-			tags: input.tags ?? [],
-			source: input.source,
-			sourceMetadata: input.sourceMetadata as Prisma.InputJsonValue,
-			userId,
-			state: "Inbox",
-		},
-		include: {
-			project: {
-				select: { id: true, name: true, type: true },
+	const blockingTaskIds = normalizeDependencyIds(
+		input.blockingTaskIds,
+		input.blockingTaskId,
+	);
+	const blocksTaskIds = normalizeDependencyIds(
+		input.blocksTaskIds,
+		input.blocksTaskId,
+	);
+
+	if (blockingTaskIds.length > 0) {
+		if (!input.projectId) {
+			throw new UnprocessableError(
+				"Blocking task requires the task to belong to a project",
+			);
+		}
+		for (const blockingTaskId of blockingTaskIds) {
+			const blockingTask = await prisma.task.findFirst({
+				where: {
+					id: blockingTaskId,
+					userId,
+					deletedAt: null,
+				},
+				select: { id: true, projectId: true },
+			});
+			if (!blockingTask) {
+				throw new NotFoundError("Blocking task");
+			}
+			if (blockingTask.projectId !== input.projectId) {
+				throw new UnprocessableError(
+					"Blocking task must belong to the same project",
+				);
+			}
+		}
+	}
+
+	if (blocksTaskIds.length > 0) {
+		if (!input.projectId) {
+			throw new UnprocessableError(
+				"Blocked task requires the task to belong to a project",
+			);
+		}
+		for (const blockedTaskId of blocksTaskIds) {
+			const blockedTask = await prisma.task.findFirst({
+				where: {
+					id: blockedTaskId,
+					userId,
+					deletedAt: null,
+				},
+				select: { id: true, projectId: true },
+			});
+			if (!blockedTask) {
+				throw new NotFoundError("Blocked task");
+			}
+			if (blockedTask.projectId !== input.projectId) {
+				throw new UnprocessableError(
+					"Blocked task must belong to the same project",
+				);
+			}
+		}
+	}
+
+	if (blockingTaskIds.some((taskId) => blocksTaskIds.includes(taskId))) {
+		throw new UnprocessableError(
+			"A task cannot be blocked by and block the same task(s)",
+		);
+	}
+
+	const task = await prisma.$transaction(async (tx) => {
+		const created = await tx.task.create({
+			data: {
+				title: input.title,
+				description: input.description,
+				projectId: input.projectId,
+				partId: input.partId,
+				milestoneId: input.milestoneId,
+				deadline: input.deadline ? new Date(input.deadline) : undefined,
+				tags: input.tags ?? [],
+				source: input.source,
+				sourceMetadata:
+					input.featureBlocked !== undefined ||
+					input.featureBlockReason !== undefined ||
+					blockingTaskIds.length > 0 ||
+					blocksTaskIds.length > 0
+						? mergeFeatureGateMetadata(
+								input.sourceMetadata as Prisma.JsonValue,
+								Boolean(input.featureBlocked || blockingTaskIds.length > 0),
+								input.featureBlocked
+									? (input.featureBlockReason ?? null)
+									: null,
+								blockingTaskIds,
+								blocksTaskIds,
+							)
+						: (input.sourceMetadata as Prisma.InputJsonValue),
+				userId,
+				state: "Inbox",
 			},
-		},
+			include: {
+				project: {
+					select: { id: true, name: true, type: true },
+				},
+				part: {
+					select: { id: true, name: true, order: true },
+				},
+				milestone: {
+					select: { id: true, title: true, targetDate: true, status: true },
+				},
+			},
+		});
+
+		for (const blockedTaskId of blocksTaskIds) {
+			const existingBlockedTask = await tx.task.findFirst({
+				where: { id: blockedTaskId, userId, deletedAt: null },
+				select: { sourceMetadata: true },
+			});
+			if (!existingBlockedTask) {
+				throw new NotFoundError("Blocked task");
+			}
+			const blockedTaskGate = readFeatureGateDependencies(
+				existingBlockedTask.sourceMetadata as Prisma.JsonValue,
+			);
+			const nextBlockingTaskIds = Array.from(
+				new Set([...blockedTaskGate.blockingTaskIds, created.id]),
+			);
+			await tx.task.update({
+				where: { id: blockedTaskId },
+				data: {
+					sourceMetadata: mergeFeatureGateMetadata(
+						existingBlockedTask.sourceMetadata,
+						nextBlockingTaskIds.length > 0,
+						blockedTaskGate.reason,
+						nextBlockingTaskIds,
+						blockedTaskGate.blocksTaskIds,
+					),
+				},
+			});
+		}
+
+		return created;
 	});
 
 	return task;
@@ -704,6 +916,12 @@ export async function autoClassifyTask(
 			project: {
 				select: { id: true, name: true, type: true },
 			},
+			part: {
+				select: { id: true, name: true, order: true },
+			},
+			milestone: {
+				select: { id: true, title: true, targetDate: true, status: true },
+			},
 		},
 	});
 
@@ -711,9 +929,7 @@ export async function autoClassifyTask(
 		throw new NotFoundError("Task");
 	}
 
-	const isIdeaTask = hasIdeaTag(task.tags);
-
-	if (task.state !== "Inbox" && !isIdeaTask) {
+	if (task.state !== "Inbox") {
 		throw new ConflictError("Only Inbox tasks can be auto-classified");
 	}
 
@@ -763,58 +979,12 @@ export async function autoClassifyTask(
 	const rewrittenTitle = classification.rewrittenTitle || null;
 	const rewrittenDescription = classification.rewrittenDescription || null;
 
-	if (isIdeaTask) {
+	if (confidence < env.AI_CLASSIFICATION_LOW_CONFIDENCE_THRESHOLD) {
 		const reviewUpdate = await prisma.task.update({
 			where: { id: task.id },
 			data: {
 				title: rewrittenTitle || task.title,
 				description: rewrittenDescription || task.description,
-				sourceMetadata: mergeAIClassificationMetadata(task.sourceMetadata, {
-					status: "needs_review",
-					jobStatus: "completed_idea_review",
-					confidence,
-					suggested: {
-						project: classification.project,
-						size: classification.size,
-						urgency: classification.urgency,
-						deadline: classification.deadline,
-						protected: classification.protected,
-						protectionReason: classification.protectionReason,
-						tags: mergedTags,
-						title: rewrittenTitle,
-						description: rewrittenDescription,
-					},
-					provider: classification.provider,
-					model: classification.model,
-					reason: classification.reason ?? null,
-					classifiedAt: new Date().toISOString(),
-					ideaMode: true,
-				}),
-			},
-			include: {
-				project: {
-					select: { id: true, name: true, type: true },
-				},
-			},
-		});
-
-		logger.info({
-			event: "task_auto_classification_idea_needs_review",
-			task_id: task.id,
-			user_id: userId,
-			confidence,
-			provider: classification.provider,
-			model: classification.model,
-			state: reviewUpdate.state,
-		});
-
-		return reviewUpdate;
-	}
-
-	if (confidence < env.AI_CLASSIFICATION_LOW_CONFIDENCE_THRESHOLD) {
-		const reviewUpdate = await prisma.task.update({
-			where: { id: task.id },
-			data: {
 				sourceMetadata: mergeAIClassificationMetadata(task.sourceMetadata, {
 					status: "needs_review",
 					jobStatus: "completed_low_confidence",
@@ -839,6 +1009,12 @@ export async function autoClassifyTask(
 			include: {
 				project: {
 					select: { id: true, name: true, type: true },
+				},
+				part: {
+					select: { id: true, name: true, order: true },
+				},
+				milestone: {
+					select: { id: true, title: true, targetDate: true, status: true },
 				},
 			},
 		});
@@ -905,6 +1081,12 @@ export async function autoClassifyTask(
 			project: {
 				select: { id: true, name: true, type: true },
 			},
+			part: {
+				select: { id: true, name: true, order: true },
+			},
+			milestone: {
+				select: { id: true, title: true, targetDate: true, status: true },
+			},
 		},
 	});
 
@@ -942,6 +1124,158 @@ export async function autoClassifyTask(
 	return updated;
 }
 
+async function classifyTaskWithRetry(
+	task: {
+		id: string;
+		title: string;
+		description: string | null;
+		source: string;
+	},
+	userId: string,
+) {
+	let classification: Awaited<ReturnType<typeof classifyTaskWithAI>> | null =
+		null;
+
+	for (
+		let attempt = 1;
+		attempt <= env.AI_CLASSIFICATION_RETRY_ATTEMPTS;
+		attempt++
+	) {
+		try {
+			classification = await classifyTaskWithAI({
+				title: task.title,
+				description: task.description,
+				source: task.source,
+			});
+			break;
+		} catch (error) {
+			logger.warn({
+				event: "task_classification_attempt_failed",
+				task_id: task.id,
+				user_id: userId,
+				attempt,
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+			if (attempt < env.AI_CLASSIFICATION_RETRY_ATTEMPTS) {
+				await sleep(400 * 2 ** (attempt - 1));
+			}
+		}
+	}
+
+	if (!classification) {
+		throw new ServiceUnavailableError("Task auto-classification failed", {
+			taskId: task.id,
+			attempts: env.AI_CLASSIFICATION_RETRY_ATTEMPTS,
+		});
+	}
+
+	return classification;
+}
+
+async function refreshTaskClassificationAfterContentUpdate(
+	userId: string,
+	taskId: string,
+	requestLogger?: RequestLogger,
+) {
+	const task = await prisma.task.findFirst({
+		where: { id: taskId, userId, deletedAt: null },
+		include: {
+			project: {
+				select: { id: true, name: true, type: true },
+			},
+			part: {
+				select: { id: true, name: true, order: true },
+			},
+			milestone: {
+				select: { id: true, title: true, targetDate: true, status: true },
+			},
+			subtasks: {
+				where: { deletedAt: null },
+				orderBy: { order: "asc" },
+			},
+		},
+	});
+
+	if (!task) {
+		throw new NotFoundError("Task");
+	}
+
+	const classification = await classifyTaskWithRetry(
+		{
+			id: task.id,
+			title: task.title,
+			description: task.description,
+			source: task.source,
+		},
+		userId,
+	);
+	const confidence = classification.confidence ?? 0.75;
+	const parsedDeadline = toDateOnly(classification.deadline) ?? task.deadline;
+	const resolvedProjectId =
+		(await resolveProjectIdByName(userId, classification.project)) ??
+		task.projectId;
+	const mergedTags = mergeClassificationTags(task.tags, classification.tags);
+	const rewrittenTitle = classification.rewrittenTitle || null;
+	const rewrittenDescription = classification.rewrittenDescription || null;
+
+	const refreshedTask = await prisma.task.update({
+		where: { id: task.id },
+		data: {
+			projectId: resolvedProjectId,
+			size: classification.size,
+			urgency: classification.urgency,
+			protected: classification.protected,
+			protectionReason: classification.protectionReason,
+			deadline: parsedDeadline,
+			tags: mergedTags.length > 0 ? mergedTags : task.tags,
+			title: rewrittenTitle || task.title,
+			description: rewrittenDescription || task.description,
+			sourceMetadata: mergeAIClassificationMetadata(task.sourceMetadata, {
+				status: "refreshed",
+				jobStatus: "completed_after_edit",
+				confidence,
+				provider: classification.provider,
+				model: classification.model,
+				project: classification.project,
+				deadline: classification.deadline,
+				protectionReason: classification.protectionReason,
+				rewrittenTitle,
+				rewrittenDescription,
+				reason: classification.reason ?? null,
+				classifiedAt: new Date().toISOString(),
+				trigger: "content_edit",
+			}),
+		},
+		include: {
+			project: {
+				select: { id: true, name: true, type: true },
+			},
+			part: {
+				select: { id: true, name: true, order: true },
+			},
+			milestone: {
+				select: { id: true, title: true, targetDate: true, status: true },
+			},
+			subtasks: {
+				where: { deletedAt: null },
+				orderBy: { order: "asc" },
+			},
+		},
+	});
+
+	logger.info({
+		event: "task_reclassified_after_content_edit",
+		task_id: task.id,
+		user_id: userId,
+		mode: "applied",
+		confidence,
+		provider: classification.provider,
+		model: classification.model,
+	});
+
+	return refreshedTask;
+}
+
 export async function listTasks(
 	userId: string,
 	query: TaskQuery,
@@ -963,31 +1297,36 @@ export async function listTasks(
 	if (query.hasDeadline !== undefined) {
 		where.deadline = query.hasDeadline ? { not: null } : null;
 	}
-	if (query.search) {
+	const searchQuery = query.searchQuery ?? query.search;
+	if (searchQuery) {
 		where.OR = [
-			{ title: { contains: query.search, mode: "insensitive" } },
-			{ description: { contains: query.search, mode: "insensitive" } },
+			{ title: { contains: searchQuery, mode: "insensitive" } },
+			{ description: { contains: searchQuery, mode: "insensitive" } },
 		];
 	}
 	if (query.tag) {
 		where.tags = { has: query.tag };
-	}
-	if (query.kind === "idea") {
-		where.tags = { has: "idea" };
-	}
-	if (query.kind === "execution") {
-		where.NOT = [{ tags: { has: "idea" } }];
 	}
 
 	const [tasks, total] = await Promise.all([
 		prisma.task.findMany({
 			where,
 			orderBy: { [query.sortBy]: query.sortOrder },
-			skip: (query.page - 1) * query.limit,
-			take: query.limit,
+			...(query.limit === -1
+				? {}
+				: {
+						skip: (query.page - 1) * query.limit,
+						take: query.limit,
+					}),
 			include: {
 				project: {
 					select: { id: true, name: true, type: true },
+				},
+				part: {
+					select: { id: true, name: true, order: true },
+				},
+				milestone: {
+					select: { id: true, title: true, targetDate: true, status: true },
 				},
 			},
 		}),
@@ -1012,6 +1351,12 @@ export async function getTask(
 		include: {
 			project: {
 				select: { id: true, name: true, type: true },
+			},
+			part: {
+				select: { id: true, name: true, order: true },
+			},
+			milestone: {
+				select: { id: true, title: true, targetDate: true, status: true },
 			},
 			subtasks: {
 				where: { deletedAt: null },
@@ -1077,43 +1422,319 @@ export async function updateTask(
 		}
 	}
 
-	const { state, ...updateData } = input;
+	const {
+		state,
+		partId,
+		milestoneId,
+		featureBlocked,
+		featureBlockReason,
+		blockingTaskIds,
+		blockingTaskId,
+		blocksTaskIds,
+		blocksTaskId,
+		...updateData
+	} = input;
+	const titleChanged =
+		updateData.title !== undefined && updateData.title !== existing.title;
+	const descriptionChanged =
+		updateData.description !== undefined &&
+		updateData.description !== (existing.description ?? undefined);
+	const shouldReclassifyAfterEdit = titleChanged || descriptionChanged;
 
-	const task = await prisma.task.update({
-		where: { id: taskId },
-		data: {
-			...updateData,
-			deadline:
-				updateData.deadline !== undefined
-					? updateData.deadline
-						? new Date(updateData.deadline)
-						: null
+	if (updateData.projectId) {
+		const project = await prisma.project.findFirst({
+			where: { id: updateData.projectId, userId, deletedAt: null },
+			select: { id: true },
+		});
+		if (!project) {
+			throw new NotFoundError("Project");
+		}
+	}
+	if (partId !== undefined && partId !== null) {
+		const effectiveProjectId =
+			updateData.projectId !== undefined
+				? updateData.projectId
+				: existing.projectId;
+		if (!effectiveProjectId) {
+			throw new UnprocessableError(
+				"Project part requires the task to belong to a project",
+			);
+		}
+		const part = await prisma.projectPart.findFirst({
+			where: { id: partId, userId, projectId: effectiveProjectId },
+			select: { id: true },
+		});
+		if (!part) {
+			throw new UnprocessableError(
+				"Project part must belong to the selected project",
+			);
+		}
+	}
+	if (milestoneId !== undefined && milestoneId !== null) {
+		const effectiveProjectId =
+			updateData.projectId !== undefined
+				? updateData.projectId
+				: existing.projectId;
+		if (!effectiveProjectId) {
+			throw new UnprocessableError(
+				"Milestone requires the task to belong to a project",
+			);
+		}
+		const milestone = await prisma.projectMilestone.findFirst({
+			where: { id: milestoneId, userId, projectId: effectiveProjectId },
+			select: { id: true },
+		});
+		if (!milestone) {
+			throw new UnprocessableError(
+				"Milestone must belong to the selected project",
+			);
+		}
+	}
+
+	const nextProjectId =
+		updateData.projectId !== undefined
+			? updateData.projectId
+			: existing.projectId;
+	const hasFeatureGateUpdate =
+		featureBlocked !== undefined ||
+		featureBlockReason !== undefined ||
+		blockingTaskIds !== undefined ||
+		blockingTaskId !== undefined ||
+		blocksTaskIds !== undefined ||
+		blocksTaskId !== undefined;
+	const currentGate = readFeatureGateDependencies(
+		existing.sourceMetadata as Prisma.JsonValue,
+	);
+
+	const nextBlockingTaskIds = normalizeDependencyIds(
+		blockingTaskIds !== undefined
+			? blockingTaskIds
+			: currentGate.blockingTaskIds,
+		blockingTaskId !== undefined ? blockingTaskId : null,
+	);
+	const currentBlocksTaskIds = currentGate.blocksTaskIds;
+	const nextBlocksTaskIds = normalizeDependencyIds(
+		blocksTaskIds !== undefined ? blocksTaskIds : currentBlocksTaskIds,
+		blocksTaskId !== undefined ? blocksTaskId : null,
+	);
+
+	if (nextBlockingTaskIds.length > 0) {
+		if (!nextProjectId) {
+			throw new UnprocessableError(
+				"Blocking task requires the task to belong to a project",
+			);
+		}
+		for (const nextBlockingTaskId of nextBlockingTaskIds) {
+			if (nextBlockingTaskId === existing.id) {
+				throw new UnprocessableError("A task cannot be blocked by itself");
+			}
+			const blockingTask = await prisma.task.findFirst({
+				where: { id: nextBlockingTaskId, userId, deletedAt: null },
+				select: { id: true, projectId: true },
+			});
+			if (!blockingTask) {
+				throw new NotFoundError("Blocking task");
+			}
+			if (blockingTask.projectId !== nextProjectId) {
+				throw new UnprocessableError(
+					"Blocking task must belong to the same project",
+				);
+			}
+		}
+	}
+
+	if (nextBlocksTaskIds.length > 0) {
+		if (!nextProjectId) {
+			throw new UnprocessableError(
+				"Blocked task requires the task to belong to a project",
+			);
+		}
+		for (const nextBlocksTaskId of nextBlocksTaskIds) {
+			if (nextBlocksTaskId === existing.id) {
+				throw new UnprocessableError("A task cannot block itself");
+			}
+			const blockedTask = await prisma.task.findFirst({
+				where: { id: nextBlocksTaskId, userId, deletedAt: null },
+				select: { id: true, projectId: true },
+			});
+			if (!blockedTask) {
+				throw new NotFoundError("Blocked task");
+			}
+			if (blockedTask.projectId !== nextProjectId) {
+				throw new UnprocessableError(
+					"Blocked task must belong to the same project",
+				);
+			}
+		}
+	}
+
+	if (
+		nextBlockingTaskIds.some((taskId) => nextBlocksTaskIds.includes(taskId))
+	) {
+		throw new UnprocessableError(
+			"A task cannot be blocked by and block the same task(s)",
+		);
+	}
+
+	const nextFeatureBlocked =
+		featureBlocked !== undefined
+			? featureBlocked
+			: currentGate.blocked || nextBlockingTaskIds.length > 0;
+	const nextFeatureBlockReason = nextFeatureBlocked
+		? featureBlockReason !== undefined
+			? featureBlockReason
+			: currentGate.reason
+		: null;
+
+	const updatedTask = await prisma.$transaction(async (tx) => {
+		const removedBlockedTaskIds = currentBlocksTaskIds.filter(
+			(taskId) => !nextBlocksTaskIds.includes(taskId),
+		);
+		const addedBlockedTaskIds = nextBlocksTaskIds.filter(
+			(taskId) => !currentBlocksTaskIds.includes(taskId),
+		);
+
+		for (const blockedTaskId of removedBlockedTaskIds) {
+			const previousBlockedTask = await tx.task.findFirst({
+				where: { id: blockedTaskId, userId, deletedAt: null },
+				select: { sourceMetadata: true },
+			});
+			if (!previousBlockedTask) continue;
+			const previousGate = readFeatureGateDependencies(
+				previousBlockedTask.sourceMetadata as Prisma.JsonValue,
+			);
+			const nextBlockingTaskIds = previousGate.blockingTaskIds.filter(
+				(taskId) => taskId !== existing.id,
+			);
+			await tx.task.update({
+				where: { id: blockedTaskId },
+				data: {
+					sourceMetadata: mergeFeatureGateMetadata(
+						previousBlockedTask.sourceMetadata,
+						nextBlockingTaskIds.length > 0,
+						previousGate.reason,
+						nextBlockingTaskIds,
+						previousGate.blocksTaskIds,
+					),
+				},
+			});
+		}
+
+		for (const blockedTaskId of addedBlockedTaskIds) {
+			const blockedTask = await tx.task.findFirst({
+				where: { id: blockedTaskId, userId, deletedAt: null },
+				select: { sourceMetadata: true },
+			});
+			if (!blockedTask) {
+				throw new NotFoundError("Blocked task");
+			}
+			const blockedTaskGate = readFeatureGateDependencies(
+				blockedTask.sourceMetadata as Prisma.JsonValue,
+			);
+			const nextBlockingTaskIds = Array.from(
+				new Set([...blockedTaskGate.blockingTaskIds, existing.id]),
+			);
+			await tx.task.update({
+				where: { id: blockedTaskId },
+				data: {
+					sourceMetadata: mergeFeatureGateMetadata(
+						blockedTask.sourceMetadata,
+						nextBlockingTaskIds.length > 0,
+						blockedTaskGate.reason,
+						nextBlockingTaskIds,
+						blockedTaskGate.blocksTaskIds,
+					),
+				},
+			});
+		}
+
+		return tx.task.update({
+			where: { id: taskId },
+			data: {
+				...updateData,
+				partId:
+					partId !== undefined
+						? partId
+						: updateData.projectId !== undefined
+							? null
+							: undefined,
+				milestoneId:
+					milestoneId !== undefined
+						? milestoneId
+						: updateData.projectId === null
+							? null
+							: undefined,
+				deadline:
+					updateData.deadline !== undefined
+						? updateData.deadline
+							? new Date(updateData.deadline)
+							: null
+						: undefined,
+				sourceMetadata: hasFeatureGateUpdate
+					? mergeFeatureGateMetadata(
+							existing.sourceMetadata,
+							nextFeatureBlocked,
+							nextFeatureBlockReason,
+							nextBlockingTaskIds,
+							nextBlocksTaskIds,
+						)
 					: undefined,
-			...(state
-				? {
-						state: state as TaskState,
-						stateChangedAt: new Date(),
-						stateHistory: {
-							create: {
-								fromState: existing.state,
-								toState: state as TaskState,
-								reason: "Manual state change",
-								userId,
+				...(state
+					? {
+							state: state as TaskState,
+							stateChangedAt: new Date(),
+							stateHistory: {
+								create: {
+									fromState: existing.state,
+									toState: state as TaskState,
+									reason: "Manual state change",
+									userId,
+								},
 							},
-						},
-					}
-				: {}),
-		},
-		include: {
-			project: {
-				select: { id: true, name: true, type: true },
+						}
+					: {}),
 			},
-			subtasks: {
-				where: { deletedAt: null },
-				orderBy: { order: "asc" },
+			include: {
+				project: {
+					select: { id: true, name: true, type: true },
+				},
+				part: {
+					select: { id: true, name: true, order: true },
+				},
+				milestone: {
+					select: { id: true, title: true, targetDate: true, status: true },
+				},
+				subtasks: {
+					where: { deletedAt: null },
+					orderBy: { order: "asc" },
+				},
 			},
-		},
+		});
 	});
+
+	let task = updatedTask;
+	if (shouldReclassifyAfterEdit) {
+		requestLogger?.set("task_edit_reclassification", {
+			task_id: taskId,
+			user_id: userId,
+			title_changed: titleChanged,
+			description_changed: descriptionChanged,
+		});
+		try {
+			task = await refreshTaskClassificationAfterContentUpdate(
+				userId,
+				taskId,
+				requestLogger,
+			);
+		} catch (error) {
+			logger.warn({
+				event: "task_reclassification_after_edit_failed",
+				task_id: taskId,
+				user_id: userId,
+				error: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
+	}
 
 	void recalculatePrioritiesForUser(userId).catch((error) => {
 		logger.warn({
@@ -1145,6 +1766,120 @@ export async function createTaskBranch(
 		branchName: input.branchName,
 		requestLogger,
 	});
+}
+
+export async function convertTaskToIdea(
+	userId: string,
+	taskId: string,
+	requestLogger?: RequestLogger,
+) {
+	requestLogger?.set("task_service", {
+		operation: "convert_to_idea",
+		user_id: userId,
+		task_id: taskId,
+	});
+	const task = await prisma.task.findFirst({
+		where: { id: taskId, userId, deletedAt: null },
+	});
+	if (!task) throw new NotFoundError("Task");
+
+	const idea = await prisma.$transaction(async (tx) => {
+		const createdIdea = await (tx as any).idea.create({
+			data: {
+				title: task.title,
+				description: task.description,
+				state: mapTaskStateToIdeaState(task.state),
+				deadline: task.deadline,
+				source: "task_conversion",
+				sourceMetadata: {
+					fromTaskId: task.id,
+					fromTaskSource: task.source,
+					migration: {
+						preserved: ["title", "description", "deadline"],
+						reset: [
+							"state (mapped to idea lifecycle)",
+							"size",
+							"urgency",
+							"protected",
+							"protectionReason",
+							"tags",
+							"projectId",
+						],
+					},
+				},
+				userId,
+			},
+		});
+		await tx.task.update({
+			where: { id: task.id },
+			data: { deletedAt: new Date() },
+		});
+		return createdIdea;
+	});
+
+	return {
+		idea,
+		migration: {
+			applied: ["title", "description", "deadline"],
+			reset: [
+				"state (mapped to idea lifecycle)",
+				"size",
+				"urgency",
+				"protected",
+				"protectionReason",
+				"tags",
+				"projectId",
+			],
+			suggestion:
+				"Run AI classification on the new idea to regenerate size/urgency/details from title and description.",
+		},
+	};
+}
+
+export async function migrateLegacyIdeaTasks(
+	userId: string,
+	requestLogger?: RequestLogger,
+) {
+	requestLogger?.set("task_service", {
+		operation: "migrate_legacy_idea_tasks",
+		user_id: userId,
+	});
+	const legacyTasks = await prisma.task.findMany({
+		where: {
+			userId,
+			deletedAt: null,
+			tags: {
+				hasSome: ["idea", "idea/raw", "idea/validated", "idea/next"],
+			},
+		},
+	});
+
+	let migrated = 0;
+	for (const task of legacyTasks) {
+		await prisma.$transaction(async (tx) => {
+			await (tx as any).idea.create({
+				data: {
+					title: task.title,
+					description: task.description,
+					state: mapTaskStateToIdeaState(task.state),
+					deadline: task.deadline,
+					source: "legacy_task_idea_migration",
+					sourceMetadata: {
+						fromTaskId: task.id,
+						fromTaskSource: task.source,
+					},
+					userId,
+				},
+			});
+			await tx.task.update({
+				where: { id: task.id },
+				data: { deletedAt: new Date() },
+			});
+		});
+		migrated += 1;
+	}
+
+	return { scanned: legacyTasks.length, migrated };
 }
 
 export async function deleteTask(
@@ -1221,6 +1956,12 @@ export async function restoreTask(
 		include: {
 			project: {
 				select: { id: true, name: true, type: true },
+			},
+			part: {
+				select: { id: true, name: true, order: true },
+			},
+			milestone: {
+				select: { id: true, title: true, targetDate: true, status: true },
 			},
 		},
 	});

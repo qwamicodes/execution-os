@@ -6,9 +6,11 @@ import { ValidationError } from "../../shared/errors";
 import { created, success } from "../../shared/response";
 import {
 	CreateMilestoneSchema,
+	CreateProjectPartSchema,
 	CreateProjectSchema,
 	ProjectQuerySchema,
 	UpdateMilestoneSchema,
+	UpdateProjectPartSchema,
 	UpdateProjectSchema,
 } from "./project.schema";
 import * as projectService from "./project.service";
@@ -103,6 +105,78 @@ export const projectController = new Elysia({ prefix: "/projects" })
 		);
 		internal_logger.set("result", { returned: milestones.length });
 		return success(milestones);
+	})
+
+	.get("/:id/parts", async ({ params, userId, internal_logger }) => {
+		internal_logger.set("flow", "projects_parts_list");
+		const parts = await projectService.listParts(
+			userId,
+			params.id,
+			internal_logger,
+		);
+		internal_logger.set("result", { returned: parts.length });
+		return success(parts);
+	})
+
+	.post("/:id/parts", async ({ params, body, userId, internal_logger }) => {
+		internal_logger.set("flow", "projects_parts_create");
+		const parsed = CreateProjectPartSchema.safeParse(body);
+		if (!parsed.success) {
+			throw new ValidationError(parsed.error.flatten().fieldErrors);
+		}
+		const part = await projectService.createPart(
+			userId,
+			params.id,
+			parsed.data,
+			internal_logger,
+		);
+		internal_logger.set("result", { part_id: part.id });
+		publishRealtimeEvent(userId, "project.part.created", {
+			projectId: params.id,
+			partId: part.id,
+		});
+		return created(part);
+	})
+
+	.patch("/:id/parts/:partId", async ({ params, body, userId, internal_logger }) => {
+		internal_logger.set("flow", "projects_parts_update");
+		const parsed = UpdateProjectPartSchema.safeParse(body);
+		if (!parsed.success) {
+			throw new ValidationError(parsed.error.flatten().fieldErrors);
+		}
+		const part = await projectService.updatePart(
+			userId,
+			params.id,
+			params.partId,
+			parsed.data,
+			internal_logger,
+		);
+		internal_logger.set("result", { part_id: part.id });
+		publishRealtimeEvent(userId, "project.part.updated", {
+			projectId: params.id,
+			partId: part.id,
+		});
+		return success(part);
+	})
+
+	.delete("/:id/parts/:partId", async ({ params, userId, internal_logger, set }) => {
+		internal_logger.set("flow", "projects_parts_delete");
+		await projectService.deletePart(
+			userId,
+			params.id,
+			params.partId,
+			internal_logger,
+		);
+		internal_logger.set("result", {
+			project_id: params.id,
+			part_id: params.partId,
+			deleted: true,
+		});
+		publishRealtimeEvent(userId, "project.part.deleted", {
+			projectId: params.id,
+			partId: params.partId,
+		});
+		set.status = 204;
 	})
 
 	.post("/:id/milestones", async ({ params, body, userId, internal_logger }) => {

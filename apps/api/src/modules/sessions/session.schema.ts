@@ -5,6 +5,10 @@ export const StartSessionSchema = z.object({
 	duration: z.number().int().min(5).max(120).default(30),
 });
 
+export const ExtendSessionSchema = z.object({
+	minutes: z.number().int().min(5).max(120).default(15),
+});
+
 export const CompleteSessionSchema = z
 	.object({
 		outcome: z.enum(["Done", "Continue", "Blocked", "TooBig"]),
@@ -30,7 +34,13 @@ export const ScratchpadUpdateSchema = z.object({
 
 export const SessionHistoryQuerySchema = z.object({
 	page: z.coerce.number().int().min(1).default(1),
-	limit: z.coerce.number().int().min(1).max(100).default(50),
+	limit: z
+		.coerce.number()
+		.int()
+		.refine((value) => value === -1 || (value >= 1 && value <= 100), {
+			message: "Limit must be -1 or between 1 and 100",
+		})
+		.default(50),
 	taskId: z.string().uuid().optional(),
 	outcome: z.enum(["Done", "Continue", "Blocked", "TooBig"]).optional(),
 	startDate: z.string().datetime().optional(),
@@ -38,5 +48,6 @@ export const SessionHistoryQuerySchema = z.object({
 });
 
 export type StartSessionInput = z.infer<typeof StartSessionSchema>;
+export type ExtendSessionInput = z.infer<typeof ExtendSessionSchema>;
 export type CompleteSessionInput = z.infer<typeof CompleteSessionSchema>;
 export type SessionHistoryQuery = z.infer<typeof SessionHistoryQuerySchema>;

@@ -6,14 +6,36 @@ import {
 	UnprocessableError,
 } from "../../shared/errors";
 import { redis } from "../../shared/redis";
+import type { RequestLogger } from "../../shared/wide-event";
 import { recommendTaskForFocus } from "../ai/ai.service";
 import { recalculatePrioritiesForUser } from "../tasks/task.service";
-import type { RequestLogger } from "../../shared/wide-event";
 import type {
 	CompleteSessionInput,
+	ExtendSessionInput,
 	SessionHistoryQuery,
 	StartSessionInput,
 } from "./session.schema";
+
+function isFeatureBlockedByMetadata(
+	sourceMetadata: Prisma.JsonValue | null | undefined,
+) {
+	if (!sourceMetadata || typeof sourceMetadata !== "object") return false;
+	const metadata = sourceMetadata as Record<string, unknown>;
+	const featureGate = metadata.featureGate;
+	if (!featureGate || typeof featureGate !== "object") return false;
+	return (featureGate as Record<string, unknown>).blocked === true;
+}
+
+function getBlockingTaskIdFromMetadata(
+	sourceMetadata: Prisma.JsonValue | null | undefined,
+) {
+	if (!sourceMetadata || typeof sourceMetadata !== "object") return null;
+	const metadata = sourceMetadata as Record<string, unknown>;
+	const featureGate = metadata.featureGate;
+	if (!featureGate || typeof featureGate !== "object") return null;
+	const candidate = (featureGate as Record<string, unknown>).blockingTaskId;
+	return typeof candidate === "string" ? candidate : null;
+}
 
 export async function startSession(
 	userId: string,
@@ -49,10 +71,35 @@ export async function startSession(
 		throw new NotFoundError("Task");
 	}
 
-	if (task.state !== "Ready") {
+	if (task.state !== "Ready" && task.state !== "Active") {
 		throw new UnprocessableError(
-			`Task is not in Ready state (current: ${task.state})`,
+			`Task must be Ready or Active to start a session (current: ${task.state})`,
 		);
+	}
+
+	if (isFeatureBlockedByMetadata(task.sourceMetadata as Prisma.JsonValue)) {
+		throw new UnprocessableError(
+			"Task is blocked by feature readiness and cannot be started yet",
+		);
+	}
+
+	const blockingTaskId = getBlockingTaskIdFromMetadata(
+		task.sourceMetadata as Prisma.JsonValue,
+	);
+	if (blockingTaskId) {
+		const blockingTask = await prisma.task.findFirst({
+			where: {
+				id: blockingTaskId,
+				userId,
+				deletedAt: null,
+			},
+			select: { id: true, state: true, title: true },
+		});
+		if (blockingTask && blockingTask.state !== "Done") {
+			throw new UnprocessableError(
+				`Task is blocked by "${blockingTask.title}" (${blockingTask.id})`,
+			);
+		}
 	}
 
 	const now = new Date();
@@ -71,21 +118,23 @@ export async function startSession(
 			},
 		});
 
-		await tx.task.update({
-			where: { id: input.taskId },
-			data: {
-				state: "Active",
-				stateChangedAt: now,
-				stateHistory: {
-					create: {
-						fromState: task.state,
-						toState: "Active",
-						reason: "Focus session started",
-						userId,
+		if (task.state !== "Active") {
+			await tx.task.update({
+				where: { id: input.taskId },
+				data: {
+					state: "Active",
+					stateChangedAt: now,
+					stateHistory: {
+						create: {
+							fromState: task.state,
+							toState: "Active",
+							reason: "Focus session started",
+							userId,
+						},
 					},
 				},
-			},
-		});
+			});
+		}
 
 		return sess;
 	});
@@ -112,6 +161,62 @@ export async function startSession(
 			title: task.title,
 			project: task.project,
 		},
+	};
+}
+
+export async function extendSession(
+	userId: string,
+	sessionId: string,
+	input: ExtendSessionInput,
+	logger?: RequestLogger,
+) {
+	logger?.set("session_service", {
+		operation: "extend",
+		user_id: userId,
+		session_id: sessionId,
+		minutes: input.minutes,
+	});
+	const session = await prisma.session.findFirst({
+		where: { id: sessionId, userId },
+	});
+
+	if (!session) {
+		throw new NotFoundError("Session");
+	}
+
+	if (session.state !== "Active") {
+		throw new ConflictError("Only active sessions can be extended");
+	}
+
+	const now = new Date();
+	const extensionMs = input.minutes * 60 * 1000;
+	const newExpiresAt = new Date(session.expiresAt.getTime() + extensionMs);
+	const newDuration = session.duration + input.minutes;
+
+	const updated = await prisma.session.update({
+		where: { id: sessionId },
+		data: {
+			duration: newDuration,
+			expiresAt: newExpiresAt,
+		},
+	});
+
+	const activeKey = `active_session:${userId}`;
+	const remainingMs = Math.max(0, newExpiresAt.getTime() - now.getTime());
+	await redis.expire(activeKey, Math.ceil(remainingMs / 1000));
+
+	logger?.set("session_service_result", {
+		operation: "extend",
+		session_id: updated.id,
+		duration: updated.duration,
+		expires_at: updated.expiresAt.toISOString(),
+	});
+
+	return {
+		id: updated.id,
+		state: updated.state,
+		duration: updated.duration,
+		expiresAt: updated.expiresAt.toISOString(),
 	};
 }
 
@@ -155,6 +260,62 @@ export async function getActiveSession(userId: string, logger?: RequestLogger) {
 	const elapsedSeconds = Math.floor(elapsedMs / 1000);
 	const totalSeconds = session.duration * 60;
 	const remainingSeconds = Math.max(0, totalSeconds - elapsedSeconds);
+
+	return {
+		...session,
+		elapsedSeconds,
+		remainingSeconds,
+		isPaused: session.state === "Paused",
+	};
+}
+
+export async function getSessionById(
+	userId: string,
+	sessionId: string,
+	logger?: RequestLogger,
+) {
+	logger?.set("session_service", {
+		operation: "get_by_id",
+		user_id: userId,
+		session_id: sessionId,
+	});
+
+	const session = await prisma.session.findFirst({
+		where: { id: sessionId, userId },
+		include: {
+			task: {
+				select: {
+					id: true,
+					title: true,
+					state: true,
+				},
+			},
+		},
+	});
+
+	if (!session) {
+		throw new NotFoundError("Session");
+	}
+
+	const now = new Date();
+	const elapsedMs =
+		session.state === "Paused" && session.pausedAt
+			? session.pausedAt.getTime() - session.startedAt.getTime()
+			: session.state === "Completed" && session.completedAt
+				? session.completedAt.getTime() - session.startedAt.getTime()
+				: now.getTime() - session.startedAt.getTime();
+	const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
+	const totalSeconds = session.duration * 60;
+	const remainingSeconds =
+		session.state === "Completed" || session.state === "Abandoned"
+			? 0
+			: Math.max(0, totalSeconds - elapsedSeconds);
+
+	logger?.set("session_service_result", {
+		operation: "get_by_id",
+		session_id: session.id,
+		state: session.state,
+	});
 
 	return {
 		...session,
@@ -340,9 +501,13 @@ export async function completeSession(
 	await recalculatePrioritiesForUser(userId);
 
 	// Get next suggested task from AI recommendation engine.
-	const recommendation = await recommendTaskForFocus(userId, {
-		forceRefresh: true,
-	}, logger);
+	const recommendation = await recommendTaskForFocus(
+		userId,
+		{
+			forceRefresh: true,
+		},
+		logger,
+	);
 	const nextTask = recommendation.recommendedTask?.task ?? null;
 	logger?.set("session_service_result", {
 		operation: "complete",
@@ -427,8 +592,12 @@ export async function getSessionHistory(
 		prisma.session.findMany({
 			where,
 			orderBy: { completedAt: "desc" },
-			skip: (query.page - 1) * query.limit,
-			take: query.limit,
+			...(query.limit === -1
+				? {}
+				: {
+						skip: (query.page - 1) * query.limit,
+						take: query.limit,
+					}),
 			include: {
 				task: { select: { id: true, title: true } },
 			},

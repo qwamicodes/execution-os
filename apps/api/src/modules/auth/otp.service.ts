@@ -1,4 +1,5 @@
 import { randomInt, timingSafeEqual } from "node:crypto";
+import { getBrrrWebhookUrl, sendBrrrNotification } from "../../shared/brrr";
 import { sendEmail } from "../../shared/email";
 import { otpTemplate } from "../../shared/email-templates";
 import { RateLimitError } from "../../shared/errors";
@@ -43,17 +44,39 @@ export async function requestOtp(
 	await redis.setex(otpKey, OTP_TTL, JSON.stringify({ code, attempts: 0 }));
 
 	// Send email (don't leak user existence — always send)
-	// Silently swallow email errors to avoid leaking whether email exists
+	// If brrr webhook is configured, prefer that for OTP delivery.
+	// Otherwise fallback to email. Always swallow failures to avoid leaking identity.
 	try {
-		const template = otpTemplate(code);
-		await sendEmail({
-			to: email,
-			subject: template.subject,
-			body: template.body,
-		});
+		if (getBrrrWebhookUrl()) {
+			await sendBrrrNotification({
+				title: "Execution OS OTP",
+				message: `Your OTP is ${code}. Expires in 5 minutes.`,
+				threadId: "auth-otp",
+				interruptionLevel: "time-sensitive",
+			});
+			logger?.set("otp_delivery", {
+				channel: "brrr",
+				delivered: true,
+			});
+		} else {
+			const template = otpTemplate(code);
+			await sendEmail({
+				to: email,
+				subject: template.subject,
+				body: template.body,
+			});
+			logger?.set("otp_delivery", {
+				channel: "email",
+				delivered: true,
+			});
+		}
 	} catch {
 		// Intentionally swallowed — wide event will show outcome: "success"
 		// from the user's perspective (no information leaked)
+		logger?.set("otp_delivery", {
+			channel: getBrrrWebhookUrl() ? "brrr" : "email",
+			delivered: false,
+		});
 	}
 }
 

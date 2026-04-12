@@ -11,6 +11,7 @@ import { realtimeController } from "./modules/events/realtime.controller";
 import { inboxController } from "./modules/inbox/inbox.controller";
 import { startInboxClassificationScheduler } from "./modules/inbox/inbox.scheduler";
 import { integrationController } from "./modules/integrations/integration.controller";
+import { ideaController } from "./modules/ideas/idea.controller";
 import { pmAIController } from "./modules/pm-ai/pm-ai.controller";
 import { projectController } from "./modules/projects/project.controller";
 import { searchController } from "./modules/search/search.controller";
@@ -57,6 +58,7 @@ const app = new Elysia()
 			.use(aiController)
 			.use(pmAIController)
 			.use(integrationController)
+			.use(ideaController)
 			.use(realtimeController)
 			.use(taskController)
 			.use(sessionController)

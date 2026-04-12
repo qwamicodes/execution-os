@@ -1,12 +1,13 @@
 import { randomBytes } from "node:crypto";
 
+import { env } from "../../config";
+import { getBrrrWebhookUrl, sendBrrrNotification } from "../../shared/brrr";
 import { sendEmail } from "../../shared/email";
 import { magicLinkTemplate } from "../../shared/email-templates";
 import { RateLimitError } from "../../shared/errors";
 import { redis } from "../../shared/redis";
 import type { RequestLogger } from "../../shared/wide-event";
 import { createSession, findOrCreateUser } from "./auth.service";
-import { env } from "../../config";
 
 const MAGIC_LINK_TTL = 15 * 60; // 15 minutes
 const MAGIC_LINK_RATE_LIMIT_TTL = 15 * 60; // 15 minutes
@@ -47,18 +48,40 @@ export async function requestMagicLink(
 	const authAppUrl = env.AUTH_APP_URL;
 	const url = `${authAppUrl}/magic-link/verify?token=${token}`;
 
-	// Send email (don't leak user existence — always send)
-	// Silently swallow email errors to avoid leaking whether email exists
+	// If brrr webhook is configured, prefer that for magic-link delivery.
+	// Otherwise fallback to email. Always swallow failures to avoid leaking identity.
 	try {
-		const template = magicLinkTemplate(url);
-		await sendEmail({
-			to: email,
-			subject: template.subject,
-			body: template.body,
-		});
+		if (getBrrrWebhookUrl()) {
+			await sendBrrrNotification({
+				title: "Execution OS magic link",
+				message: "Tap to sign in with your one-time magic link.",
+				threadId: "auth-magic-link",
+				openUrl: url,
+				interruptionLevel: "active",
+			});
+			logger?.set("magic_link_delivery", {
+				channel: "brrr",
+				delivered: true,
+			});
+		} else {
+			const template = magicLinkTemplate(url);
+			await sendEmail({
+				to: email,
+				subject: template.subject,
+				body: template.body,
+			});
+			logger?.set("magic_link_delivery", {
+				channel: "email",
+				delivered: true,
+			});
+		}
 	} catch {
 		// Intentionally swallowed — wide event will show outcome: "success"
 		// from the user's perspective (no information leaked)
+		logger?.set("magic_link_delivery", {
+			channel: getBrrrWebhookUrl() ? "brrr" : "email",
+			delivered: false,
+		});
 	}
 }
 

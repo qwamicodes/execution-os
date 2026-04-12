@@ -12,7 +12,8 @@ export const ManualClassificationSchema = z.object({
 		.nullable()
 		.optional(),
 	deadline: z
-		.union([z.string().datetime(), z.string().regex(/^\d{4}-\d{2}-\d{2}$/)])
+		.string()
+		.datetime()
 		.nullable()
 		.optional(),
 	tags: z.array(z.string()).max(10).optional(),

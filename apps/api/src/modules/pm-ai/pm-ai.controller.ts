@@ -5,6 +5,7 @@ import { ValidationError } from "../../shared/errors";
 import { success } from "../../shared/response";
 import {
 	AnalyzeImagesSchema,
+	PMAIApproveDocumentPlanSchema,
 	AnalyzeVideoSchema,
 	PMAIDecomposeTaskSchema,
 	PMAIIngestDocumentSchema,
@@ -16,6 +17,7 @@ import {
 import {
 	analyzeImagesInput,
 	analyzeVideoInput,
+	approveDocumentPlanDraft,
 	decomposeTaskForPMAI,
 	ingestDocumentAndGeneratePlan,
 	ingestUploadedDocumentAndGeneratePlan,
@@ -166,6 +168,33 @@ export const pmAIController = new Elysia({ prefix: "/pm-ai" })
 		});
 		return success(result);
 	})
+	.post("/approve-document-plan", async ({ body, userId, internal_logger }) => {
+		internal_logger.set("flow", "pm_ai_approve_document_plan");
+		const parsed = PMAIApproveDocumentPlanSchema.safeParse(body);
+		if (!parsed.success) {
+			throw new ValidationError(parsed.error.flatten().fieldErrors);
+		}
+		internal_logger.set("pm_ai_input", {
+			user_id: userId,
+			analysis_id: parsed.data.analysisId,
+			document_type: parsed.data.documentType,
+			usage_mode: parsed.data.usageMode,
+			create_tasks: parsed.data.createTasks,
+			create_milestones: parsed.data.createMilestones,
+		});
+
+		const result = await approveDocumentPlanDraft(
+			userId,
+			parsed.data,
+			internal_logger,
+		);
+		internal_logger.set("result", {
+			analysis_id: result.analysisId,
+			created_tasks: result.createdTasks.length,
+			created_milestones: result.createdMilestones.length,
+		});
+		return success(result);
+	})
 
 	.post(
 		"/ingest-document/upload",
@@ -233,6 +262,7 @@ export const pmAIController = new Elysia({ prefix: "/pm-ai" })
 			const parsed = PMAIIngestDocumentUploadSchema.safeParse({
 				documentType: readString("documentType"),
 				title: readString("title"),
+				feedbackInstructions: readString("feedbackInstructions"),
 				projectId: readString("projectId"),
 				ideaTaskId: readString("ideaTaskId"),
 				usageMode: readString("usageMode"),
