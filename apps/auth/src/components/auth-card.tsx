@@ -23,8 +23,13 @@ export function AuthCard({
 	return (
 		<Card>
 			<CardHeader className="text-center">
-				<div className="mb-2 text-2xl font-bold tracking-tight">
-					Execution OS
+				<div className="mb-2 flex items-center justify-center gap-2">
+					<img
+						src="/favicon.svg"
+						alt="Execution OS logo"
+						className="h-8 w-8 rounded-md"
+					/>
+					<span className="text-2xl font-bold tracking-tight">Execution OS</span>
 				</div>
 				<CardTitle className="text-xl">{title}</CardTitle>
 				<CardDescription>{description}</CardDescription>
