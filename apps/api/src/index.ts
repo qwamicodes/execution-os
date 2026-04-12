@@ -1,7 +1,6 @@
 import { cors } from "@elysiajs/cors";
 import { openapi } from "@elysiajs/openapi";
 import { prisma } from "@repo/database";
-import { config } from "dotenv";
 import { Elysia } from "elysia";
 import { env } from "./config";
 import { errorMiddleware } from "./middleware/error";
@@ -20,8 +19,6 @@ import { startPriorityRecalculationScheduler } from "./modules/tasks/priority.sc
 import { taskController } from "./modules/tasks/task.controller";
 import { basePlugin } from "./plugins/base";
 import { logger } from "./shared/logger";
-
-config({ path: ".env.local" });
 
 const port = Number(env.PORT);
 

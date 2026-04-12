@@ -1,4 +1,10 @@
+import { existsSync } from "node:fs";
+import { config } from "dotenv";
 import z from "zod";
+
+if (process.env.NODE_ENV !== "production" && existsSync(".env.local")) {
+	config({ path: ".env.local", quiet: true });
+}
 
 export const EnvSchema = z.object({
 	PORT: z.coerce.number().catch(8901),
