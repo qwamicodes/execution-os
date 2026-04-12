@@ -49,23 +49,6 @@ services:
     networks:
       - eos-network
 
-  web:
-    build:
-      context: ../..
-      dockerfile: apps/web/Dockerfile
-    container_name: eos-web
-    restart: unless-stopped
-    ports:
-      - "${WEB_PORT:-8900}:8900"
-    environment:
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: 8900
-    depends_on:
-      api:
-        condition: service_healthy
-    networks:
-      - eos-network
-
   auth:
     build:
       context: ../..

@@ -14,7 +14,6 @@ Execution OS is a monorepo for planning and execution workflows with:
 - `apps/auth`: auth app
 - `apps/mobile`: mobile app
 - `apps/desktop`: desktop app
-- `apps/web`: legacy/auxiliary web app
 
 ### Packages
 - `packages/database`: Prisma schema, migrations, generated client
@@ -63,7 +62,7 @@ bun --filter dashboard run dev
 
 Deployment is Docker Compose based and split into:
 - infrastructure services (`postgres`, `redis`)
-- application services (`migrate`, `api`, `web`, `auth`, `dashboard`)
+- application services (`migrate`, `api`, `auth`, `dashboard`)
 
 ### 1. Prepare env file
 
