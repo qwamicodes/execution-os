@@ -89,6 +89,6 @@ ENV PORT=8901
 EXPOSE 8901
 
 HEALTHCHECK --interval=15s --timeout=5s --retries=3 --start-period=10s \
-  CMD curl -f http://localhost:8901/health || exit 1
+  CMD bun -e "fetch('http://localhost:8901/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 CMD ["bun", "apps/api/dist/index.js"]

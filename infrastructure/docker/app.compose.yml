@@ -32,6 +32,7 @@ services:
       - "${API_PORT:-8901}:8901"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
       PORT: 8901
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
@@ -41,7 +42,13 @@ services:
       migrate:
         condition: service_completed_successfully
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8901/health || exit 1"]
+      test:
+        [
+          "CMD",
+          "bun",
+          "-e",
+          "fetch('http://localhost:8901/health').then((r)=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
       interval: 15s
       timeout: 5s
       retries: 3
