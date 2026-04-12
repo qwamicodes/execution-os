@@ -4,7 +4,7 @@
 # =============================================================================
 
 # --- Stage 1: Install dependencies ---
-FROM node:22-slim AS base
+FROM oven/bun:1.2-debian AS base
 
 WORKDIR /app
 
@@ -26,8 +26,12 @@ COPY packages/typescript-config/package.json packages/typescript-config/package.
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/ui-native/package.json packages/ui-native/package.json
 
-# Install all dependencies (workspace-aware)
-RUN npm install
+# Install all dependencies (workspace-aware via Bun lockfile)
+RUN bun install --frozen-lockfile
+
+# Install Node.js runtime needed for Next.js build execution
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
+  && rm -rf /var/lib/apt/lists/*
 
 # --- Stage 2: Build ---
 FROM base AS builder
@@ -41,8 +45,8 @@ COPY packages/ui packages/ui
 COPY packages/tailwind-config packages/tailwind-config
 COPY apps/web apps/web
 
-# Build Next.js (standalone output) with Node
-RUN npx turbo run build --filter=web
+# Build Next.js (standalone output) with Node (not Bun)
+RUN node node_modules/turbo/bin/turbo run build --filter=web
 
 # --- Stage 3: Production ---
 FROM node:22-slim AS production
