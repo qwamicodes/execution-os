@@ -1,6 +1,10 @@
 import Redis from "ioredis";
 
-const redisUrl = process.env.REDIS_URL || "redis://localhost:8911";
+import { env } from "../config";
+import { logger } from "./logger";
+
+const redisUrl = env.REDIS_URL ;
+logger.info({ event: "redis_url", url: redisUrl });
 
 export const redis = new Redis(redisUrl, {
 	maxRetriesPerRequest: 3,
@@ -11,9 +15,9 @@ export const redis = new Redis(redisUrl, {
 });
 
 redis.on("error", (err) => {
-	console.error("[redis] connection error:", err.message);
+	logger.error({ event: "redis_connection_error", error: err.message });
 });
 
 redis.on("connect", () => {
-	console.log("[redis] connected");
+	logger.info({ event: "redis_connected" });
 });

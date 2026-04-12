@@ -1,6 +1,7 @@
 import Elysia from "elysia";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
+import { basePlugin } from "../../plugins/base";
 import { prisma } from "../../shared/database";
 import { ValidationError } from "../../shared/errors";
 import { success } from "../../shared/response";
@@ -12,15 +13,23 @@ const SearchQuerySchema = z.object({
 });
 
 export const searchController = new Elysia({ prefix: "/search" })
+	.use(basePlugin)
 	.use(authMiddleware)
 
-	.get("/", async ({ query, userId }) => {
+	.get("/", async ({ query, userId, internal_logger }) => {
+		internal_logger.set("flow", "search");
 		const parsed = SearchQuerySchema.safeParse(query);
 		if (!parsed.success) {
 			throw new ValidationError(parsed.error.flatten().fieldErrors);
 		}
 
 		const { q, scope, limit } = parsed.data;
+		internal_logger.set("search_input", {
+			user_id: userId,
+			query_length: q.length,
+			scope,
+			limit,
+		});
 		const startTime = performance.now();
 
 		let tasks: Array<{
@@ -82,6 +91,12 @@ export const searchController = new Elysia({ prefix: "/search" })
 		}
 
 		const searchTimeMs = Math.round(performance.now() - startTime);
+		internal_logger?.set("result", {
+			task_count: tasks.length,
+			project_count: projects.length,
+			total_results: tasks.length + projects.length,
+			search_time_ms: searchTimeMs,
+		});
 
 		return success({
 			tasks: tasks.map((t) => ({

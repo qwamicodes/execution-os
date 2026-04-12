@@ -1,89 +1,242 @@
 import Elysia from "elysia";
+
 import { authMiddleware } from "../../middleware/auth";
-import { ValidationError } from "../../shared/errors";
+import { basePlugin } from "../../plugins/base";
 import { created, success } from "../../shared/response";
-import { LoginSchema, RegisterSchema } from "./auth.schema";
+import {
+	LoginSchema,
+	MagicLinkRequestSchema,
+	MagicLinkVerifySchema,
+	OtpRequestSchema,
+	OtpVerifySchema,
+	RegisterSchema,
+} from "./auth.schema";
 import * as authService from "./auth.service";
+import * as magicLinkService from "./magic-link.service";
+import * as otpService from "./otp.service";
+
+const SESSION_COOKIE_OPTIONS = {
+	httpOnly: true,
+	secure: process.env.NODE_ENV === "production",
+	sameSite: "strict" as const,
+	path: "/",
+};
 
 export const authController = new Elysia({ prefix: "/auth" })
-	.post("/register", async ({ body, cookie, set }) => {
-		const parsed = RegisterSchema.safeParse(body);
-		if (!parsed.success) {
-			throw new ValidationError(parsed.error.flatten().fieldErrors);
-		}
+	.use(basePlugin)
+	.post(
+		"/register",
+		async ({ body, cookie, set, internal_logger }) => {
+			internal_logger.set("flow", "auth_register");
 
-		const result = await authService.register(parsed.data);
+			internal_logger.set("auth", {
+				action: "register",
+				email_domain: body.email.split("@")[1] ?? null,
+			});
 
-		cookie.sessionId.set({
-			value: result.sessionId,
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "strict",
-			maxAge: 7 * 24 * 60 * 60,
-			path: "/",
-		});
+			const result = await authService.register(body, internal_logger);
+			internal_logger.set("result", {
+				user_id: result.user.id,
+				session_created: true,
+			});
 
-		set.status = 201;
-		return created({ user: result.user, sessionId: result.sessionId });
-	})
+			cookie.sessionId?.set({
+				...SESSION_COOKIE_OPTIONS,
+				value: result.sessionId,
+				maxAge: 7 * 24 * 60 * 60,
+			});
 
-	.post("/login", async ({ body, cookie }) => {
-		const parsed = LoginSchema.safeParse(body);
-		if (!parsed.success) {
-			throw new ValidationError(parsed.error.flatten().fieldErrors);
-		}
+			set.status = 201;
+			return created({ user: result.user, sessionId: result.sessionId });
+		},
+		{ body: RegisterSchema },
+	)
 
-		const result = await authService.login(parsed.data);
+	.post(
+		"/login",
+		async ({ body, cookie, internal_logger }) => {
+			internal_logger.set("flow", "auth_login");
 
-		const maxAge = parsed.data.rememberMe
-			? 30 * 24 * 60 * 60
-			: 7 * 24 * 60 * 60;
+			internal_logger.set("auth", {
+				action: "login",
+				email_domain: body.email.split("@")[1] ?? null,
+				remember_me: Boolean(body.rememberMe),
+			});
 
-		cookie.sessionId.set({
-			value: result.sessionId,
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "strict",
-			maxAge,
-			path: "/",
-		});
+			const result = await authService.login(body, internal_logger);
+			internal_logger.set("result", {
+				user_id: result.user.id,
+				session_created: true,
+			});
 
-		return success({
-			user: result.user,
-			sessionId: result.sessionId,
-			expiresAt: result.expiresAt,
-		});
-	})
+			const maxAge = body.rememberMe ? 30 * 24 * 60 * 60 : 7 * 24 * 60 * 60;
+
+			cookie.sessionId?.set({
+				...SESSION_COOKIE_OPTIONS,
+				value: result.sessionId,
+				maxAge,
+			});
+
+			return success({
+				user: result.user,
+				sessionId: result.sessionId,
+				expiresAt: result.expiresAt,
+			});
+		},
+		{ body: LoginSchema },
+	)
+
+	// ─── OTP Routes ────────────────────────────────────────────────────────────
+
+	.post(
+		"/otp/request",
+		async ({ body, internal_logger }) => {
+			internal_logger.set("flow", "auth_otp_request");
+
+			internal_logger.set("auth", {
+				action: "otp_request",
+				email_domain: body.email.split("@")[1] ?? null,
+			});
+
+			await otpService.requestOtp(body.email, internal_logger);
+			internal_logger.set("result", { delivery_attempted: true });
+
+			// Always return 200 — don't leak whether email exists
+			return success({ message: "If an account exists, a code has been sent" });
+		},
+		{ body: OtpRequestSchema },
+	)
+
+	.post(
+		"/otp/verify",
+		async ({ body, cookie, internal_logger }) => {
+			internal_logger.set("flow", "auth_otp_verify");
+
+			internal_logger.set("auth", {
+				action: "otp_verify",
+				email_domain: body.email.split("@")[1] ?? null,
+				code_length: body.code.length,
+			});
+
+			const result = await otpService.verifyOtp(
+				body.email,
+				body.code,
+				internal_logger,
+			);
+			internal_logger.set("result", {
+				user_id: result.user.id,
+				session_created: true,
+			});
+
+			cookie.sessionId?.set({
+				...SESSION_COOKIE_OPTIONS,
+				value: result.sessionId,
+				maxAge: 7 * 24 * 60 * 60,
+			});
+
+			return success({
+				user: result.user,
+				sessionId: result.sessionId,
+				expiresAt: result.expiresAt,
+			});
+		},
+		{ body: OtpVerifySchema },
+	)
+
+	// ─── Magic Link Routes ─────────────────────────────────────────────────────
+
+	.post(
+		"/magic-link/request",
+		async ({ body, internal_logger }) => {
+			internal_logger.set("flow", "auth_magic_link_request");
+
+			internal_logger.set("auth", {
+				action: "magic_link_request",
+				email_domain: body.email.split("@")[1] ?? null,
+			});
+
+			await magicLinkService.requestMagicLink(body.email, internal_logger);
+			internal_logger.set("result", { delivery_attempted: true });
+
+			// Always return 200 — don't leak whether email exists
+			return success({ message: "If an account exists, a link has been sent" });
+		},
+		{ body: MagicLinkRequestSchema },
+	)
+
+	.post(
+		"/magic-link/verify",
+		async ({ body, cookie, internal_logger }) => {
+			internal_logger.set("flow", "auth_magic_link_verify");
+			internal_logger.set("auth", {
+				action: "magic_link_verify",
+				token_length: body.token.length,
+			});
+
+			const result = await magicLinkService.verifyMagicLink(
+				body.token,
+				internal_logger,
+			);
+			internal_logger.set("result", {
+				user_id: result.user.id,
+				session_created: true,
+			});
+
+			cookie.sessionId?.set({
+				...SESSION_COOKIE_OPTIONS,
+				value: result.sessionId,
+				maxAge: 7 * 24 * 60 * 60,
+			});
+
+			return success({
+				user: result.user,
+				sessionId: result.sessionId,
+				expiresAt: result.expiresAt,
+			});
+		},
+		{ body: MagicLinkVerifySchema },
+	)
+
+	// ─── Protected Routes ──────────────────────────────────────────────────────
 
 	.use(authMiddleware)
 
-	.post("/logout", async ({ cookie, userId }) => {
+	.post("/logout", async ({ cookie, userId, internal_logger }) => {
+		internal_logger.set("flow", "auth_logout");
 		const sessionId = cookie.sessionId?.value;
-		if (sessionId) {
-			await authService.logout(sessionId, userId);
+		if (typeof sessionId === "string" && typeof userId === "string") {
+			internal_logger.set("auth", {
+				action: "logout",
+				user_id: userId,
+				has_session_cookie: true,
+			});
+			await authService.logout(sessionId, userId, internal_logger);
 		}
 
-		cookie.sessionId.set({
+		cookie.sessionId?.set({
+			...SESSION_COOKIE_OPTIONS,
 			value: "",
-			httpOnly: true,
-			secure: process.env.NODE_ENV === "production",
-			sameSite: "strict",
 			maxAge: 0,
-			path: "/",
 		});
 
 		return success({ message: "Logged out successfully" });
 	})
 
-	.post("/logout-all", async ({ userId }) => {
-		const count = await authService.logoutAll(userId);
+	.post("/logout-all", async ({ userId, internal_logger }) => {
+		internal_logger.set("flow", "auth_logout_all");
+		internal_logger.set("auth", { action: "logout_all", user_id: userId });
+		const count = await authService.logoutAll(userId, internal_logger);
+		internal_logger.set("result", { sessions_invalidated: count });
 		return success({
 			message: "Logged out from all devices",
 			sessionsInvalidated: count,
 		});
 	})
 
-	.get("/me", async ({ userId }) => {
-		const user = await authService.getMe(userId);
+	.get("/me", async ({ userId, internal_logger }) => {
+		internal_logger.set("flow", "auth_me");
+		internal_logger.set("auth", { action: "me", user_id: userId });
+		const user = await authService.getMe(userId, internal_logger);
+		internal_logger.set("result", { user_id: user?.id ?? null });
 		return success(user);
 	});

@@ -1,6 +1,8 @@
 import Elysia from "elysia";
 import { UnauthorizedError } from "../shared/errors";
 import { redis } from "../shared/redis";
+import type { RequestLogger } from "../shared/wide-event";
+import { basePlugin } from "../plugins/base";
 
 interface SessionData {
 	userId: string;
@@ -10,9 +12,9 @@ interface SessionData {
 
 const SESSION_TTL = 7 * 24 * 60 * 60; // 7 days in seconds
 
-export const authMiddleware = new Elysia({ name: "auth" }).derive(
-	{ as: "scoped" },
-	async ({ cookie }) => {
+export const authMiddleware = new Elysia({ name: "auth" })
+	.use(basePlugin)
+	.derive({ as: "scoped" }, async ({ cookie, internal_logger }) => {
 		const sessionId = cookie.sessionId?.value;
 
 		if (!sessionId) {
@@ -35,6 +37,10 @@ export const authMiddleware = new Elysia({ name: "auth" }).derive(
 		// Sliding expiration - refresh TTL on each request
 		await redis.expire(`session:${sessionId}`, SESSION_TTL);
 
+		internal_logger.set("auth", {
+			user_id: session.userId,
+			session_ttl_min: SESSION_TTL / 60,
+		});
+
 		return { userId: session.userId };
-	},
-);
+	});

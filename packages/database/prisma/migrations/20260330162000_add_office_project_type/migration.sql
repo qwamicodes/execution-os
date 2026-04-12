@@ -1,0 +1,1 @@
+ALTER TYPE "ProjectType" ADD VALUE IF NOT EXISTS 'Office';

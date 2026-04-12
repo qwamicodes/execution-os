@@ -4,23 +4,36 @@
 	"type": "module",
 	"private": true,
 	"scripts": {
-		"dev": "vite --port 8902",
-		"build": "vite build",
-		"preview": "vite preview",
+		"dev": "vite",
+		"dev:staging": "vite --mode staging",
+		"dev:prod": "vite --mode production",
+		"build:staging": "vite build --mode staging",
+		"build:production": "vite build --mode production",
+		"preview:staging": "vite preview --mode staging",
+		"preview:production": "vite preview --mode production",
 		"lint": "biome check --write",
 		"check-types": "tsc --noEmit"
 	},
 	"dependencies": {
+		"@hookform/resolvers": "^5.0.0",
 		"@repo/ui": "*",
+		"@tanstack/react-query": "^5.0.0",
+		"@tanstack/react-router": "^1.0.0",
 		"react": "^19.2.0",
-		"react-dom": "^19.2.0"
+		"react-dom": "^19.2.0",
+		"react-hook-form": "^7.0.0",
+		"zod": "^3.23.0"
 	},
 	"devDependencies": {
 		"@repo/biome-config": "^",
 		"@repo/typescript-config": "*",
+		"@tailwindcss/vite": "^4.1.0",
+		"@tanstack/react-router-devtools": "^1.0.0",
+		"@tanstack/router-plugin": "^1.0.0",
 		"@types/react": "19.2.2",
 		"@types/react-dom": "19.2.2",
 		"@vitejs/plugin-react": "^4.0.0",
+		"tailwindcss": "^4.1.0",
 		"typescript": "5.9.2",
 		"vite": "^6.0.0"
 	}

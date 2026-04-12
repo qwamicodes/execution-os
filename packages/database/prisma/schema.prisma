@@ -1,18 +1,25 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["fullTextSearchPostgres"]
+  provider        = "prisma-client"
+  output          = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 // ─── Enums ───────────────────────────────────────────────────────────────────
 
 enum ProjectType {
+  Clients
   Core
-  SideQuest
+  InHouse
+  Office
+}
+
+enum MilestoneStatus {
+  Pending
+  Completed
+  AtRisk
 }
 
 enum TaskState {
@@ -39,6 +46,15 @@ enum TaskUrgency {
   Low
 }
 
+enum IdeaState {
+  Captured
+  Classified
+  Clarified
+  Planned
+  Incubating
+  Archived
+}
+
 enum SessionState {
   Active
   Paused
@@ -56,6 +72,7 @@ enum SessionOutcome {
 enum IntegrationType {
   Slack
   Gmail
+  Linear
   GitHub
   GitLab
   Bitbucket
@@ -65,11 +82,11 @@ enum IntegrationType {
 // ─── Models ──────────────────────────────────────────────────────────────────
 
 model User {
-  id       String @id @default(uuid()) @db.Uuid
-  email    String @unique @db.VarChar(255)
-  password String @db.VarChar(255)
-  name     String @db.VarChar(100)
-  timezone String @default("UTC") @db.VarChar(50)
+  id       String  @id @default(uuid()) @db.Uuid
+  email    String  @unique @db.VarChar(255)
+  password String? @db.VarChar(255)
+  name     String  @db.VarChar(100)
+  timezone String  @default("UTC") @db.VarChar(50)
 
   preferences Json @default("{}")
 
@@ -78,10 +95,13 @@ model User {
   deletedAt DateTime? @db.Timestamptz(6)
 
   tasks        Task[]
+  ideas        Idea[]
   sessions     Session[]
   projects     Project[]
   integrations Integration[]
   stateHistory StateHistory[]
+  milestones   ProjectMilestone[]
+  projectParts ProjectPart[]
 
   @@index([email])
   @@index([createdAt])
@@ -95,8 +115,9 @@ model Project {
   description String?     @db.VarChar(500)
   type        ProjectType @default(Core)
   color       String?     @db.VarChar(7)
+  targetCompletionDate DateTime? @db.Timestamptz(6)
 
-  sideQuestState String? @db.VarChar(20)
+  inHouseState String? @db.VarChar(20)
 
   userId String @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -107,12 +128,70 @@ model Project {
   deletedAt  DateTime? @db.Timestamptz(6)
 
   tasks Task[]
+  milestones ProjectMilestone[]
+  parts ProjectPart[]
 
   @@index([userId])
+  @@index([name])
   @@index([type])
+  @@index([targetCompletionDate])
   @@index([archivedAt])
   @@index([deletedAt])
+  @@index([userId, name])
   @@map("projects")
+}
+
+model ProjectPart {
+  id String @id @default(uuid()) @db.Uuid
+
+  name        String  @db.VarChar(120)
+  description String? @db.VarChar(500)
+  order       Int?    @db.SmallInt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  tasks Task[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@index([userId])
+  @@index([order])
+  @@map("project_parts")
+}
+
+model ProjectMilestone {
+  id String @id @default(uuid()) @db.Uuid
+
+  title       String   @db.VarChar(200)
+  description String?  @db.VarChar(1000)
+  targetDate  DateTime? @db.Timestamptz(6)
+  status      MilestoneStatus @default(Pending)
+  order       Int?     @db.SmallInt
+  completedAt DateTime? @db.Timestamptz(6)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([targetDate])
+  @@index([status])
+  @@index([createdAt])
+  @@map("project_milestones")
 }
 
 model Task {
@@ -123,14 +202,17 @@ model Task {
 
   size             TaskSize?
   urgency          TaskUrgency?
-  protected        Boolean       @default(false)
-  protectionReason String?       @db.VarChar(100)
-  tags             String[]      @db.VarChar(50)
+  protected        Boolean      @default(false)
+  protectionReason String?      @db.VarChar(100)
+  tags             String[]     @db.VarChar(50)
 
-  priority          Int?  @db.Integer
-  estimatedSessions Int?  @db.SmallInt
-  completedSessions Int   @default(0) @db.SmallInt
-  deadline          DateTime? @db.Timestamptz(6)
+  priority               Int?      @db.Integer
+  priorityOverride       Int?      @db.Integer
+  priorityOverrideUntil  DateTime? @db.Timestamptz(6)
+  priorityOverrideReason String?   @db.VarChar(200)
+  estimatedSessions      Int?      @db.SmallInt
+  completedSessions      Int       @default(0) @db.SmallInt
+  deadline               DateTime? @db.Timestamptz(6)
 
   parentId String? @db.Uuid
   parent   Task?   @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: Cascade)
@@ -142,6 +224,10 @@ model Task {
 
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  partId    String?  @map("part_id") @db.Uuid
+  part      ProjectPart? @relation(fields: [partId], references: [id], onDelete: SetNull)
+  milestoneId String? @map("milestone_id") @db.Uuid
+  milestone   ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
 
   source         String @default("manual") @db.VarChar(20)
   sourceMetadata Json?
@@ -155,16 +241,56 @@ model Task {
   stateHistory StateHistory[]
 
   @@index([userId])
+  @@index([title])
   @@index([projectId])
+  @@index([partId])
+  @@index([milestoneId])
   @@index([state])
   @@index([priority])
+  @@index([priorityOverrideUntil])
   @@index([deadline])
   @@index([parentId])
   @@index([createdAt])
   @@index([deletedAt])
+  @@index([userId, title])
   @@index([userId, state, priority])
   @@index([projectId, state])
   @@map("tasks")
+}
+
+model Idea {
+  id          String    @id @default(uuid()) @db.Uuid
+  title       String    @db.VarChar(500)
+  description String?   @db.Text
+  state       IdeaState @default(Captured)
+
+  size             TaskSize?
+  urgency          TaskUrgency?
+  protected        Boolean      @default(false)
+  protectionReason String?      @db.VarChar(100)
+
+  deadline DateTime? @db.Timestamptz(6)
+
+  source         String @default("manual") @db.VarChar(20)
+  sourceMetadata Json?
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime  @default(now()) @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(6)
+  stateChangedAt DateTime  @default(now()) @db.Timestamptz(6)
+  deletedAt      DateTime? @db.Timestamptz(6)
+
+  @@index([userId])
+  @@index([title])
+  @@index([state])
+  @@index([deadline])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([userId, title])
+  @@index([userId, state])
+  @@map("ideas")
 }
 
 model StateHistory {
@@ -191,7 +317,7 @@ model StateHistory {
 model Session {
   id String @id @default(uuid()) @db.Uuid
 
-  state   SessionState   @default(Active)
+  state   SessionState    @default(Active)
   outcome SessionOutcome?
 
   duration       Int       @default(30) @db.SmallInt
@@ -253,8 +379,8 @@ model Integration {
 }
 
 model EventLog {
-  id        String  @id @default(uuid()) @db.Uuid
-  eventType String  @db.VarChar(100)
+  id        String @id @default(uuid()) @db.Uuid
+  eventType String @db.VarChar(100)
   payload   Json
 
   userId    String? @db.Uuid

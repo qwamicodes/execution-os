@@ -22,25 +22,27 @@ export interface PaginatedResponse<T> {
 
 export interface ErrorResponse {
 	error: {
-		code: string;
+		status_code: string;
+		code?: string;
 		message: string;
-		details?: Record<string, unknown>;
+		details?: string;
+		suggestion?: string;
 		requestId: string;
 	};
 }
 
-export function success<T>(data: T): SuccessResponse<T> {
+export function success<T>(data: T, requestId?: string): SuccessResponse<T> {
 	return {
 		data,
 		meta: {
 			timestamp: new Date().toISOString(),
-			requestId: randomUUID(),
+			requestId: requestId || randomUUID(),
 		},
 	};
 }
 
-export function created<T>(data: T): SuccessResponse<T> {
-	return success(data);
+export function created<T>(data: T, requestId?: string): SuccessResponse<T> {
+	return success(data, requestId);
 }
 
 export function paginated<T>(
@@ -49,31 +51,36 @@ export function paginated<T>(
 	page: number,
 	limit: number,
 ): PaginatedResponse<T> {
-	const totalPages = Math.ceil(total / limit);
+	const normalizedPage = limit === -1 ? 1 : page;
+	const totalPages = limit === -1 ? (total > 0 ? 1 : 0) : Math.ceil(total / limit);
 	return {
 		data,
 		meta: {
-			page,
+			page: normalizedPage,
 			limit,
 			total,
 			totalPages,
-			hasNext: page < totalPages,
-			hasPrev: page > 1,
+			hasNext: normalizedPage < totalPages,
+			hasPrev: normalizedPage > 1,
 		},
 	};
 }
 
 export function error(
-	code: string,
+	statusCode: string,
 	message: string,
-	details?: Record<string, unknown>,
+	details?: string,
+	suggestion?: string,
+	requestId?: string,
 ): ErrorResponse {
 	return {
 		error: {
-			code,
+			status_code: statusCode,
+			code: statusCode,
 			message,
 			details,
-			requestId: randomUUID(),
+			suggestion,
+			requestId: requestId || randomUUID(),
 		},
 	};
 }

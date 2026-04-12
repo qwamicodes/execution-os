@@ -1,3 +1,5 @@
+name: execution-os
+
 services:
   migrate:
     build:

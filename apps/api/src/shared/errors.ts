@@ -58,3 +58,12 @@ export class RateLimitError extends AppError {
 		);
 	}
 }
+
+export class ServiceUnavailableError extends AppError {
+	constructor(
+		message = "Service temporarily unavailable",
+		details?: Record<string, unknown>,
+	) {
+		super("SERVICE_UNAVAILABLE", message, 503, details);
+	}
+}

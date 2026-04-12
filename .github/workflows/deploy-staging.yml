@@ -4,7 +4,7 @@ on:
   workflow_run:
     workflows: [continuous-integration]
     types: [completed]
-    branches: [main]
+    branches: [staging]
 
 concurrency:
   group: deploy-staging
