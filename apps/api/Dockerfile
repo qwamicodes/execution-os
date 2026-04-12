@@ -29,6 +29,10 @@ COPY packages/ui-native/package.json packages/ui-native/package.json
 # Install all dependencies
 RUN bun install --frozen-lockfile
 
+# Prisma CLI/runtime needs OpenSSL in this image lineage (used by migrate target too)
+RUN apt-get update && apt-get install -y --no-install-recommends openssl \
+  && rm -rf /var/lib/apt/lists/*
+
 # --- Stage 2: Build ---
 FROM base AS builder
 

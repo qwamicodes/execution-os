@@ -13,7 +13,7 @@ services:
       - sh
       - -c
       - >
-        until bunx prisma migrate deploy --schema packages/database/prisma/schema.prisma;
+        until bunx prisma migrate deploy --config packages/database/prisma.config.ts --schema packages/database/prisma/schema.prisma;
         do
           echo "Waiting for database to become ready...";
           sleep 5;
