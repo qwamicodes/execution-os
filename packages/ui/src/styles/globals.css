@@ -46,6 +46,46 @@
 }
 
 @layer base {
+	.dark {
+		/* Grok-like dark palette: deep graphite surfaces + cool electric blue accents */
+		--color-background: hsl(220 24% 8%);
+		--color-foreground: hsl(210 24% 92%);
+
+		--color-card: hsl(220 20% 12%);
+		--color-card-foreground: hsl(210 24% 92%);
+
+		--color-popover: hsl(220 20% 12%);
+		--color-popover-foreground: hsl(210 24% 92%);
+
+		--color-primary: hsl(204 89% 53%);
+		--color-primary-foreground: hsl(220 24% 8%);
+
+		--color-secondary: hsl(220 16% 18%);
+		--color-secondary-foreground: hsl(210 24% 92%);
+
+		--color-muted: hsl(220 14% 16%);
+		--color-muted-foreground: hsl(214 16% 68%);
+
+		--color-accent: hsl(220 16% 20%);
+		--color-accent-foreground: hsl(210 24% 92%);
+
+		--color-destructive: hsl(0 72% 48%);
+		--color-destructive-foreground: hsl(210 24% 96%);
+
+		--color-border: hsl(218 16% 24%);
+		--color-input: hsl(218 16% 24%);
+		--color-ring: hsl(204 89% 53%);
+
+		--color-sidebar: hsl(220 24% 10%);
+		--color-sidebar-foreground: hsl(210 24% 90%);
+		--color-sidebar-primary: hsl(204 89% 53%);
+		--color-sidebar-primary-foreground: hsl(220 24% 8%);
+		--color-sidebar-accent: hsl(220 16% 18%);
+		--color-sidebar-accent-foreground: hsl(210 24% 92%);
+		--color-sidebar-border: hsl(218 16% 22%);
+		--color-sidebar-ring: hsl(204 89% 53%);
+	}
+
 	*,
 	::after,
 	::before,
