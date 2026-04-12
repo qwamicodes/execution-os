@@ -34,6 +34,11 @@ FROM base AS builder
 
 WORKDIR /app
 
+ARG VITE_API_URL=http://localhost:8901
+ARG VITE_DASHBOARD_URL=http://localhost:8903
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_DASHBOARD_URL=$VITE_DASHBOARD_URL
+
 # Copy source code needed for auth build
 COPY packages/typescript-config packages/typescript-config
 COPY packages/biome-config packages/biome-config

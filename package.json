@@ -1,35 +1,35 @@
 {
-  "name": "my-turborepo",
-  "private": true,
-  "scripts": {
-    "build": "turbo run build",
-    "dev": "turbo run dev --filter=@repo/api --filter=dashboard --filter=auth",
-    "lint": "turbo run lint",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "check-types": "turbo run check-types"
-  },
-  "devDependencies": {
-    "@biomejs/biome": "2.3.8",
-    "prettier": "^3.6.2",
-    "prisma": "7.6.0",
-    "turbo": "^2.9.3",
-    "typescript": "5.9.2"
-  },
-  "engines": {
-    "node": ">=18"
-  },
-  "packageManager": "bun@1.2.23",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
-  "dependencies": {
-    "moment": "^2.30.1",
-    "pino-pretty": "^13.1.3"
-  },
-  "overrides": {
-    "prisma": "7.6.0",
-    "@prisma/client": "7.6.0",
-    "@prisma/adapter-pg": "7.6.0"
-  }
+	"name": "my-turborepo",
+	"private": true,
+	"scripts": {
+		"build": "turbo run build",
+		"dev": "turbo run dev --filter=@repo/api --filter=dashboard --filter=auth",
+		"lint": "turbo run lint",
+		"format": "prettier --write \"**/*.{ts,tsx,md}\"",
+		"check-types": "turbo run check-types"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "2.3.8",
+		"prettier": "^3.6.2",
+		"prisma": "7.6.0",
+		"turbo": "^2.9.3",
+		"typescript": "5.9.2"
+	},
+	"engines": {
+		"node": ">=18"
+	},
+	"packageManager": "bun@1.2.23",
+	"workspaces": [
+		"apps/*",
+		"packages/*"
+	],
+	"dependencies": {
+		"moment": "^2.30.1",
+		"pino-pretty": "^13.1.3"
+	},
+	"overrides": {
+		"prisma": "7.6.0",
+		"@prisma/client": "7.6.0",
+		"@prisma/adapter-pg": "7.6.0"
+	}
 }

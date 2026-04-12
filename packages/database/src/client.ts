@@ -1,10 +1,13 @@
+import { existsSync } from "node:fs";
 import { PrismaClient } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 
 import { config } from "dotenv";
 
-config({ path: ".env.local" });
+if (process.env.NODE_ENV !== "production" && existsSync(".env.local")) {
+	config({ path: ".env.local", quiet: true });
+}
 
 const DATABASE_URL = process.env.DATABASE_URL;
 

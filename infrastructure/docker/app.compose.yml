@@ -53,6 +53,9 @@ services:
     build:
       context: ../..
       dockerfile: apps/auth/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8901}
+        VITE_DASHBOARD_URL: ${VITE_DASHBOARD_URL:-http://localhost:8903}
     container_name: eos-auth
     restart: unless-stopped
     ports:
@@ -64,6 +67,9 @@ services:
     build:
       context: ../..
       dockerfile: apps/dashboard/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8901}
+        VITE_AUTH_URL: ${VITE_AUTH_URL:-http://localhost:8902}
     container_name: eos-dashboard
     restart: unless-stopped
     ports:

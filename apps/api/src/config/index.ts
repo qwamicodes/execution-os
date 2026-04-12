@@ -8,15 +8,24 @@ if (process.env.NODE_ENV !== "production" && existsSync(".env.local")) {
 
 export const EnvSchema = z.object({
 	PORT: z.coerce.number().catch(8901),
-	CORS_ORIGIN: z
-		.string()
-		.array()
-		.default([
+	CORS_ORIGIN: z.preprocess(
+		(value) => {
+			if (Array.isArray(value)) return value;
+			if (typeof value === "string") {
+				return value
+					.split(",")
+					.map((origin) => origin.trim())
+					.filter(Boolean);
+			}
+			return value;
+		},
+		z.array(z.string()).default([
 			"http://localhost:8900",
 			"http://localhost:8901",
 			"http://localhost:8902",
 			"http://localhost:8903",
 		]),
+	),
 	REDIS_URL: z.string().default("redis://localhost:8911"),
 	AUTH_APP_URL: z.string().default("http://localhost:8902"),
 	PURPLE_BOX_API_KEY: z.string().optional(),
