@@ -5,7 +5,7 @@ import { defineConfig, loadEnv } from "vite";
 
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
-	const port = parseInt(env.PORT);
+	const port = parseInt(env.PORT) || 8903;
 
 	return {
 		plugins: [
