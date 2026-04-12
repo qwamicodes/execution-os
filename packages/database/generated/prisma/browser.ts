@@ -28,6 +28,11 @@ export type User = Prisma.UserModel
  */
 export type Project = Prisma.ProjectModel
 /**
+ * Model ProjectPart
+ * 
+ */
+export type ProjectPart = Prisma.ProjectPartModel
+/**
  * Model ProjectMilestone
  * 
  */
@@ -37,6 +42,11 @@ export type ProjectMilestone = Prisma.ProjectMilestoneModel
  * 
  */
 export type Task = Prisma.TaskModel
+/**
+ * Model Idea
+ * 
+ */
+export type Idea = Prisma.IdeaModel
 /**
  * Model StateHistory
  * 

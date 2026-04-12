@@ -10,8 +10,10 @@
  */
 export type * from './models/User.js'
 export type * from './models/Project.js'
+export type * from './models/ProjectPart.js'
 export type * from './models/ProjectMilestone.js'
 export type * from './models/Task.js'
+export type * from './models/Idea.js'
 export type * from './models/StateHistory.js'
 export type * from './models/Session.js'
 export type * from './models/Integration.js'

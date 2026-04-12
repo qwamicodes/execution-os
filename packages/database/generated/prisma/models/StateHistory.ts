@@ -8,7 +8,7 @@
  *
  * 🟢 You can import this file directly.
  */
-import type * as runtime from "@prisma/client/runtime/library"
+import type * as runtime from "@prisma/client/runtime/client"
 import type * as $Enums from "../enums.js"
 import type * as Prisma from "../internal/prismaNamespace.js"
 
@@ -172,7 +172,7 @@ export type StateHistoryGroupByOutputType = {
   _max: StateHistoryMaxAggregateOutputType | null
 }
 
-type GetStateHistoryGroupByPayload<T extends StateHistoryGroupByArgs> = Prisma.PrismaPromise<
+export type GetStateHistoryGroupByPayload<T extends StateHistoryGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<StateHistoryGroupByOutputType, T['by']> &
       {
@@ -212,7 +212,6 @@ export type StateHistoryOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   task?: Prisma.TaskOrderByWithRelationInput
   user?: Prisma.UserOrderByWithRelationInput
-  _relevance?: Prisma.StateHistoryOrderByRelevanceInput
 }
 
 export type StateHistoryWhereUniqueInput = Prisma.AtLeast<{
@@ -332,12 +331,6 @@ export type StateHistoryListRelationFilter = {
 
 export type StateHistoryOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
-}
-
-export type StateHistoryOrderByRelevanceInput = {
-  fields: Prisma.StateHistoryOrderByRelevanceFieldEnum | Prisma.StateHistoryOrderByRelevanceFieldEnum[]
-  sort: Prisma.SortOrder
-  search: string
 }
 
 export type StateHistoryCountOrderByAggregateInput = {
@@ -1331,6 +1324,11 @@ export type StateHistoryFindManyArgs<ExtArgs extends runtime.Types.Extensions.In
    * Skip the first `n` StateHistories.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of StateHistories.
+   */
   distinct?: Prisma.StateHistoryScalarFieldEnum | Prisma.StateHistoryScalarFieldEnum[]
 }
 

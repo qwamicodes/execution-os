@@ -24,35 +24,39 @@ export const Decimal = runtime.Decimal
 
 
 export const NullTypes = {
-  DbNull: runtime.objectEnumValues.classes.DbNull as (new (secret: never) => typeof runtime.objectEnumValues.instances.DbNull),
-  JsonNull: runtime.objectEnumValues.classes.JsonNull as (new (secret: never) => typeof runtime.objectEnumValues.instances.JsonNull),
-  AnyNull: runtime.objectEnumValues.classes.AnyNull as (new (secret: never) => typeof runtime.objectEnumValues.instances.AnyNull),
+  DbNull: runtime.NullTypes.DbNull as (new (secret: never) => typeof runtime.DbNull),
+  JsonNull: runtime.NullTypes.JsonNull as (new (secret: never) => typeof runtime.JsonNull),
+  AnyNull: runtime.NullTypes.AnyNull as (new (secret: never) => typeof runtime.AnyNull),
 }
 /**
  * Helper for filtering JSON entries that have `null` on the database (empty on the db)
  *
  * @see https://www.prisma.io/docs/concepts/components/prisma-client/working-with-fields/working-with-json-fields#filtering-on-a-json-field
  */
-export const DbNull = runtime.objectEnumValues.instances.DbNull
+export const DbNull = runtime.DbNull
+
 /**
  * Helper for filtering JSON entries that have JSON `null` values (not empty on the db)
  *
  * @see https://www.prisma.io/docs/concepts/components/prisma-client/working-with-fields/working-with-json-fields#filtering-on-a-json-field
  */
-export const JsonNull = runtime.objectEnumValues.instances.JsonNull
+export const JsonNull = runtime.JsonNull
+
 /**
  * Helper for filtering JSON entries that are `Prisma.DbNull` or `Prisma.JsonNull`
  *
  * @see https://www.prisma.io/docs/concepts/components/prisma-client/working-with-fields/working-with-json-fields#filtering-on-a-json-field
  */
-export const AnyNull = runtime.objectEnumValues.instances.AnyNull
+export const AnyNull = runtime.AnyNull
 
 
 export const ModelName = {
   User: 'User',
   Project: 'Project',
+  ProjectPart: 'ProjectPart',
   ProjectMilestone: 'ProjectMilestone',
   Task: 'Task',
+  Idea: 'Idea',
   StateHistory: 'StateHistory',
   Session: 'Session',
   Integration: 'Integration',
@@ -97,7 +101,7 @@ export const ProjectScalarFieldEnum = {
   type: 'type',
   color: 'color',
   targetCompletionDate: 'targetCompletionDate',
-  sideQuestState: 'sideQuestState',
+  inHouseState: 'inHouseState',
   userId: 'userId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
@@ -106,6 +110,20 @@ export const ProjectScalarFieldEnum = {
 } as const
 
 export type ProjectScalarFieldEnum = (typeof ProjectScalarFieldEnum)[keyof typeof ProjectScalarFieldEnum]
+
+
+export const ProjectPartScalarFieldEnum = {
+  id: 'id',
+  name: 'name',
+  description: 'description',
+  order: 'order',
+  projectId: 'projectId',
+  userId: 'userId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ProjectPartScalarFieldEnum = (typeof ProjectPartScalarFieldEnum)[keyof typeof ProjectPartScalarFieldEnum]
 
 
 export const ProjectMilestoneScalarFieldEnum = {
@@ -146,6 +164,8 @@ export const TaskScalarFieldEnum = {
   order: 'order',
   userId: 'userId',
   projectId: 'projectId',
+  partId: 'partId',
+  milestoneId: 'milestoneId',
   source: 'source',
   sourceMetadata: 'sourceMetadata',
   createdAt: 'createdAt',
@@ -155,6 +175,28 @@ export const TaskScalarFieldEnum = {
 } as const
 
 export type TaskScalarFieldEnum = (typeof TaskScalarFieldEnum)[keyof typeof TaskScalarFieldEnum]
+
+
+export const IdeaScalarFieldEnum = {
+  id: 'id',
+  title: 'title',
+  description: 'description',
+  state: 'state',
+  size: 'size',
+  urgency: 'urgency',
+  protected: 'protected',
+  protectionReason: 'protectionReason',
+  deadline: 'deadline',
+  source: 'source',
+  sourceMetadata: 'sourceMetadata',
+  userId: 'userId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
+  stateChangedAt: 'stateChangedAt',
+  deletedAt: 'deletedAt'
+} as const
+
+export type IdeaScalarFieldEnum = (typeof IdeaScalarFieldEnum)[keyof typeof IdeaScalarFieldEnum]
 
 
 export const StateHistoryScalarFieldEnum = {
@@ -269,97 +311,4 @@ export const NullsOrder = {
 } as const
 
 export type NullsOrder = (typeof NullsOrder)[keyof typeof NullsOrder]
-
-
-export const UserOrderByRelevanceFieldEnum = {
-  id: 'id',
-  email: 'email',
-  password: 'password',
-  name: 'name',
-  timezone: 'timezone'
-} as const
-
-export type UserOrderByRelevanceFieldEnum = (typeof UserOrderByRelevanceFieldEnum)[keyof typeof UserOrderByRelevanceFieldEnum]
-
-
-export const ProjectOrderByRelevanceFieldEnum = {
-  id: 'id',
-  name: 'name',
-  description: 'description',
-  color: 'color',
-  sideQuestState: 'sideQuestState',
-  userId: 'userId'
-} as const
-
-export type ProjectOrderByRelevanceFieldEnum = (typeof ProjectOrderByRelevanceFieldEnum)[keyof typeof ProjectOrderByRelevanceFieldEnum]
-
-
-export const ProjectMilestoneOrderByRelevanceFieldEnum = {
-  id: 'id',
-  title: 'title',
-  description: 'description',
-  projectId: 'projectId',
-  userId: 'userId'
-} as const
-
-export type ProjectMilestoneOrderByRelevanceFieldEnum = (typeof ProjectMilestoneOrderByRelevanceFieldEnum)[keyof typeof ProjectMilestoneOrderByRelevanceFieldEnum]
-
-
-export const TaskOrderByRelevanceFieldEnum = {
-  id: 'id',
-  title: 'title',
-  description: 'description',
-  protectionReason: 'protectionReason',
-  tags: 'tags',
-  priorityOverrideReason: 'priorityOverrideReason',
-  parentId: 'parentId',
-  userId: 'userId',
-  projectId: 'projectId',
-  source: 'source'
-} as const
-
-export type TaskOrderByRelevanceFieldEnum = (typeof TaskOrderByRelevanceFieldEnum)[keyof typeof TaskOrderByRelevanceFieldEnum]
-
-
-export const StateHistoryOrderByRelevanceFieldEnum = {
-  id: 'id',
-  reason: 'reason',
-  taskId: 'taskId',
-  userId: 'userId'
-} as const
-
-export type StateHistoryOrderByRelevanceFieldEnum = (typeof StateHistoryOrderByRelevanceFieldEnum)[keyof typeof StateHistoryOrderByRelevanceFieldEnum]
-
-
-export const SessionOrderByRelevanceFieldEnum = {
-  id: 'id',
-  scratchpad: 'scratchpad',
-  notes: 'notes',
-  blockerNote: 'blockerNote',
-  taskId: 'taskId',
-  userId: 'userId'
-} as const
-
-export type SessionOrderByRelevanceFieldEnum = (typeof SessionOrderByRelevanceFieldEnum)[keyof typeof SessionOrderByRelevanceFieldEnum]
-
-
-export const IntegrationOrderByRelevanceFieldEnum = {
-  id: 'id',
-  name: 'name',
-  accessToken: 'accessToken',
-  refreshToken: 'refreshToken',
-  userId: 'userId'
-} as const
-
-export type IntegrationOrderByRelevanceFieldEnum = (typeof IntegrationOrderByRelevanceFieldEnum)[keyof typeof IntegrationOrderByRelevanceFieldEnum]
-
-
-export const EventLogOrderByRelevanceFieldEnum = {
-  id: 'id',
-  eventType: 'eventType',
-  userId: 'userId',
-  requestId: 'requestId'
-} as const
-
-export type EventLogOrderByRelevanceFieldEnum = (typeof EventLogOrderByRelevanceFieldEnum)[keyof typeof EventLogOrderByRelevanceFieldEnum]
 

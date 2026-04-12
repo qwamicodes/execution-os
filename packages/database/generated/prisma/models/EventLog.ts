@@ -8,7 +8,7 @@
  *
  * 🟢 You can import this file directly.
  */
-import type * as runtime from "@prisma/client/runtime/library"
+import type * as runtime from "@prisma/client/runtime/client"
 import type * as $Enums from "../enums.js"
 import type * as Prisma from "../internal/prismaNamespace.js"
 
@@ -161,7 +161,7 @@ export type EventLogGroupByOutputType = {
   _max: EventLogMaxAggregateOutputType | null
 }
 
-type GetEventLogGroupByPayload<T extends EventLogGroupByArgs> = Prisma.PrismaPromise<
+export type GetEventLogGroupByPayload<T extends EventLogGroupByArgs> = Prisma.PrismaPromise<
   Array<
     Prisma.PickEnumerable<EventLogGroupByOutputType, T['by']> &
       {
@@ -195,7 +195,6 @@ export type EventLogOrderByWithRelationInput = {
   userId?: Prisma.SortOrderInput | Prisma.SortOrder
   requestId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
-  _relevance?: Prisma.EventLogOrderByRelevanceInput
 }
 
 export type EventLogWhereUniqueInput = Prisma.AtLeast<{
@@ -295,12 +294,6 @@ export type EventLogUncheckedUpdateManyInput = {
   userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   requestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-}
-
-export type EventLogOrderByRelevanceInput = {
-  fields: Prisma.EventLogOrderByRelevanceFieldEnum | Prisma.EventLogOrderByRelevanceFieldEnum[]
-  sort: Prisma.SortOrder
-  search: string
 }
 
 export type EventLogCountOrderByAggregateInput = {
@@ -983,6 +976,11 @@ export type EventLogFindManyArgs<ExtArgs extends runtime.Types.Extensions.Intern
    * Skip the first `n` EventLogs.
    */
   skip?: number
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+   * 
+   * Filter by unique combinations of EventLogs.
+   */
   distinct?: Prisma.EventLogScalarFieldEnum | Prisma.EventLogScalarFieldEnum[]
 }
 

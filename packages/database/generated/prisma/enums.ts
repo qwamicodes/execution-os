@@ -12,7 +12,7 @@
 export const ProjectType = {
   Clients: 'Clients',
   Core: 'Core',
-  SideQuest: 'SideQuest',
+  InHouse: 'InHouse',
   Office: 'Office'
 } as const
 
@@ -59,6 +59,18 @@ export const TaskUrgency = {
 } as const
 
 export type TaskUrgency = (typeof TaskUrgency)[keyof typeof TaskUrgency]
+
+
+export const IdeaState = {
+  Captured: 'Captured',
+  Classified: 'Classified',
+  Clarified: 'Clarified',
+  Planned: 'Planned',
+  Incubating: 'Incubating',
+  Archived: 'Archived'
+} as const
+
+export type IdeaState = (typeof IdeaState)[keyof typeof IdeaState]
 
 
 export const SessionState = {

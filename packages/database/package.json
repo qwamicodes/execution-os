@@ -6,23 +6,26 @@
 		".": "./src/client.ts"
 	},
 	"scripts": {
-		"db:generate": "prisma generate",
-		"db:migrate:dev": "prisma migrate dev",
-		"db:migrate:deploy": "prisma migrate deploy",
-		"db:push": "prisma db push",
-		"db:seed": "prisma db seed",
-		"db:studio": "prisma studio",
+		"db:generate": "prisma generate --config prisma.config.ts --schema prisma/schema.prisma",
+		"db:migrate:dev": "prisma migrate dev --config prisma.config.ts --schema prisma/schema.prisma",
+		"db:migrate:deploy": "prisma migrate deploy --config prisma.config.ts --schema prisma/schema.prisma",
+		"db:push": "prisma db push --config prisma.config.ts --schema prisma/schema.prisma",
+		"db:seed": "prisma db seed --config prisma.config.ts --schema prisma/schema.prisma",
+		"db:studio": "prisma studio --config prisma.config.ts --schema prisma/schema.prisma",
+		"db:reset": "prisma migrate reset --config prisma.config.ts --schema prisma/schema.prisma",
 		"lint": "biome check --write",
 		"check-types": "tsc --noEmit"
 	},
 	"dependencies": {
-		"@prisma/client": "^7.6.0",
-		"dotenv": "^17.2.4"
+		"@prisma/adapter-pg": "7.6.0",
+		"@prisma/client": "7.6.0",
+		"dotenv": "^17.2.4",
+		"pg": "^8.18.0"
 	},
 	"devDependencies": {
 		"@repo/biome-config": "^",
 		"@repo/typescript-config": "*",
-		"prisma": "^7.6.0",
+		"prisma": "7.6.0",
 		"tsx": "^4.0.0",
 		"typescript": "5.9.2"
 	}
