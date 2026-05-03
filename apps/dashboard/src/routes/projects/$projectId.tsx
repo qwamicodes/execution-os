@@ -750,7 +750,7 @@ function ProjectDetailPage() {
 
 			{/* Stats strip */}
 			<div className="overflow-hidden rounded-lg border border-border bg-card">
-				<div className="grid divide-x divide-border sm:grid-cols-3">
+				<div className="grid grid-cols-3 divide-x divide-border">
 					<StatCell label="Total" value={project.taskCount ?? 0} />
 					<StatCell label="Active" value={project.activeTasks ?? 0} accent />
 					<StatCell label="Completed" value={project.completedTasks ?? 0} />

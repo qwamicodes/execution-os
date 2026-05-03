@@ -95,12 +95,8 @@ function SessionHistoryPage() {
 				}}
 				badges={
 					<>
-						<RouteHeroBadge variant="default">
-							{total} sessions
-						</RouteHeroBadge>
-						<RouteHeroBadge variant="sky">
-							Historical analytics
-						</RouteHeroBadge>
+						<RouteHeroBadge variant="default">{total} sessions</RouteHeroBadge>
+						<RouteHeroBadge variant="sky">Historical analytics</RouteHeroBadge>
 					</>
 				}
 				action={
@@ -113,7 +109,7 @@ function SessionHistoryPage() {
 				}
 			/>
 
-			<div className="grid gap-3 sm:grid-cols-3">
+			<div className="grid grid-cols-3 gap-3">
 				<Card className="border-border bg-card">
 					<CardContent className="p-4">
 						<p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">

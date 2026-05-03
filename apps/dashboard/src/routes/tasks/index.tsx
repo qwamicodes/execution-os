@@ -286,7 +286,7 @@ function TasksPage() {
 			</StaggerReveal>
 
 			<StaggerReveal visible={isLoaded} delayMs={110}>
-				<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+				<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 					<MetricCard
 						label="In View"
 						value={tasks.length}
@@ -341,7 +341,7 @@ function TasksPage() {
 							)}
 						</CardTitle>
 					</CardHeader>
-					<CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[200px_140px_170px_130px_170px_44px]">
+					<CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[200px_140px_170px_130px_170px_44px]">
 						<Input
 							placeholder="Search tasks..."
 							value={search.searchQuery || ""}

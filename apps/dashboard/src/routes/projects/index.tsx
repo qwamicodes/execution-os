@@ -170,7 +170,7 @@ function ProjectsPage() {
 				}
 			/>
 
-			<div className="grid gap-3 sm:grid-cols-4">
+			<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
 				<MetricCard label="Projects" value={projects.length} />
 				<MetricCard label="Tasks" value={totalTasks} />
 				<MetricCard label="Active" value={activeTasks} />
@@ -198,7 +198,7 @@ function ProjectsPage() {
 							placeholder="Search projects..."
 							value={searchQuery}
 							onChange={(event) => setSearchQuery(event.target.value)}
-							className="h-8 w-56 bg-card"
+							className="h-8 w-full bg-card sm:w-56"
 						/>
 						<Select
 							value={sortBy}
@@ -206,7 +206,7 @@ function ProjectsPage() {
 								setSortBy(value as NonNullable<ProjectFilters["sortBy"]>)
 							}
 						>
-							<SelectTrigger className="h-8 w-44 bg-card">
+							<SelectTrigger className="h-8 w-full bg-card sm:w-44">
 								<SelectValue />
 							</SelectTrigger>
 							<SelectContent>

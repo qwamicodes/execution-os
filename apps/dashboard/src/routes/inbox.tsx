@@ -315,7 +315,7 @@ function InboxPage() {
 							</Button>
 						)}
 					</div>
-					<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_170px_140px_150px_130px_170px_44px]">
+					<div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[minmax(220px,1fr)_170px_140px_150px_130px_170px_44px]">
 						<Input
 							placeholder="Search inbox..."
 							value={search.searchQuery || ""}

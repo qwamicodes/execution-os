@@ -486,7 +486,7 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 					{/* Diff table */}
 					{changeRows.length > 0 ? (
 						<div className="overflow-hidden rounded-md border border-border bg-card">
-							<div className="grid grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)] border-b border-border bg-muted/60 text-xs font-medium text-muted-foreground">
+							<div className="hidden grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)] border-b border-border bg-muted/60 text-xs font-medium text-muted-foreground sm:grid">
 								<div className="px-2.5 py-1.5">Field</div>
 								<div className="px-2.5 py-1.5">Before</div>
 								<div className="px-2.5 py-1.5">After</div>
@@ -494,12 +494,12 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 							{changeRows.map((row) => (
 								<div
 									key={row.label}
-									className="grid grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)] border-b border-border/60 last:border-b-0"
+									className="grid grid-cols-1 border-b border-border/60 last:border-b-0 sm:grid-cols-[110px_minmax(0,1fr)_minmax(0,1fr)]"
 								>
 									<div className="px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
 										{row.label}
 									</div>
-									<div className="min-w-0 border-l border-border/60 px-2.5 py-1.5 text-xs text-muted-foreground">
+									<div className="min-w-0 px-2.5 py-1.5 text-xs text-muted-foreground sm:border-l sm:border-border/60">
 										{textChangeLabels.has(row.label) ? (
 											<TextDiff
 												before={row.before}
@@ -512,7 +512,7 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 											</span>
 										)}
 									</div>
-									<div className="min-w-0 border-l border-border/60 px-2.5 py-1.5 text-xs font-medium text-foreground">
+									<div className="min-w-0 px-2.5 py-1.5 text-xs font-medium text-foreground sm:border-l sm:border-border/60">
 										{textChangeLabels.has(row.label) ? (
 											<TextDiff
 												before={row.before}

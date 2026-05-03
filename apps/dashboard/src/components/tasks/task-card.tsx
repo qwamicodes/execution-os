@@ -30,31 +30,43 @@ import { TaskAISuggestionPanel } from "./ai-suggestion-panel";
 
 // State dot — colored indicator aligned to each task state
 const STATE_DOT: Record<string, string> = {
-	Inbox:   "bg-slate-400 dark:bg-slate-500",
+	Inbox: "bg-slate-400 dark:bg-slate-500",
 	Ongoing: "bg-amber-400",
-	Ready:   "bg-blue-400",
-	Active:  "bg-green-500",
+	Ready: "bg-blue-400",
+	Active: "bg-green-500",
 	Blocked: "bg-red-500",
-	Paused:  "bg-yellow-400",
-	Done:    "bg-emerald-500",
+	Paused: "bg-yellow-400",
+	Done: "bg-emerald-500",
 };
 
 function readFeatureGate(task: Task) {
 	const fallbackBlocked = task.featureBlocked === true;
 	const fallbackReason = task.featureBlockReason ?? null;
 	if (!task.sourceMetadata || typeof task.sourceMetadata !== "object") {
-		return { blocked: fallbackBlocked, reason: fallbackReason, blockingTaskId: null as string | null };
+		return {
+			blocked: fallbackBlocked,
+			reason: fallbackReason,
+			blockingTaskId: null as string | null,
+		};
 	}
 	const metadata = task.sourceMetadata as Record<string, unknown>;
 	const featureGate = metadata.featureGate;
 	if (!featureGate || typeof featureGate !== "object") {
-		return { blocked: fallbackBlocked, reason: fallbackReason, blockingTaskId: null as string | null };
+		return {
+			blocked: fallbackBlocked,
+			reason: fallbackReason,
+			blockingTaskId: null as string | null,
+		};
 	}
 	const gate = featureGate as Record<string, unknown>;
 	return {
 		blocked: gate.blocked === true || fallbackBlocked,
-		reason: typeof gate.reason === "string" && gate.reason.trim().length > 0 ? gate.reason : fallbackReason,
-		blockingTaskId: typeof gate.blockingTaskId === "string" ? gate.blockingTaskId : null,
+		reason:
+			typeof gate.reason === "string" && gate.reason.trim().length > 0
+				? gate.reason
+				: fallbackReason,
+		blockingTaskId:
+			typeof gate.blockingTaskId === "string" ? gate.blockingTaskId : null,
 	};
 }
 
@@ -85,7 +97,8 @@ export function TaskCard({
 	const validTransitions = VALID_TRANSITIONS[task.state];
 	const featureGate = readFeatureGate(task);
 	const showParts = task.project?.structureType === "Monorepo";
-	const hasMenu = onStateChange || onEdit || onDelete || onConvertToIdea || onAIClassify;
+	const hasMenu =
+		onStateChange || onEdit || onDelete || onConvertToIdea || onAIClassify;
 	const isDone = task.state === "Done";
 
 	return (
@@ -111,27 +124,39 @@ export function TaskCard({
 							</h3>
 
 							<div className="flex shrink-0 items-center gap-1.5">
-								<Badge variant={stateConfig.badge} className="hidden sm:inline-flex">
+								<Badge
+									variant={stateConfig.badge}
+									className="hidden sm:inline-flex"
+								>
 									{stateConfig.label}
 								</Badge>
 								{hasMenu && (
 									<DropdownMenu>
 										<DropdownMenuTrigger
 											onClick={(e) => e.stopPropagation()}
-											className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground group-hover:opacity-100 opacity-0"
+											className="flex h-8 w-8 items-center justify-center rounded text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground opacity-0 group-hover:opacity-100"
 										>
 											<MoreHorizontal className="h-3.5 w-3.5" />
 										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-											{onStateChange && validTransitions.map((state) => {
-												const config = TASK_STATE_CONFIG[state];
-												return (
-													<DropdownMenuItem key={state} onClick={() => onStateChange(task.id, state)}>
-														<config.icon className={`mr-2 h-4 w-4 ${config.color.split(" ")[0]}`} />
-														Move to {config.label}
-													</DropdownMenuItem>
-												);
-											})}
+										<DropdownMenuContent
+											align="end"
+											onClick={(e) => e.stopPropagation()}
+										>
+											{onStateChange &&
+												validTransitions.map((state) => {
+													const config = TASK_STATE_CONFIG[state];
+													return (
+														<DropdownMenuItem
+															key={state}
+															onClick={() => onStateChange(task.id, state)}
+														>
+															<config.icon
+																className={`mr-2 h-4 w-4 ${config.color.split(" ")[0]}`}
+															/>
+															Move to {config.label}
+														</DropdownMenuItem>
+													);
+												})}
 											{onConvertToIdea && (
 												<DropdownMenuItem onClick={() => onConvertToIdea(task)}>
 													<Repeat className="mr-2 h-4 w-4" />
@@ -144,9 +169,10 @@ export function TaskCard({
 													AI classify
 												</DropdownMenuItem>
 											)}
-											{(validTransitions.length > 0 || onConvertToIdea || onAIClassify) && (onEdit || onDelete) && (
-												<DropdownMenuSeparator />
-											)}
+											{(validTransitions.length > 0 ||
+												onConvertToIdea ||
+												onAIClassify) &&
+												(onEdit || onDelete) && <DropdownMenuSeparator />}
 											{onEdit && (
 												<DropdownMenuItem onClick={() => onEdit(task)}>
 													<Pencil className="mr-2 h-4 w-4" />
@@ -154,7 +180,10 @@ export function TaskCard({
 												</DropdownMenuItem>
 											)}
 											{onDelete && task.state !== "Active" && (
-												<DropdownMenuItem onClick={() => onDelete(task.id)} className="text-destructive">
+												<DropdownMenuItem
+													onClick={() => onDelete(task.id)}
+													className="text-destructive"
+												>
 													<Trash2 className="mr-2 h-4 w-4" />
 													Delete
 												</DropdownMenuItem>
@@ -182,44 +211,78 @@ export function TaskCard({
 							)}
 
 							{task.size && (
-								<Badge variant={TASK_SIZE_CONFIG[task.size].badge} className="px-1.5 py-0 text-[11px]">
+								<Badge
+									variant={TASK_SIZE_CONFIG[task.size].badge}
+									className="px-1.5 py-0 text-[11px]"
+								>
 									{TASK_SIZE_CONFIG[task.size].shortLabel}
 								</Badge>
 							)}
 
 							{task.urgency && (
-								<Badge variant={TASK_URGENCY_CONFIG[task.urgency].badge} className="px-1.5 py-0 text-[11px]">
+								<Badge
+									variant={TASK_URGENCY_CONFIG[task.urgency].badge}
+									className="px-1.5 py-0 text-[11px]"
+								>
 									{TASK_URGENCY_CONFIG[task.urgency].label}
 								</Badge>
 							)}
 
-							{task.protected && <Badge variant="danger" className="px-1.5 py-0 text-[11px]">Protected</Badge>}
-							{featureGate.blocked && <Badge variant="warning" className="px-1.5 py-0 text-[11px]">Blocked</Badge>}
+							{task.protected && (
+								<Badge variant="danger" className="px-1.5 py-0 text-[11px]">
+									Protected
+								</Badge>
+							)}
+							{featureGate.blocked && (
+								<Badge variant="warning" className="px-1.5 py-0 text-[11px]">
+									Blocked
+								</Badge>
+							)}
 
-							{showParts && (
-								task.parts
-									?.map((e) => e.part)
-									.filter((p): p is NonNullable<typeof p> => Boolean(p))
-									?? (task.part ? [task.part] : [])
-							).map((part) => (
-								<Badge key={part.id} variant="sky" className="px-1.5 py-0 text-[11px]">{part.name}</Badge>
-							))}
+							{showParts &&
+								(
+									task.parts
+										?.map((e) => e.part)
+										.filter((p): p is NonNullable<typeof p> => Boolean(p)) ??
+									(task.part ? [task.part] : [])
+								).map((part) => (
+									<Badge
+										key={part.id}
+										variant="sky"
+										className="px-1.5 py-0 text-[11px]"
+									>
+										{part.name}
+									</Badge>
+								))}
 
 							{(task.epics || [])
 								.map((e) => e.epic)
 								.filter((ep): ep is NonNullable<typeof ep> => Boolean(ep))
 								.map((epic) => (
-									<Badge key={epic.id} variant="purple" className="px-1.5 py-0 text-[11px]">
-										{epic.key ? `${epic.key} ` : ""}{epic.name}
+									<Badge
+										key={epic.id}
+										variant="purple"
+										className="px-1.5 py-0 text-[11px]"
+									>
+										{epic.key ? `${epic.key} ` : ""}
+										{epic.name}
 									</Badge>
 								))}
 
 							{task.tags.slice(0, 2).map((tag) => (
-								<Badge key={tag} variant="neutral" className="px-1.5 py-0 text-[11px]">{tag}</Badge>
+								<Badge
+									key={tag}
+									variant="neutral"
+									className="px-1.5 py-0 text-[11px]"
+								>
+									{tag}
+								</Badge>
 							))}
 
 							{task.deadline && (
-								<span className={`ml-auto inline-flex items-center gap-1 text-[11px] ${isOverdue(task.deadline) ? "text-red-500 dark:text-red-400" : "text-muted-foreground"}`}>
+								<span
+									className={`ml-auto inline-flex items-center gap-1 text-[11px] ${isOverdue(task.deadline) ? "text-red-500 dark:text-red-400" : "text-muted-foreground"}`}
+								>
 									<Calendar className="h-3 w-3" />
 									{formatDate(task.deadline)}
 								</span>
@@ -232,7 +295,11 @@ export function TaskCard({
 				{featureGate.blocked && !compact && (
 					<div className="mt-2 ml-5 rounded-md border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-950/30 p-2 text-xs text-amber-800 dark:text-amber-400">
 						<p className="font-medium">Blocked by feature dependency</p>
-						{featureGate.reason && <p className="mt-0.5 line-clamp-2 opacity-80">{featureGate.reason}</p>}
+						{featureGate.reason && (
+							<p className="mt-0.5 line-clamp-2 opacity-80">
+								{featureGate.reason}
+							</p>
+						)}
 						{featureGate.blockingTaskId && (
 							<Link
 								to="/tasks/$taskId"
