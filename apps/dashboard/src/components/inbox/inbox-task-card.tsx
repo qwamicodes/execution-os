@@ -376,16 +376,27 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 				<div className="min-w-0 flex-1">
 					{/* Title + actions */}
 					<div className="flex items-start justify-between gap-2">
-						<h3 className="text-sm font-medium leading-snug text-foreground">
-							{task.title}
-						</h3>
+						<button
+							type="button"
+							className="min-w-0 flex-1 text-left"
+							onClick={() =>
+								navigate({ to: "/tasks/$taskId", params: { taskId: task.id } })
+							}
+						>
+							<h3 className="text-sm font-medium leading-snug text-foreground hover:text-primary hover:underline underline-offset-2 transition-colors duration-100">
+								{task.title}
+							</h3>
+						</button>
 
 						<div className="flex shrink-0 items-center gap-1">
 							<Button
 								variant="ghost"
 								size="sm"
 								className="h-6 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-								onClick={handleAutoClassify}
+								onClick={(e) => {
+									e.stopPropagation();
+									handleAutoClassify();
+								}}
 								disabled={autoClassify.isPending}
 							>
 								<Sparkles className="h-3 w-3" />
@@ -395,7 +406,10 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 								variant="ghost"
 								size="sm"
 								className="h-6 gap-1 px-2 text-[11px] text-muted-foreground hover:text-foreground"
-								onClick={() => setShowClassify(!showClassify)}
+								onClick={(e) => {
+									e.stopPropagation();
+									setShowClassify(!showClassify);
+								}}
 							>
 								{showClassify ? (
 									<>
@@ -411,7 +425,10 @@ export function InboxTaskCard({ task }: InboxTaskCardProps) {
 							</Button>
 							<button
 								type="button"
-								onClick={handleDeleteTask}
+								onClick={(e) => {
+									e.stopPropagation();
+									handleDeleteTask();
+								}}
 								disabled={deleteTask.isPending}
 								aria-label="Delete inbox task"
 								className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground/50 opacity-0 transition-colors hover:text-destructive group-hover:opacity-100"
