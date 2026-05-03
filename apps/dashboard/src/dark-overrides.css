@@ -1,74 +1,128 @@
+/* ─── Dark mode overrides ───────────────────────────────────────────────────
+   Maps hardcoded Tailwind color classes → Linear dark palette
+   canvas #010102 | surface-1 #0f1011 | surface-2 #141516 | surface-3 #18191a
+   hairline #23252a | ink #f7f8f8 | ink-subtle #8a8f98 | primary #5e6ad2
+──────────────────────────────────────────────────────────────────────────── */
+
+/* Backgrounds */
 .dark .bg-white,
 .dark .bg-white\/85,
 .dark .bg-white\/90,
 .dark .bg-white\/95,
 .dark .bg-white\/96 {
-	background-color: hsl(220 20% 12%) !important;
+	background-color: hsl(240 4% 6%) !important; /* surface-1 */
 }
 
 .dark .bg-slate-50,
 .dark .bg-slate-50\/70,
 .dark .bg-slate-100 {
-	background-color: hsl(220 16% 18%) !important;
+	background-color: hsl(240 4% 9%) !important; /* surface-2 */
 }
 
+/* Borders — use hairline-strong for clear visibility */
 .dark .border-white\/80,
 .dark .border-slate-200,
 .dark .border-slate-200\/80,
 .dark .border-slate-200\/90,
-.dark .border-slate-300 {
-	border-color: hsl(218 16% 24%) !important;
+.dark .border-slate-300,
+.dark .border-slate-100 {
+	border-color: hsl(245 6% 22%) !important; /* hairline-strong */
 }
 
+/* Text */
 .dark .text-slate-950,
 .dark .text-slate-900,
 .dark .text-slate-800,
 .dark .text-slate-700 {
-	color: hsl(210 24% 92%) !important;
+	color: hsl(210 14% 97%) !important; /* ink */
 }
 
 .dark .text-slate-600,
 .dark .text-slate-500 {
-	color: hsl(214 16% 68%) !important;
+	color: hsl(222 6% 57%) !important; /* ink-subtle */
 }
 
+.dark .text-slate-400 {
+	color: hsl(222 5% 43%) !important; /* ink-tertiary */
+}
+
+/* Hover backgrounds */
 .dark .hover\:bg-white:hover,
+.dark .hover\:bg-slate-50:hover,
 .dark .hover\:bg-slate-100:hover {
-	background-color: hsl(220 16% 20%) !important;
+	background-color: hsl(240 4% 9%) !important; /* surface-2 */
 }
 
 .dark .hover\:text-slate-900:hover,
-.dark .hover\:text-slate-800:hover {
-	color: hsl(210 24% 94%) !important;
+.dark .hover\:text-slate-800:hover,
+.dark .hover\:text-foreground:hover {
+	color: hsl(210 14% 97%) !important;
 }
 
+/* Shadows */
 .dark .shadow-slate-200\/60,
-.dark .shadow-slate-200\/70 {
-	--tw-shadow-color: hsl(220 40% 3% / 0.45) !important;
+.dark .shadow-slate-200\/70,
+.dark .shadow-lg {
+	--tw-shadow-color: hsl(240 33% 1% / 0.5) !important;
 }
 
+/* Gradient overrides (route-hero-header remnants) */
 .dark .from-white {
-	--tw-gradient-from: hsl(220 20% 12%) var(--tw-gradient-from-position) !important;
-	--tw-gradient-to: hsl(220 20% 12% / 0) var(--tw-gradient-to-position) !important;
+	--tw-gradient-from: hsl(240 4% 6%) var(--tw-gradient-from-position) !important;
+	--tw-gradient-to: hsl(240 4% 6% / 0) var(--tw-gradient-to-position) !important;
 	--tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important;
 }
 
 .dark .via-slate-50\/70 {
-	--tw-gradient-via: hsl(220 16% 18% / 0.75) var(--tw-gradient-via-position) !important;
-	--tw-gradient-stops:
-		var(--tw-gradient-from),
-		var(--tw-gradient-via),
-		var(--tw-gradient-to) !important;
+	--tw-gradient-via: hsl(240 4% 9% / 0.75) var(--tw-gradient-via-position) !important;
+	--tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-via), var(--tw-gradient-to) !important;
 }
 
 .dark .to-sky-50\/80 {
-	--tw-gradient-to: hsl(214 32% 16% / 0.8) var(--tw-gradient-to-position) !important;
+	--tw-gradient-to: hsl(234 20% 10% / 0.8) var(--tw-gradient-to-position) !important;
 }
 
+/* Sky / blue overrides → lavender */
 .dark .bg-sky-100 {
-	background-color: hsl(210 68% 18%) !important;
+	background-color: hsl(234 30% 16%) !important;
 }
 
 .dark .text-sky-700 {
-	color: hsl(202 82% 76%) !important;
+	color: hsl(234 60% 72%) !important;
+}
+
+.dark .border-sky-800 {
+	border-color: hsl(228 8% 15%) !important;
+}
+
+/* Amber offline badge */
+.dark .bg-amber-50 {
+	background-color: hsl(38 30% 12%) !important;
+}
+.dark .text-amber-800 {
+	color: hsl(38 80% 65%) !important;
+}
+.dark .border-amber-200 {
+	border-color: hsl(38 40% 25%) !important;
+}
+
+/* Green session badge */
+.dark .bg-green-50 {
+	background-color: hsl(142 25% 10%) !important;
+}
+.dark .text-green-700 {
+	color: hsl(142 60% 55%) !important;
+}
+
+/* Yellow paused badge */
+.dark .bg-yellow-50 {
+	background-color: hsl(48 30% 10%) !important;
+}
+.dark .text-yellow-700 {
+	color: hsl(48 80% 60%) !important;
+}
+
+/* Slate-950 used in RouteHeroBadge */
+.dark .bg-slate-950 {
+	background-color: hsl(234 56% 59%) !important;
 }

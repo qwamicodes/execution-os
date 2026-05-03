@@ -11,6 +11,7 @@ import {
 	Zap,
 } from "lucide-react";
 import moment from "moment";
+import type { BadgeVariant } from "@repo/ui/components/ui/badge";
 import type {
 	ProjectType,
 	SessionOutcome,
@@ -23,101 +24,85 @@ import type {
 
 export const TASK_STATE_CONFIG: Record<
 	TaskState,
-	{ label: string; color: string; icon: typeof Circle }
+	{ label: string; color: string; badge: BadgeVariant; icon: typeof Circle }
 > = {
-	Inbox: { label: "Inbox", color: "text-gray-600 bg-gray-100", icon: Inbox },
-	Ongoing: {
-		label: "Ongoing",
-		color: "text-amber-600 bg-amber-100",
-		icon: Loader2,
-	},
-	Ready: { label: "Ready", color: "text-blue-600 bg-blue-100", icon: Zap },
-	Active: {
-		label: "Active",
-		color: "text-green-600 bg-green-100",
-		icon: ArrowRight,
-	},
-	Blocked: {
-		label: "Blocked",
-		color: "text-red-600 bg-red-100",
-		icon: XCircle,
-	},
-	Paused: {
-		label: "Paused",
-		color: "text-yellow-600 bg-yellow-100",
-		icon: Pause,
-	},
-	Done: {
-		label: "Done",
-		color: "text-emerald-600 bg-emerald-100",
-		icon: CheckCircle2,
-	},
+	Inbox:   { label: "Inbox",   color: "text-gray-600 bg-gray-100",    badge: "neutral",  icon: Inbox },
+	Ongoing: { label: "Ongoing", color: "text-amber-600 bg-amber-100",  badge: "warning",  icon: Loader2 },
+	Ready:   { label: "Ready",   color: "text-blue-600 bg-blue-100",    badge: "info",     icon: Zap },
+	Active:  { label: "Active",  color: "text-green-600 bg-green-100",  badge: "success",  icon: ArrowRight },
+	Blocked: { label: "Blocked", color: "text-red-600 bg-red-100",      badge: "danger",   icon: XCircle },
+	Paused:  { label: "Paused",  color: "text-yellow-600 bg-yellow-100",badge: "caution",  icon: Pause },
+	Done:    { label: "Done",    color: "text-emerald-600 bg-emerald-100",badge: "done",   icon: CheckCircle2 },
 };
 
 // ─── Task Size ───────────────────────────────────────────────────────────────
 
 export const TASK_SIZE_CONFIG: Record<
 	TaskSize,
-	{ label: string; shortLabel: string; color: string }
+	{ label: string; shortLabel: string; color: string; badge: BadgeVariant }
 > = {
-	Small: { label: "Small", shortLabel: "S", color: "text-green-600" },
-	Medium: { label: "Medium", shortLabel: "M", color: "text-blue-600" },
-	Large: { label: "Large", shortLabel: "L", color: "text-orange-600" },
-	Huge: { label: "Huge", shortLabel: "XL", color: "text-red-600" },
+	Small:  { label: "Small",  shortLabel: "S",  color: "text-green-600",  badge: "success" },
+	Medium: { label: "Medium", shortLabel: "M",  color: "text-blue-600",   badge: "info" },
+	Large:  { label: "Large",  shortLabel: "L",  color: "text-orange-600", badge: "orange" },
+	Huge:   { label: "Huge",   shortLabel: "XL", color: "text-red-600",    badge: "danger" },
 };
 
 // ─── Task Urgency ────────────────────────────────────────────────────────────
 
 export const TASK_URGENCY_CONFIG: Record<
 	TaskUrgency,
-	{ label: string; color: string }
+	{ label: string; color: string; badge: BadgeVariant }
 > = {
-	Urgent: { label: "Urgent", color: "text-red-600 bg-red-100" },
-	High: { label: "High", color: "text-orange-600 bg-orange-100" },
-	Medium: { label: "Medium", color: "text-yellow-600 bg-yellow-100" },
-	Low: { label: "Low", color: "text-gray-600 bg-gray-100" },
+	Urgent: { label: "Urgent", color: "text-red-600 bg-red-100",      badge: "danger" },
+	High:   { label: "High",   color: "text-orange-600 bg-orange-100",badge: "warning" },
+	Medium: { label: "Medium", color: "text-yellow-600 bg-yellow-100",badge: "caution" },
+	Low:    { label: "Low",    color: "text-gray-600 bg-gray-100",    badge: "neutral" },
 };
 
 // ─── Project Type ────────────────────────────────────────────────────────────
 
 export const PROJECT_TYPE_CONFIG: Record<
 	ProjectType,
-	{ label: string; emoji: string }
+	{ label: string; emoji: string; badge: BadgeVariant }
 > = {
-	Clients: { label: "Clients", emoji: "👥" },
-	Core: { label: "Core", emoji: "🎯" },
-	InHouse: { label: "InHouse", emoji: "🧪" },
-	Office: { label: "Office", emoji: "🏢" },
+	Clients: { label: "Clients", emoji: "👥", badge: "sky" },
+	Core:    { label: "Core",    emoji: "🎯", badge: "lavender" },
+	InHouse: { label: "InHouse", emoji: "🧪", badge: "purple" },
+	Office:  { label: "Office",  emoji: "🏢", badge: "neutral" },
 };
 
 // ─── Session Outcome ─────────────────────────────────────────────────────────
 
 export const SESSION_OUTCOME_CONFIG: Record<
 	SessionOutcome,
-	{ label: string; description: string; color: string; icon: typeof Circle }
+	{ label: string; description: string; color: string; badge: BadgeVariant; icon: typeof Circle }
 > = {
 	Done: {
 		label: "Done",
 		description: "Task is complete",
 		color: "text-emerald-600 bg-emerald-100",
+		badge: "done",
 		icon: CheckCircle2,
 	},
 	Continue: {
 		label: "Continue",
 		description: "Made progress, more to do",
 		color: "text-blue-600 bg-blue-100",
+		badge: "info",
 		icon: ArrowRight,
 	},
 	Blocked: {
 		label: "Blocked",
 		description: "Got stuck on something",
 		color: "text-red-600 bg-red-100",
+		badge: "danger",
 		icon: XCircle,
 	},
 	TooBig: {
 		label: "Too Big",
 		description: "Task needs to be broken down",
 		color: "text-orange-600 bg-orange-100",
+		badge: "orange",
 		icon: AlertTriangle,
 	},
 };
@@ -140,13 +125,13 @@ export const PROJECT_COLORS = [
 // ─── Valid Transitions ───────────────────────────────────────────────────────
 
 export const VALID_TRANSITIONS: Record<TaskState, TaskState[]> = {
-	Inbox: ["Ongoing", "Ready"],
+	Inbox:   ["Ongoing", "Ready"],
 	Ongoing: ["Ready", "Done"],
-	Ready: ["Active", "Ongoing", "Blocked", "Paused", "Done"],
-	Active: ["Ready", "Blocked", "Paused", "Done"],
+	Ready:   ["Active", "Ongoing", "Blocked", "Paused", "Done"],
+	Active:  ["Ready", "Blocked", "Paused", "Done"],
 	Blocked: ["Ready", "Ongoing"],
-	Paused: ["Ready", "Ongoing"],
-	Done: ["Ready"],
+	Paused:  ["Ready", "Ongoing"],
+	Done:    ["Ready"],
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

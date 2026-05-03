@@ -1,9 +1,9 @@
 import Elysia from "elysia";
 import { authMiddleware } from "../../middleware/auth";
 import { basePlugin } from "../../plugins/base";
-import { publishRealtimeEvent } from "../events/realtime.service";
 import { ValidationError } from "../../shared/errors";
 import { created, paginated, success } from "../../shared/response";
+import { publishRealtimeEvent } from "../events/realtime.service";
 import {
 	CreateBranchSchema,
 	CreateTaskSchema,
@@ -193,20 +193,51 @@ export const taskController = new Elysia({ prefix: "/tasks" })
 			task_id: params.id,
 			user_id: userId,
 			has_feedback: Boolean(parsed.data.feedback),
+			replace_existing: Boolean(parsed.data.replaceExisting),
 		});
 
 		const result = await taskService.decomposeTask(
 			userId,
 			params.id,
 			parsed.data.feedback,
+			parsed.data.replaceExisting,
+			parsed.data.subtasks,
 			internal_logger,
 		);
 		internal_logger.set("result", {
 			task_id: params.id,
-			job_id: result.jobId,
+			subtasks_created: result.subtasksCreated,
 		});
 		return success(result);
 	})
+
+	.post(
+		"/:id/decompose/preview",
+		async ({ params, body, userId, internal_logger }) => {
+			internal_logger.set("flow", "tasks_decompose_preview");
+			const parsed = DecomposeRequestSchema.safeParse(body ?? {});
+			if (!parsed.success) {
+				throw new ValidationError(parsed.error.flatten().fieldErrors);
+			}
+			internal_logger.set("decompose_preview_request", {
+				task_id: params.id,
+				user_id: userId,
+				has_feedback: Boolean(parsed.data.feedback),
+			});
+
+			const result = await taskService.previewTaskDecomposition(
+				userId,
+				params.id,
+				parsed.data.feedback,
+				internal_logger,
+			);
+			internal_logger.set("result", {
+				task_id: params.id,
+				subtask_count: result.subtasks.length,
+			});
+			return success(result);
+		},
+	)
 
 	.post("/:id/classify/ai", async ({ params, userId, internal_logger }) => {
 		internal_logger.set("flow", "tasks_ai_classify");
@@ -223,6 +254,43 @@ export const taskController = new Elysia({ prefix: "/tasks" })
 		});
 		return success(task);
 	})
+
+	.post(
+		"/:id/ai-suggestion/apply",
+		async ({ params, userId, internal_logger }) => {
+			internal_logger.set("flow", "tasks_ai_suggestion_apply");
+			internal_logger.set("task_ref", { task_id: params.id, user_id: userId });
+			const task = await taskService.applyTaskAISuggestion(
+				userId,
+				params.id,
+				internal_logger,
+			);
+			internal_logger.set("result", { task_id: task.id, state: task.state });
+			publishRealtimeEvent(userId, "task.ai_suggestion_applied", {
+				taskId: task.id,
+				state: task.state,
+			});
+			return success(task);
+		},
+	)
+
+	.post(
+		"/:id/ai-suggestion/ignore",
+		async ({ params, userId, internal_logger }) => {
+			internal_logger.set("flow", "tasks_ai_suggestion_ignore");
+			internal_logger.set("task_ref", { task_id: params.id, user_id: userId });
+			const task = await taskService.ignoreTaskAISuggestion(
+				userId,
+				params.id,
+				internal_logger,
+			);
+			internal_logger.set("result", { task_id: task.id });
+			publishRealtimeEvent(userId, "task.ai_suggestion_ignored", {
+				taskId: task.id,
+			});
+			return success(task);
+		},
+	)
 
 	.get("/:id/subtasks", async ({ params, userId, internal_logger }) => {
 		internal_logger.set("flow", "tasks_subtasks");

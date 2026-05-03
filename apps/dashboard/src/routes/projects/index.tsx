@@ -2,6 +2,13 @@ import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import { Card, CardContent } from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/ui/components/ui/select";
 import { Switch } from "@repo/ui/components/ui/switch";
 import {
 	Tabs,
@@ -10,9 +17,17 @@ import {
 	TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FolderOpen, LayoutGrid, List, Plus, Sparkles } from "lucide-react";
-import { useState } from "react";
 import { goeyToast as toast } from "goey-toast";
+import {
+	ArrowDownAZ,
+	ArrowUpAZ,
+	FolderOpen,
+	LayoutGrid,
+	List,
+	Plus,
+	Sparkles,
+} from "lucide-react";
+import { useState } from "react";
 import { CreateProjectDialog } from "@/components/projects/create-project-dialog";
 import { EditProjectDialog } from "@/components/projects/edit-project-dialog";
 import { ProjectCard } from "@/components/projects/project-card";
@@ -29,7 +44,7 @@ import {
 	useUpdateProject,
 } from "@/hooks/use-projects";
 import { PROJECT_TYPE_CONFIG } from "@/lib/constants";
-import type { Project, ProjectType } from "@/lib/types";
+import type { Project, ProjectFilters, ProjectType } from "@/lib/types";
 
 export const Route = createFileRoute("/projects/")({
 	component: ProjectsPage,
@@ -41,6 +56,10 @@ function ProjectsPage() {
 	const [createOpen, setCreateOpen] = useState(false);
 	const [editProject, setEditProject] = useState<Project | null>(null);
 	const [includeArchived, setIncludeArchived] = useState(false);
+	const [sortBy, setSortBy] =
+		useState<NonNullable<ProjectFilters["sortBy"]>>("updatedAt");
+	const [sortOrder, setSortOrder] =
+		useState<NonNullable<ProjectFilters["sortOrder"]>>("desc");
 	const [activeTab, setActiveTab] = useState<string>("all");
 	const [cardDensity, setCardDensity] = useState<"compact" | "expanded">(
 		"expanded",
@@ -50,6 +69,8 @@ function ProjectsPage() {
 		type: activeTab === "all" ? undefined : (activeTab as ProjectType),
 		includeArchived,
 		searchQuery: searchQuery || undefined,
+		sortBy,
+		sortOrder,
 	});
 
 	const updateProject = useUpdateProject();
@@ -121,10 +142,10 @@ function ProjectsPage() {
 				}}
 				badges={
 					<>
-						<RouteHeroBadge className="border-0 bg-slate-900 text-white">
+						<RouteHeroBadge variant="default">
 							{projects.length} projects
 						</RouteHeroBadge>
-						<RouteHeroBadge className="rounded-full bg-sky-100 text-sky-700">
+						<RouteHeroBadge variant="sky">
 							<Sparkles className="mr-1 h-3 w-3" />
 							Portfolio view
 						</RouteHeroBadge>
@@ -134,7 +155,7 @@ function ProjectsPage() {
 					<div className="flex items-center gap-1.5">
 						<Button
 							onClick={() => setCreateOpen(true)}
-							className="h-10 gap-2 bg-slate-950 px-4 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
+							className="h-10 gap-2 bg-primary px-4 text-primary-foreground hover:bg-primary/90"
 						>
 							<Plus className="h-4 w-4" />
 							New project
@@ -157,9 +178,9 @@ function ProjectsPage() {
 			</div>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
-				<div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white/85 dark:bg-slate-900 p-3">
-					<div className="w-full overflow-x-auto pb-1 sm:w-auto sm:pb-0">
-						<TabsList className="inline-flex w-max min-w-full bg-slate-100/80 dark:bg-slate-800 sm:min-w-0">
+				<div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-3">
+					<div className="no-scrollbar w-full overflow-x-auto pb-1 sm:w-auto sm:pb-0">
+						<TabsList className="inline-flex w-max min-w-full bg-muted/60 sm:min-w-0">
 							{types.map((type) => (
 								<TabsTrigger
 									key={type.value}
@@ -172,14 +193,47 @@ function ProjectsPage() {
 						</TabsList>
 					</div>
 
-					<div className="flex w-full flex-wrap items-center gap-3 text-sm text-slate-600 sm:w-auto">
+					<div className="flex w-full flex-wrap items-center gap-3 text-sm text-muted-foreground sm:w-auto">
 						<Input
 							placeholder="Search projects..."
 							value={searchQuery}
 							onChange={(event) => setSearchQuery(event.target.value)}
-							className="h-8 w-56 bg-white dark:bg-slate-900"
+							className="h-8 w-56 bg-card"
 						/>
-						<div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
+						<Select
+							value={sortBy}
+							onValueChange={(value) =>
+								setSortBy(value as NonNullable<ProjectFilters["sortBy"]>)
+							}
+						>
+							<SelectTrigger className="h-8 w-44 bg-card">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="updatedAt">Updated</SelectItem>
+								<SelectItem value="createdAt">Created</SelectItem>
+								<SelectItem value="name">Name</SelectItem>
+								<SelectItem value="targetCompletionDate">
+									Target date
+								</SelectItem>
+							</SelectContent>
+						</Select>
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={() =>
+								setSortOrder((current) => (current === "asc" ? "desc" : "asc"))
+							}
+							className="h-8 w-8 bg-card"
+							aria-label="Toggle project sort order"
+						>
+							{sortOrder === "asc" ? (
+								<ArrowUpAZ className="h-4 w-4" />
+							) : (
+								<ArrowDownAZ className="h-4 w-4" />
+							)}
+						</Button>
+						<div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
 							<Button
 								size="sm"
 								variant={cardDensity === "compact" ? "default" : "ghost"}
@@ -239,7 +293,7 @@ function ProjectsPage() {
 						<div className="mb-3 flex items-center gap-2">
 							<Badge
 								variant="secondary"
-								className="border border-slate-200 bg-slate-50 text-slate-700"
+								className="border border-border bg-muted/40 text-muted-foreground"
 							>
 								<Sparkles className="mr-1 h-3 w-3" />
 								Structured by type
@@ -280,12 +334,12 @@ function ProjectsPage() {
 
 function MetricCard({ label, value }: { label: string; value: number }) {
 	return (
-		<Card className="border-slate-200 bg-white/85">
+		<Card className="border-border bg-card">
 			<CardContent className="p-4">
-				<p className="text-xs font-medium tracking-[0.14em] text-slate-500 uppercase">
+				<p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
 					{label}
 				</p>
-				<p className="mt-1 text-2xl font-semibold text-slate-900">{value}</p>
+				<p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
 			</CardContent>
 		</Card>
 	);

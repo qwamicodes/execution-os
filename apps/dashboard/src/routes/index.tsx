@@ -156,7 +156,7 @@ function IdleView({ name }: { name: string }) {
 	}, []);
 
 	return (
-		<div className="relative min-h-screen overflow-hidden bg-[#f7f7f5] text-slate-900 dark:bg-[hsl(220_24%_8%)] dark:text-slate-100">
+		<div className="relative min-h-screen overflow-hidden bg-background text-foreground">
 			<div aria-hidden className="pointer-events-none absolute inset-0">
 				<div className="absolute -left-20 top-16 h-80 w-80 rounded-full bg-[#dfe8ff]/55 blur-3xl dark:bg-[hsl(204_89%_53%/0.16)]" />
 				<div className="absolute -right-16 bottom-6 h-72 w-72 rounded-full bg-[#d7f3ed]/60 blur-3xl dark:bg-[hsl(218_36%_34%/0.24)]" />
@@ -168,7 +168,7 @@ function IdleView({ name }: { name: string }) {
 					<Button
 						size="icon"
 						variant="outline"
-						className="h-11 w-11 rounded-2xl border-slate-300 bg-white/95 text-slate-800 shadow-sm backdrop-blur hover:bg-white"
+						className="h-11 w-11 rounded-2xl border-border bg-card/90 shadow-sm backdrop-blur hover:bg-accent/40"
 						onClick={() => setCreateDialogOpen(true)}
 						title="Add task"
 					>
@@ -188,7 +188,7 @@ function IdleView({ name }: { name: string }) {
 					<Button
 						size="icon"
 						variant="outline"
-						className="h-11 w-11 rounded-2xl border-slate-300 bg-white/95 text-slate-800 shadow-sm backdrop-blur hover:bg-white"
+						className="h-11 w-11 rounded-2xl border-border bg-card/90 shadow-sm backdrop-blur hover:bg-accent/40"
 						onClick={() => navigate({ to: "/inbox" })}
 						title="Open full workspace"
 					>
@@ -206,20 +206,20 @@ function IdleView({ name }: { name: string }) {
 			<div className="relative mx-auto flex min-h-screen w-full max-w-4xl flex-col items-center justify-center gap-7 px-4 py-16 sm:px-8">
 				<StaggerReveal visible={isLoaded} delayMs={40} className="w-full">
 					<div className="text-center">
-						<p className="text-[11px] font-medium tracking-[0.22em] text-slate-500 uppercase">
+						<p className="text-[11px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
 							Execution OS
 						</p>
-						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl">
+						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
 							{getGreeting()}, {name}
 						</h1>
-						<p className="mt-2 text-sm text-slate-600">{getDateLabel()}</p>
+						<p className="mt-2 text-sm text-muted-foreground">{getDateLabel()}</p>
 					</div>
 				</StaggerReveal>
 
 				<StaggerReveal visible={isLoaded} delayMs={110} className="w-full">
-					<Card className="mx-auto w-full max-w-3xl border-slate-200/90 bg-white/96 dark:border-sky-800 dark:bg-slate-900 shadow-[0_24px_64px_-44px_rgba(15,23,42,0.45)] backdrop-blur">
+					<Card className="mx-auto w-full max-w-3xl border-border bg-card shadow-lg backdrop-blur">
 						<CardHeader className="pb-2 text-center">
-							<div className="mx-auto inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-slate-600 uppercase">
+							<div className="mx-auto inline-flex items-center gap-2 rounded-full border border-border bg-muted/40 px-3 py-1 text-[11px] font-medium tracking-[0.16em] text-muted-foreground uppercase">
 								<Sparkles className="h-3.5 w-3.5 text-emerald-700" />
 								AI Picked Task
 								<HelpTooltip
@@ -256,34 +256,31 @@ function IdleView({ name }: { name: string }) {
 							) : topTask ? (
 								<>
 									<div className="space-y-2 text-center">
-										<p className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-[30px]">
+										<p className="text-2xl font-semibold tracking-tight text-foreground sm:text-[30px]">
 											{topTask.title}
 										</p>
-										<div className="flex flex-wrap items-center justify-center gap-2 text-xs text-slate-600">
+										<div className="flex flex-wrap items-center justify-center gap-2 text-xs text-muted-foreground">
 											{topTask.project && (
-												<Badge
-													variant="secondary"
-													className="bg-slate-100 text-slate-700"
-												>
+												<Badge variant="neutral">
 													{topTask.project.name}
 												</Badge>
 											)}
 											{topTask.size && (
-												<Badge variant="outline" className="border-slate-200">
+												<Badge variant="neutral">
 													{TASK_SIZE_CONFIG[topTask.size].label}
 												</Badge>
 											)}
 										</div>
 										{topTaskReason && (
-											<p className="mx-auto max-w-2xl text-sm text-slate-600">
+											<p className="mx-auto max-w-2xl text-sm text-muted-foreground">
 												{topTaskReason}
 											</p>
 										)}
 									</div>
 
 									{topTaskBranch && (
-										<div className="mx-auto flex max-w-xl items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-											<p className="truncate font-mono text-xs text-slate-700">
+										<div className="mx-auto flex max-w-xl items-center justify-between gap-3 rounded-xl border border-border bg-muted/40 px-3 py-2">
+											<p className="truncate font-mono text-xs text-muted-foreground">
 												{topTaskBranch}
 											</p>
 											<div>
@@ -309,14 +306,14 @@ function IdleView({ name }: { name: string }) {
 									<div className="flex flex-wrap items-center justify-center gap-2 pt-1">
 										<Button
 											onClick={() => setSessionDialogOpen(true)}
-											className="h-10 rounded-xl bg-slate-900 px-4 text-white hover:bg-slate-800 dark:bg-sky-800 dark:text-white dark:hover:bg-sky-700"
+											className="h-10 rounded-xl bg-primary px-4 text-primary-foreground hover:bg-primary/90"
 										>
 											<Zap className="mr-2 size-4" />
 											Start Session
 										</Button>
 										<Button
 											variant="outline"
-											className="h-10 rounded-xl border-slate-300 px-4"
+											className="h-10 rounded-xl px-4"
 											onClick={() =>
 												navigate({
 													to: "/tasks/$taskId",
@@ -328,7 +325,7 @@ function IdleView({ name }: { name: string }) {
 										</Button>
 										<Button
 											variant="outline"
-											className="h-10 rounded-xl px-4 border-slate-300"
+											className="h-10 rounded-xl px-4"
 											onClick={() => navigate({ to: "/inbox" })}
 										>
 											<Inbox className="mr-2 size-4" />
@@ -337,7 +334,7 @@ function IdleView({ name }: { name: string }) {
 										</Button>
 										<Button
 											variant="outline"
-											className="h-10 rounded-xl border-slate-300 px-4"
+											className="h-10 rounded-xl px-4"
 											onClick={() => setCreateDialogOpen(true)}
 										>
 											<Plus className="mr-2 size-4" />
@@ -345,7 +342,7 @@ function IdleView({ name }: { name: string }) {
 										</Button>
 										<Button
 											variant="outline"
-											className="h-10 rounded-xl border-amber-300 bg-amber-50 px-4 text-amber-900 hover:bg-amber-100 dark:border-amber-500 dark:bg-amber-900 dark:text-amber-50 dark:hover:bg-amber-600"
+											className="h-10 rounded-xl px-4"
 											onClick={handleQuickIdeaCapture}
 										>
 											<Lightbulb className="mr-2 size-4" />
@@ -365,7 +362,7 @@ function IdleView({ name }: { name: string }) {
 															params: { taskId: task.id },
 														})
 													}
-													className="max-w-57.5 truncate rounded-full border border-slate-200 bg-white px-3 py-1 text-xs text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
+													className="max-w-[230px] truncate rounded-full border border-border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors hover:border-border/80 hover:text-foreground"
 												>
 													{task.title}
 												</button>
@@ -375,24 +372,24 @@ function IdleView({ name }: { name: string }) {
 								</>
 							) : (
 								<div className="space-y-3 py-6 text-center">
-									<p className="text-lg font-semibold text-slate-900">
+									<p className="text-lg font-semibold text-foreground">
 										All clear for now
 									</p>
-									<p className="text-sm text-slate-600">
+									<p className="text-sm text-muted-foreground">
 										Add a new task or classify your inbox to get an AI focus
 										pick.
 									</p>
 									<div className="flex items-center justify-center gap-2">
 										<Button
 											onClick={() => setCreateDialogOpen(true)}
-											className="h-10 rounded-xl bg-slate-900 px-4 text-white hover:bg-slate-800"
+											className="h-10 rounded-xl bg-primary px-4 text-primary-foreground hover:bg-primary/90"
 										>
 											<Plus className="mr-2 size-4" />
 											Add Task
 										</Button>
 										<Button
 											variant="outline"
-											className="h-10 rounded-xl border-amber-300 bg-amber-50 px-4 text-amber-900 hover:bg-amber-100"
+											className="h-10 rounded-xl px-4"
 											onClick={handleQuickIdeaCapture}
 										>
 											<Lightbulb className="mr-2 size-4" />
@@ -400,7 +397,7 @@ function IdleView({ name }: { name: string }) {
 										</Button>
 										<Button
 											variant="outline"
-											className="h-10 rounded-xl border-slate-300 px-4"
+											className="h-10 rounded-xl px-4"
 											onClick={() => navigate({ to: "/inbox" })}
 										>
 											Go to Inbox
@@ -410,7 +407,7 @@ function IdleView({ name }: { name: string }) {
 							)}
 
 							<div className="pt-1">
-								<p className="mb-2 text-center text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase">
+								<p className="mb-2 text-center text-[11px] font-medium tracking-[0.16em] text-muted-foreground uppercase">
 									Session Controls
 								</p>
 								<div className="mb-2 flex justify-center">
@@ -425,7 +422,7 @@ function IdleView({ name }: { name: string }) {
 									<Button
 										size="icon"
 										variant="outline"
-										className="h-11 w-11 rounded-2xl border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+										className="h-11 w-11 rounded-2xl"
 										onClick={() => topTask && setSessionDialogOpen(true)}
 										disabled={!topTask}
 										title={
@@ -439,7 +436,7 @@ function IdleView({ name }: { name: string }) {
 									<Button
 										size="icon"
 										variant="outline"
-										className="h-11 w-11 rounded-2xl border-slate-300 bg-white text-slate-700"
+										className="h-11 w-11 rounded-2xl"
 										disabled
 										title="Pause is available while a session is active"
 									>
@@ -448,7 +445,7 @@ function IdleView({ name }: { name: string }) {
 									<Button
 										size="icon"
 										variant="outline"
-										className="h-11 w-11 rounded-2xl border-slate-300 bg-white text-slate-700"
+										className="h-11 w-11 rounded-2xl"
 										disabled
 										title="Stop is available while a session is active"
 									>

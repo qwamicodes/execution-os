@@ -25,7 +25,7 @@ export const requestLogger = new Elysia({ name: "canonical-request-logger" })
 	})
 	.onAfterResponse({ as: "global" }, ({ internal_logger, set }) => {
 		const statusCode = typeof set.status === "number" ? set.status : 200;
-		const canonicalLog = internal_logger._emit(statusCode);
+		const canonicalLog = internal_logger?._emit(statusCode);
 		if (!canonicalLog) return;
 
 		if (statusCode >= 400) {

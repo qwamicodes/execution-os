@@ -242,7 +242,9 @@ function ActiveSessionView({ session }: { session: Session }) {
 			playSessionResume();
 			setIsEditingTime(false);
 			setCustomTimeInput("");
-			toast.success(`Session extended by ${minutes} minute${minutes === 1 ? "" : "s"}`);
+			toast.success(
+				`Session extended by ${minutes} minute${minutes === 1 ? "" : "s"}`,
+			);
 		} catch {
 			playSessionError();
 			toast.error("Failed to extend session");
@@ -281,7 +283,7 @@ function ActiveSessionView({ session }: { session: Session }) {
 										value={customTimeInput}
 										onChange={(event) => setCustomTimeInput(event.target.value)}
 										placeholder="25 or 01:15:30"
-										className="h-12 border-slate-700 bg-slate-900 text-center font-mono text-lg text-slate-100 placeholder:text-slate-500"
+										className="h-12 border-slate-700 bg-slate-900 text-center font-mono text-lg text-slate-100 placeholder:text-muted-foreground"
 										onKeyDown={(event) => {
 											if (event.key === "Enter") {
 												event.preventDefault();
@@ -312,7 +314,7 @@ function ActiveSessionView({ session }: { session: Session }) {
 											Cancel
 										</Button>
 									</div>
-									<p className="text-xs text-slate-400">
+									<p className="text-xs text-muted-foreground/60">
 										Type minutes or <code>hh:mm:ss</code>. Plain numbers are
 										treated as minutes.
 									</p>
@@ -346,12 +348,12 @@ function ActiveSessionView({ session }: { session: Session }) {
 								<p className="text-lg font-semibold text-slate-100">
 									{task.title}
 								</p>
-								<div className="mt-1 flex items-center justify-center gap-2 text-sm text-slate-400">
+								<div className="mt-1 flex items-center justify-center gap-2 text-sm text-muted-foreground/60">
 									{task.project && <span>{task.project.name}</span>}
 									<Button
 										variant="ghost"
 										size="icon"
-										className="h-7 w-7 text-slate-400 hover:bg-slate-800 hover:text-slate-100"
+										className="h-7 w-7 text-muted-foreground/60 hover:bg-accent hover:text-foreground"
 										onClick={() => handleCopyBranchInSession(task)}
 										title="Copy git branch name"
 									>
@@ -365,7 +367,7 @@ function ActiveSessionView({ session }: { session: Session }) {
 							<Button
 								size="lg"
 								variant="outline"
-								className="w-full gap-2 border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800 sm:w-auto"
+								className="w-full gap-2 border-border bg-card text-foreground hover:bg-accent sm:w-auto"
 								onClick={async () => {
 									await primeSessionAudio();
 									extendSession.mutate(
@@ -388,7 +390,7 @@ function ActiveSessionView({ session }: { session: Session }) {
 								<Button
 									size="lg"
 									variant="outline"
-									className="w-full gap-2 border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800 sm:w-auto"
+									className="w-full gap-2 border-border bg-card text-foreground hover:bg-accent sm:w-auto"
 									onClick={async () => {
 										await primeSessionAudio();
 										resumeSession.mutate(session.id, {
@@ -405,7 +407,7 @@ function ActiveSessionView({ session }: { session: Session }) {
 								<Button
 									size="lg"
 									variant="outline"
-									className="w-full gap-2 border-slate-700 bg-slate-900 text-slate-100 hover:bg-slate-800 sm:w-auto"
+									className="w-full gap-2 border-border bg-card text-foreground hover:bg-accent sm:w-auto"
 									onClick={async () => {
 										await primeSessionAudio();
 										pauseSession.mutate(session.id, {
@@ -422,7 +424,7 @@ function ActiveSessionView({ session }: { session: Session }) {
 							<Button
 								size="lg"
 								variant="ghost"
-								className="w-full gap-2 text-slate-300 hover:bg-slate-800 hover:text-slate-100 sm:w-auto"
+								className="w-full gap-2 text-muted-foreground hover:bg-accent hover:text-foreground sm:w-auto"
 								onClick={() => navigate({ to: "/" })}
 								disabled={!isPaused}
 								title={
@@ -455,7 +457,7 @@ function ActiveSessionView({ session }: { session: Session }) {
 							</Button>
 						</div>
 						{!isPaused ? (
-							<p className="text-center text-xs text-slate-400">
+							<p className="text-center text-xs text-muted-foreground/60">
 								Pause this session to exit focus mode.
 							</p>
 						) : null}
@@ -477,7 +479,7 @@ function ActiveSessionView({ session }: { session: Session }) {
 					<CardContent>
 						<Textarea
 							placeholder="Notes, thoughts, progress..."
-							className="min-h-45 resize-none border-0 bg-transparent p-0 text-slate-100 placeholder:text-slate-500 shadow-none focus-visible:ring-0"
+							className="min-h-45 resize-none border-0 bg-transparent p-0 text-slate-100 placeholder:text-muted-foreground shadow-none focus-visible:ring-0"
 							value={scratchpad}
 							onChange={handleScratchpadChange}
 						/>

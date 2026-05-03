@@ -104,21 +104,21 @@ function MetricCard({
 }) {
 	const toneClass =
 		tone === "ready"
-			? "text-blue-700 bg-blue-50 border-blue-100"
+			? "text-info border-blue-200 bg-blue-50 dark:border-blue-800/50 dark:bg-blue-950/30 dark:text-blue-400"
 			: tone === "blocked"
-				? "text-amber-700 bg-amber-50 border-amber-100"
+				? "text-warning border-amber-200 bg-amber-50 dark:border-amber-700/50 dark:bg-amber-900/20 dark:text-amber-400"
 				: tone === "done"
-					? "text-emerald-700 bg-emerald-50 border-emerald-100"
-					: "text-slate-700 bg-slate-50 border-slate-200";
+					? "text-success border-emerald-200 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-400"
+					: "text-muted-foreground bg-muted/40 border-border";
 
 	return (
-		<Card className="border-white/80 bg-white/90 shadow-sm transition-transform duration-300 hover:-translate-y-0.5">
+		<Card className="border-border bg-card shadow-none transition-transform duration-300 hover:-translate-y-0.5">
 			<CardContent className="flex items-center justify-between p-4">
 				<div>
-					<p className="text-xs font-medium tracking-[0.12em] text-slate-500 uppercase">
+					<p className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
 						{label}
 					</p>
-					<p className="mt-1 text-2xl font-semibold text-slate-950">{value}</p>
+					<p className="mt-1 text-2xl font-semibold text-foreground">{value}</p>
 				</div>
 				<div className={`rounded-xl border p-2.5 ${toneClass}`}>
 					<Icon className="h-4 w-4" />
@@ -223,296 +223,284 @@ function TasksPage() {
 	const sizes: TaskSize[] = ["Small", "Medium", "Large", "Huge"];
 
 	return (
-		<div className="relative space-y-6 overflow-hidden">
-			<div aria-hidden className="pointer-events-none absolute inset-0">
-				<div className="absolute -top-24 left-1/3 h-56 w-56 rounded-full bg-sky-200/30 blur-3xl" />
-				<div className="absolute -right-12 top-24 h-52 w-52 rounded-full bg-cyan-100/45 blur-3xl" />
-			</div>
-
-			<div className="relative space-y-6">
-				<StaggerReveal visible={isLoaded} delayMs={20}>
-					<Card className="overflow-hidden border-sky-100 dark:border-sky-800 bg-linear-to-br from-white via-slate-50/70 to-sky-50/80 shadow-lg shadow-slate-200/60">
-						<CardContent className="flex flex-wrap items-start justify-between gap-4 p-6 sm:p-7">
-							<div>
-								<p className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
-									Execution Flow
-								</p>
-								<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-									<span className="inline-flex items-center gap-2">
-										Tasks
-										<HelpTooltip
-											feature="Tasks"
-											what="Primary queue for execution work across all projects."
-											use="Filter, sort, and move tasks between states as work progresses."
-											works="Combines task metadata, state transitions, and pagination in one surface."
-										/>
-									</span>
-								</h1>
-								<p className="mt-2 max-w-2xl text-sm text-slate-600">
-									Manage execution across projects with a single queue and
-									fast state transitions.
-								</p>
-								<div className="mt-4 flex flex-wrap items-center gap-2">
-									<Badge className="border-0 bg-slate-900 text-white">
-										{total} total
-									</Badge>
-									{hasActiveFilters ? (
-										<Badge
-											variant="secondary"
-											className="rounded-full bg-sky-100 text-sky-700"
-										>
-											<Sparkles className="mr-1 h-3 w-3" />
-											Filtered view
-										</Badge>
-									) : (
-										<Badge
-											variant="secondary"
-											className="rounded-full bg-slate-100 text-slate-600"
-										>
-											All tasks
-										</Badge>
-									)}
-								</div>
-							</div>
-							<div className="flex items-center gap-1.5">
-								<Button
-									onClick={() => setCreateOpen(true)}
-									className="h-10 gap-2 bg-slate-950 px-4 text-white hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
-								>
-									<Plus className="h-4 w-4" />
-									Add task
-								</Button>
-								<HelpTooltip
-									feature="Add Task"
-									what="Creates a new task in your execution system."
-									use="Click to capture new work and assign project/state metadata."
-									works="Opens task creation modal and persists task into queue."
-								/>
-							</div>
-						</CardContent>
-					</Card>
-				</StaggerReveal>
-
-				<StaggerReveal visible={isLoaded} delayMs={110}>
-					<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-						<MetricCard
-							label="In View"
-							value={tasks.length}
-							icon={CheckSquare}
-							tone="neutral"
-						/>
-						<MetricCard
-							label="Ready"
-							value={readyCount}
-							icon={Clock3}
-							tone="ready"
-						/>
-						<MetricCard
-							label="Blocked"
-							value={blockedCount}
-							icon={CircleSlash}
-							tone="blocked"
-						/>
-						<MetricCard
-							label="Done"
-							value={doneCount}
-							icon={CircleCheckBig}
-							tone="done"
-						/>
-					</div>
-				</StaggerReveal>
-
-				<StaggerReveal visible={isLoaded} delayMs={180}>
-					<Card className="border-white/80 bg-white/90 shadow-sm">
-						<CardHeader className="pb-3">
-							<CardTitle className="flex items-center justify-between text-base font-semibold text-slate-900">
+		<div className="space-y-6">
+			<StaggerReveal visible={isLoaded} delayMs={20}>
+				<Card className="overflow-hidden border-border bg-card shadow-none">
+					<CardContent className="flex flex-wrap items-start justify-between gap-4 p-6 sm:p-7">
+						<div>
+							<p className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
+								Execution Flow
+							</p>
+							<h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
 								<span className="inline-flex items-center gap-2">
-									<Filter className="h-4 w-4 text-slate-600" />
-									Filters
+									Tasks
 									<HelpTooltip
-										feature="Task Filters"
-										what="Controls list scope and ordering."
-										use="Set state, project, size, and sorting to focus the queue."
-										works="Updates URL search params and refetches task list."
+										feature="Tasks"
+										what="Primary queue for execution work across all projects."
+										use="Filter, sort, and move tasks between states as work progresses."
+										works="Combines task metadata, state transitions, and pagination in one surface."
 									/>
 								</span>
-								{hasActiveFilters && (
-									<Button
-										variant="ghost"
-										size="sm"
-										onClick={clearFilters}
-										className="h-8 text-slate-600 hover:text-slate-900"
+							</h1>
+							<p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+								Manage execution across projects with a single queue and fast
+								state transitions.
+							</p>
+							<div className="mt-4 flex flex-wrap items-center gap-2">
+								<Badge variant="default">{total} total</Badge>
+								{hasActiveFilters ? (
+									<Badge
+										variant="secondary"
+										className="rounded-full bg-sky-100 text-sky-700"
 									>
-										<X className="mr-1 h-3.5 w-3.5" />
-										Clear
+										<Sparkles className="mr-1 h-3 w-3" />
+										Filtered view
+									</Badge>
+								) : (
+									<Badge
+										variant="secondary"
+										className="rounded-full bg-muted/60 text-muted-foreground"
+									>
+										All tasks
+									</Badge>
+								)}
+							</div>
+						</div>
+						<div className="flex items-center gap-1.5">
+							<Button
+								onClick={() => setCreateOpen(true)}
+								className="h-10 gap-2 bg-primary px-4 text-primary-foreground hover:bg-primary/90"
+							>
+								<Plus className="h-4 w-4" />
+								Add task
+							</Button>
+							<HelpTooltip
+								feature="Add Task"
+								what="Creates a new task in your execution system."
+								use="Click to capture new work and assign project/state metadata."
+								works="Opens task creation modal and persists task into queue."
+							/>
+						</div>
+					</CardContent>
+				</Card>
+			</StaggerReveal>
+
+			<StaggerReveal visible={isLoaded} delayMs={110}>
+				<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+					<MetricCard
+						label="In View"
+						value={tasks.length}
+						icon={CheckSquare}
+						tone="neutral"
+					/>
+					<MetricCard
+						label="Ready"
+						value={readyCount}
+						icon={Clock3}
+						tone="ready"
+					/>
+					<MetricCard
+						label="Blocked"
+						value={blockedCount}
+						icon={CircleSlash}
+						tone="blocked"
+					/>
+					<MetricCard
+						label="Done"
+						value={doneCount}
+						icon={CircleCheckBig}
+						tone="done"
+					/>
+				</div>
+			</StaggerReveal>
+
+			<StaggerReveal visible={isLoaded} delayMs={180}>
+				<Card className="border-white/80 bg-card shadow-sm">
+					<CardHeader className="pb-3">
+						<CardTitle className="flex items-center justify-between text-base font-semibold text-foreground">
+							<span className="inline-flex items-center gap-2">
+								<Filter className="h-4 w-4 text-muted-foreground" />
+								Filters
+								<HelpTooltip
+									feature="Task Filters"
+									what="Controls list scope and ordering."
+									use="Set state, project, size, and sorting to focus the queue."
+									works="Updates URL search params and refetches task list."
+								/>
+							</span>
+							{hasActiveFilters && (
+								<Button
+									variant="ghost"
+									size="sm"
+									onClick={clearFilters}
+									className="h-8 text-muted-foreground hover:text-foreground"
+								>
+									<X className="mr-1 h-3.5 w-3.5" />
+									Clear
+								</Button>
+							)}
+						</CardTitle>
+					</CardHeader>
+					<CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[200px_140px_170px_130px_170px_44px]">
+						<Input
+							placeholder="Search tasks..."
+							value={search.searchQuery || ""}
+							onChange={(event) =>
+								updateSearch({
+									searchQuery: event.target.value || undefined,
+								})
+							}
+							className="w-full bg-card"
+						/>
+						<Select
+							value={search.state || "all"}
+							onValueChange={(v) =>
+								updateSearch({
+									state: v === "all" ? undefined : v,
+								})
+							}
+						>
+							<SelectTrigger className="w-full bg-card">
+								<SelectValue placeholder="All states" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All states</SelectItem>
+								{states.map((state) => (
+									<SelectItem key={state} value={state}>
+										{state}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+
+						<Select
+							value={search.projectId || "all"}
+							onValueChange={(v) =>
+								updateSearch({
+									projectId: v === "all" ? undefined : v,
+								})
+							}
+						>
+							<SelectTrigger className="w-full bg-card">
+								<SelectValue placeholder="All projects" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All projects</SelectItem>
+								{Array.isArray(projectList) &&
+									projectList.map((project) => (
+										<SelectItem key={project.id} value={project.id}>
+											{project.name}
+										</SelectItem>
+									))}
+							</SelectContent>
+						</Select>
+
+						<Select
+							value={search.size || "all"}
+							onValueChange={(v) =>
+								updateSearch({
+									size: v === "all" ? undefined : v,
+								})
+							}
+						>
+							<SelectTrigger className="w-full bg-card">
+								<SelectValue placeholder="All sizes" />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All sizes</SelectItem>
+								{sizes.map((size) => (
+									<SelectItem key={size} value={size}>
+										{size}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+
+						<Select
+							value={search.sortBy || "createdAt"}
+							onValueChange={(v) => updateSearch({ sortBy: v })}
+						>
+							<SelectTrigger className="w-full bg-card">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="createdAt">Created</SelectItem>
+								<SelectItem value="updatedAt">Updated</SelectItem>
+								<SelectItem value="deadline">Deadline</SelectItem>
+								<SelectItem value="priority">Priority</SelectItem>
+								<SelectItem value="title">Title</SelectItem>
+							</SelectContent>
+						</Select>
+
+						<Button
+							variant="outline"
+							size="icon"
+							onClick={() =>
+								updateSearch({
+									sortOrder: search.sortOrder === "asc" ? "desc" : "asc",
+								})
+							}
+							className="w-full bg-card"
+						>
+							{search.sortOrder === "asc" ? (
+								<ArrowUpAZ className="h-4 w-4" />
+							) : (
+								<ArrowDownAZ className="h-4 w-4" />
+							)}
+						</Button>
+					</CardContent>
+				</Card>
+			</StaggerReveal>
+
+			<StaggerReveal visible={isLoaded} delayMs={250}>
+				<Card className="border-border bg-card shadow-sm">
+					<CardContent className="p-4 sm:p-5">
+						{isLoading && <SkeletonList count={5} />}
+
+						{!isLoading && tasks.length === 0 && (
+							<EmptyState
+								icon={CheckSquare}
+								title="No tasks found"
+								description={
+									hasActiveFilters
+										? "Try adjusting your filters."
+										: "Create your first task to get started."
+								}
+							>
+								{!hasActiveFilters && (
+									<Button variant="outline" onClick={() => setCreateOpen(true)}>
+										<Plus className="mr-1 h-4 w-4" />
+										Create a task
 									</Button>
 								)}
-							</CardTitle>
-						</CardHeader>
-						<CardContent className="grid gap-2 sm:grid-cols-2 xl:grid-cols-[200px_140px_170px_130px_170px_44px]">
-							<Input
-								placeholder="Search tasks..."
-								value={search.searchQuery || ""}
-								onChange={(event) =>
-									updateSearch({
-										searchQuery: event.target.value || undefined,
-									})
-								}
-								className="w-full bg-white"
-							/>
-							<Select
-								value={search.state || "all"}
-								onValueChange={(v) =>
-									updateSearch({
-										state: v === "all" ? undefined : v,
-									})
-								}
-							>
-								<SelectTrigger className="w-full bg-white">
-									<SelectValue placeholder="All states" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All states</SelectItem>
-									{states.map((state) => (
-										<SelectItem key={state} value={state}>
-											{state}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
+							</EmptyState>
+						)}
 
-							<Select
-								value={search.projectId || "all"}
-								onValueChange={(v) =>
-									updateSearch({
-										projectId: v === "all" ? undefined : v,
-									})
-								}
-							>
-								<SelectTrigger className="w-full bg-white">
-									<SelectValue placeholder="All projects" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All projects</SelectItem>
-									{Array.isArray(projectList) &&
-										projectList.map((project) => (
-											<SelectItem key={project.id} value={project.id}>
-												{project.name}
-											</SelectItem>
-										))}
-								</SelectContent>
-							</Select>
+						{!isLoading && tasks.length > 0 && (
+							<div className="space-y-2">
+								{tasks.map((task) => (
+									<TaskCard
+										key={task.id}
+										task={task}
+										showProject
+										onStateChange={handleStateChange}
+										onSelect={handleSelect}
+										onConvertToIdea={handleConvertToIdea}
+									/>
+								))}
+							</div>
+						)}
+					</CardContent>
+				</Card>
+			</StaggerReveal>
 
-							<Select
-								value={search.size || "all"}
-								onValueChange={(v) =>
-									updateSearch({
-										size: v === "all" ? undefined : v,
-									})
-								}
-							>
-								<SelectTrigger className="w-full bg-white">
-									<SelectValue placeholder="All sizes" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All sizes</SelectItem>
-									{sizes.map((size) => (
-										<SelectItem key={size} value={size}>
-											{size}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-
-							<Select
-								value={search.sortBy || "createdAt"}
-								onValueChange={(v) => updateSearch({ sortBy: v })}
-							>
-								<SelectTrigger className="w-full bg-white">
-									<SelectValue />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="createdAt">Created</SelectItem>
-									<SelectItem value="updatedAt">Updated</SelectItem>
-									<SelectItem value="deadline">Deadline</SelectItem>
-									<SelectItem value="priority">Priority</SelectItem>
-									<SelectItem value="title">Title</SelectItem>
-								</SelectContent>
-							</Select>
-
-							<Button
-								variant="outline"
-								size="icon"
-								onClick={() =>
-									updateSearch({
-										sortOrder: search.sortOrder === "asc" ? "desc" : "asc",
-									})
-								}
-								className="w-full bg-white"
-							>
-								{search.sortOrder === "asc" ? (
-									<ArrowUpAZ className="h-4 w-4" />
-								) : (
-									<ArrowDownAZ className="h-4 w-4" />
-								)}
-							</Button>
-						</CardContent>
-					</Card>
-				</StaggerReveal>
-
-				<StaggerReveal visible={isLoaded} delayMs={250}>
-					<Card className="border-white/80 bg-white/95 shadow-sm">
-						<CardContent className="p-4 sm:p-5">
-							{isLoading && <SkeletonList count={5} />}
-
-							{!isLoading && tasks.length === 0 && (
-								<EmptyState
-									icon={CheckSquare}
-									title="No tasks found"
-									description={
-										hasActiveFilters
-											? "Try adjusting your filters."
-											: "Create your first task to get started."
-									}
-								>
-									{!hasActiveFilters && (
-										<Button
-											variant="outline"
-											onClick={() => setCreateOpen(true)}
-										>
-											<Plus className="mr-1 h-4 w-4" />
-											Create a task
-										</Button>
-									)}
-								</EmptyState>
-							)}
-
-							{!isLoading && tasks.length > 0 && (
-								<div className="space-y-2">
-									{tasks.map((task) => (
-										<TaskCard
-											key={task.id}
-											task={task}
-											showProject
-											onStateChange={handleStateChange}
-											onSelect={handleSelect}
-											onConvertToIdea={handleConvertToIdea}
-										/>
-									))}
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				</StaggerReveal>
-
-				<StaggerReveal visible={isLoaded} delayMs={300}>
-					<Pagination
-						currentPage={search.page || 1}
-						totalPages={totalPages}
-						onPageChange={(page) => updateSearch({ page })}
-					/>
-				</StaggerReveal>
-			</div>
+			<StaggerReveal visible={isLoaded} delayMs={300}>
+				<Pagination
+					currentPage={search.page || 1}
+					totalPages={totalPages}
+					onPageChange={(page) => updateSearch({ page })}
+				/>
+			</StaggerReveal>
 
 			<CreateTaskDialog open={createOpen} onOpenChange={setCreateOpen} />
 		</div>

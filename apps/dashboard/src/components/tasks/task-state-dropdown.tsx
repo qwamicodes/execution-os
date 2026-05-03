@@ -24,7 +24,7 @@ export function TaskStateDropdown({
 
 	if (validTransitions.length === 0 || disabled) {
 		return (
-			<Badge variant="outline" className={config.color}>
+			<Badge variant={config.badge}>
 				<config.icon className="mr-1 h-3 w-3" />
 				{config.label}
 			</Badge>
@@ -34,8 +34,11 @@ export function TaskStateDropdown({
 	return (
 		<DropdownMenu>
 			<DropdownMenuTrigger asChild>
-				<Badge className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 cursor-pointer hover:opacity-80">
-					<config.icon className="mr-1 inline h-3 w-3" />
+				<Badge
+					variant={config.badge}
+					className="cursor-pointer hover:opacity-80"
+				>
+					<config.icon className="mr-1 h-3 w-3" />
 					{config.label}
 				</Badge>
 			</DropdownMenuTrigger>
@@ -44,9 +47,7 @@ export function TaskStateDropdown({
 					const targetConfig = TASK_STATE_CONFIG[state];
 					return (
 						<DropdownMenuItem key={state} onClick={() => onStateChange(state)}>
-							<targetConfig.icon
-								className={`mr-2 h-4 w-4 ${targetConfig.color.split(" ")[0]}`}
-							/>
+							<targetConfig.icon className="mr-2 h-4 w-4" />
 							{targetConfig.label}
 						</DropdownMenuItem>
 					);

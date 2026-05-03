@@ -2,6 +2,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/ui/dialog";
@@ -113,6 +114,9 @@ export function StartSessionDialog({
 			<DialogContent>
 				<DialogHeader>
 					<DialogTitle>Start focus session</DialogTitle>
+					<DialogDescription>
+						Choose a focused block for the selected task.
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">
@@ -151,11 +155,12 @@ export function StartSessionDialog({
 						</RadioGroup>
 					</div>
 
-					<div className="flex justify-end gap-2">
+					<div className="flex justify-end gap-2 border-t pt-4">
 						<Button variant="outline" onClick={() => onOpenChange(false)}>
 							Cancel
 						</Button>
 						<Button
+							className="bg-primary text-primary-foreground hover:bg-primary/90"
 							onClick={handleStart}
 							disabled={startSession.isPending || extendSession.isPending}
 						>

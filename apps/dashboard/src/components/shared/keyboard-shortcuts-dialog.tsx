@@ -49,10 +49,10 @@ export function KeyboardShortcutsDialog() {
 					{SHORTCUTS.map((shortcut) => (
 						<div
 							key={shortcut.combination}
-							className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+							className="flex items-center justify-between rounded-lg border border-border bg-muted/40 px-3 py-2"
 						>
-							<p className="text-sm text-slate-700">{shortcut.description}</p>
-							<kbd className="rounded-md border bg-white px-2 py-1 font-mono text-xs">
+							<p className="text-sm text-muted-foreground">{shortcut.description}</p>
+							<kbd className="rounded-md border bg-card px-2 py-1 font-mono text-xs">
 								{shortcut.combination
 									.replace("Cmd", osKey)
 									.replace("Ctrl", osKey)}

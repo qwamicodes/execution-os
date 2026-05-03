@@ -220,6 +220,13 @@ export type EnumProjectTypeFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumProjectTypeFilter<$PrismaModel> | $Enums.ProjectType
 }
 
+export type EnumProjectStructureTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.ProjectStructureType | Prisma.EnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.ProjectStructureType[] | Prisma.ListEnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ProjectStructureType[] | Prisma.ListEnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumProjectStructureTypeFilter<$PrismaModel> | $Enums.ProjectStructureType
+}
+
 export type EnumProjectTypeWithAggregatesFilter<$PrismaModel = never> = {
   equals?: $Enums.ProjectType | Prisma.EnumProjectTypeFieldRefInput<$PrismaModel>
   in?: $Enums.ProjectType[] | Prisma.ListEnumProjectTypeFieldRefInput<$PrismaModel>
@@ -228,6 +235,16 @@ export type EnumProjectTypeWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumProjectTypeFilter<$PrismaModel>
   _max?: Prisma.NestedEnumProjectTypeFilter<$PrismaModel>
+}
+
+export type EnumProjectStructureTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ProjectStructureType | Prisma.EnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.ProjectStructureType[] | Prisma.ListEnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ProjectStructureType[] | Prisma.ListEnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumProjectStructureTypeWithAggregatesFilter<$PrismaModel> | $Enums.ProjectStructureType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumProjectStructureTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumProjectStructureTypeFilter<$PrismaModel>
 }
 
 export type IntNullableFilter<$PrismaModel = never> = {
@@ -701,6 +718,13 @@ export type NestedEnumProjectTypeFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumProjectTypeFilter<$PrismaModel> | $Enums.ProjectType
 }
 
+export type NestedEnumProjectStructureTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.ProjectStructureType | Prisma.EnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.ProjectStructureType[] | Prisma.ListEnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ProjectStructureType[] | Prisma.ListEnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumProjectStructureTypeFilter<$PrismaModel> | $Enums.ProjectStructureType
+}
+
 export type NestedEnumProjectTypeWithAggregatesFilter<$PrismaModel = never> = {
   equals?: $Enums.ProjectType | Prisma.EnumProjectTypeFieldRefInput<$PrismaModel>
   in?: $Enums.ProjectType[] | Prisma.ListEnumProjectTypeFieldRefInput<$PrismaModel>
@@ -709,6 +733,16 @@ export type NestedEnumProjectTypeWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumProjectTypeFilter<$PrismaModel>
   _max?: Prisma.NestedEnumProjectTypeFilter<$PrismaModel>
+}
+
+export type NestedEnumProjectStructureTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ProjectStructureType | Prisma.EnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.ProjectStructureType[] | Prisma.ListEnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ProjectStructureType[] | Prisma.ListEnumProjectStructureTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumProjectStructureTypeWithAggregatesFilter<$PrismaModel> | $Enums.ProjectStructureType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumProjectStructureTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumProjectStructureTypeFilter<$PrismaModel>
 }
 
 export type NestedIntNullableWithAggregatesFilter<$PrismaModel = never> = {

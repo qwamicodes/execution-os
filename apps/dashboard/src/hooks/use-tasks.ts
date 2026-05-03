@@ -47,6 +47,14 @@ export function useUpdateTask() {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.tasks.detail(variables.id),
 			});
+			if (_data.parentId) {
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.tasks.detail(_data.parentId),
+				});
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.tasks.subtasks(_data.parentId),
+				});
+			}
 			queryClient.invalidateQueries({ queryKey: queryKeys.inbox });
 			queryClient.invalidateQueries({ queryKey: ["ai", "recommendation"] });
 		},
@@ -86,24 +94,22 @@ export function useDecomposeTask() {
 			tasks.decompose(id, data),
 		onSuccess: (_data, variables) => {
 			const { id } = variables;
-			const refreshKeys = () => {
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.tasks.detail(id),
-				});
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.tasks.subtasks(id),
-				});
-				queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
-			};
-
-			// Decomposition is async server-side; refresh a few times to surface new subtasks quickly.
-			refreshKeys();
-			setTimeout(refreshKeys, 1000);
-			setTimeout(refreshKeys, 2500);
-			setTimeout(refreshKeys, 5000);
-
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.tasks.detail(id),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.tasks.subtasks(id),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
 			queryClient.invalidateQueries({ queryKey: ["ai", "recommendation"] });
 		},
+	});
+}
+
+export function usePreviewTaskDecomposition() {
+	return useMutation({
+		mutationFn: ({ id, data }: { id: string; data?: DecomposeTaskInput }) =>
+			tasks.previewDecomposition(id, data),
 	});
 }
 
@@ -112,6 +118,38 @@ export function useAIClassifyTask() {
 
 	return useMutation({
 		mutationFn: (id: string) => tasks.classifyAI(id),
+		onSuccess: (_data, id) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.tasks.detail(id),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+			queryClient.invalidateQueries({ queryKey: queryKeys.inbox });
+			queryClient.invalidateQueries({ queryKey: ["ai", "recommendation"] });
+		},
+	});
+}
+
+export function useApplyTaskAISuggestion() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (id: string) => tasks.applyAISuggestion(id),
+		onSuccess: (_data, id) => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.tasks.detail(id),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+			queryClient.invalidateQueries({ queryKey: queryKeys.inbox });
+			queryClient.invalidateQueries({ queryKey: ["ai", "recommendation"] });
+		},
+	});
+}
+
+export function useIgnoreTaskAISuggestion() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		mutationFn: (id: string) => tasks.ignoreAISuggestion(id),
 		onSuccess: (_data, id) => {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.tasks.detail(id),

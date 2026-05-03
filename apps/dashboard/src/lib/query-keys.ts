@@ -1,5 +1,6 @@
 import type {
 	IdeaFilters,
+	InboxFilters,
 	ProjectFilters,
 	SessionHistoryFilters,
 	TaskFilters,
@@ -15,6 +16,7 @@ export const queryKeys = {
 		milestones: (projectId: string) =>
 			["projects", "milestones", projectId] as const,
 		parts: (projectId: string) => ["projects", "parts", projectId] as const,
+		epics: (projectId: string) => ["projects", "epics", projectId] as const,
 	},
 
 	tasks: {
@@ -37,6 +39,7 @@ export const queryKeys = {
 	},
 
 	inbox: ["inbox"] as const,
+	inboxList: (filters?: InboxFilters) => ["inbox", "list", filters] as const,
 
 	integrations: ["integrations"] as const,
 

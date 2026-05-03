@@ -5,7 +5,10 @@ export const CreateTaskSchema = z.object({
 	description: z.string().max(10000).optional(),
 	projectId: z.string().uuid().optional(),
 	partId: z.string().uuid().optional(),
+	partIds: z.array(z.string().uuid()).max(20).optional(),
+	epicIds: z.array(z.string().uuid()).max(20).optional(),
 	milestoneId: z.string().uuid().optional(),
+	priority: z.number().int().min(0).max(100).optional(),
 	deadline: z.string().datetime().optional(),
 	featureBlocked: z.boolean().optional(),
 	featureBlockReason: z.string().max(300).nullable().optional(),
@@ -26,7 +29,10 @@ export const UpdateTaskSchema = z
 		description: z.string().max(10000).optional(),
 		projectId: z.string().uuid().nullable().optional(),
 		partId: z.string().uuid().nullable().optional(),
+		partIds: z.array(z.string().uuid()).max(20).nullable().optional(),
+		epicIds: z.array(z.string().uuid()).max(20).nullable().optional(),
 		milestoneId: z.string().uuid().nullable().optional(),
+		priority: z.number().int().min(0).max(100).nullable().optional(),
 		deadline: z.string().datetime().nullable().optional(),
 		featureBlocked: z.boolean().optional(),
 		featureBlockReason: z.string().max(300).nullable().optional(),
@@ -58,6 +64,9 @@ export const TaskQuerySchema = z.object({
 		.enum(["Inbox", "Ongoing", "Ready", "Active", "Blocked", "Paused", "Done"])
 		.optional(),
 	projectId: z.string().uuid().optional(),
+	partId: z.string().uuid().optional(),
+	epicId: z.string().uuid().optional(),
+	milestoneId: z.string().uuid().optional(),
 	size: z.enum(["Small", "Medium", "Large", "Huge"]).optional(),
 	protected: z.coerce.boolean().optional(),
 	hasDeadline: z.coerce.boolean().optional(),
@@ -68,6 +77,18 @@ export const TaskQuerySchema = z.object({
 
 export const DecomposeRequestSchema = z.object({
 	feedback: z.string().max(500).optional(),
+	replaceExisting: z.boolean().optional(),
+	subtasks: z
+		.array(
+			z.object({
+				title: z.string().min(1).max(200),
+				description: z.string().max(1000).nullable().optional(),
+				estimatedSessions: z.number().int().min(1).max(3),
+			}),
+		)
+		.min(1)
+		.max(10)
+		.optional(),
 });
 
 export const PriorityOverrideSchema = z.object({

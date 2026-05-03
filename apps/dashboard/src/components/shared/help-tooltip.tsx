@@ -28,7 +28,7 @@ export function HelpTooltip({
 					type="button"
 					aria-label={`Help for ${feature}`}
 					className={cn(
-						"inline-flex h-5 w-5 items-center justify-center rounded-full text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700",
+						"inline-flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground/60 transition-colors hover:bg-muted/60 hover:text-muted-foreground",
 						className,
 					)}
 				>
@@ -38,19 +38,19 @@ export function HelpTooltip({
 			<TooltipContent
 				side="top"
 				align="start"
-				className="max-w-[320px] rounded-xl border border-slate-700/80 bg-slate-950 p-3 text-slate-100 shadow-xl"
+				className="max-w-[320px] rounded-xl border border-border bg-popover p-3 text-popover-foreground shadow-xl"
 			>
 				<p className="text-xs font-semibold tracking-[0.12em] uppercase">
 					{feature}
 				</p>
-				<p className="mt-2 text-xs leading-relaxed text-slate-200">
-					<span className="font-semibold text-white">What:</span> {what}
+				<p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+					<span className="font-semibold text-foreground">What:</span> {what}
 				</p>
-				<p className="mt-1 text-xs leading-relaxed text-slate-200">
-					<span className="font-semibold text-white">Use:</span> {use}
+				<p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+					<span className="font-semibold text-foreground">Use:</span> {use}
 				</p>
-				<p className="mt-1 text-xs leading-relaxed text-slate-200">
-					<span className="font-semibold text-white">Works:</span> {works}
+				<p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+					<span className="font-semibold text-foreground">Works:</span> {works}
 				</p>
 			</TooltipContent>
 		</Tooltip>

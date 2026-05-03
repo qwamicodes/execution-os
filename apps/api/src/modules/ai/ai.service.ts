@@ -112,6 +112,8 @@ interface TaskRecommendationSnapshot {
 	protectionReason: string | null;
 	priority: number | null;
 	deadline: string | null;
+	effectiveDeadline: string | null;
+	deadlineSource: "task" | "milestone" | "epic" | null;
 	project: {
 		id: string;
 		name: string;
@@ -743,7 +745,7 @@ export async function decomposeTaskWithAI(
 }
 
 function recommendationCacheKey(userId: string) {
-	return `ai:task_recommendation:${userId}`;
+	return `ai:task_recommendation:v2:${userId}`;
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -774,6 +776,42 @@ function deadlineScore(deadline: Date | null, now: Date) {
 	if (diffDays <= 14) return 50;
 	if (diffDays <= 31) return 30;
 	return 20;
+}
+
+function strongestDeadlinePressure(
+	deadlines: Array<{
+		date: Date | null | undefined;
+		source: "task" | "milestone" | "epic";
+	}>,
+	now: Date,
+) {
+	let best: {
+		date: Date;
+		source: "task" | "milestone" | "epic";
+		score: number;
+	} | null = null;
+
+	for (const candidate of deadlines) {
+		if (!candidate.date) continue;
+		const score = deadlineScore(candidate.date, now);
+		if (
+			!best ||
+			score > best.score ||
+			(score === best.score && candidate.date < best.date)
+		) {
+			best = {
+				date: candidate.date,
+				source: candidate.source,
+				score,
+			};
+		}
+	}
+
+	return {
+		date: best?.date ?? null,
+		source: best?.source ?? null,
+		score: best?.score ?? deadlineScore(null, now),
+	};
 }
 
 function protectedScore(protectedFlag: boolean, reason: string | null) {
@@ -935,6 +973,25 @@ export async function recommendTaskForFocus(
 						deletedAt: true,
 					},
 				},
+				milestone: {
+					select: {
+						id: true,
+						title: true,
+						targetDate: true,
+					},
+				},
+				epics: {
+					select: {
+						epic: {
+							select: {
+								id: true,
+								key: true,
+								name: true,
+								targetDate: true,
+							},
+						},
+					},
+				},
 			},
 			orderBy: [{ createdAt: "asc" }],
 			take: 200,
@@ -1025,8 +1082,19 @@ export async function recommendTaskForFocus(
 
 	const scored = visibleTasks
 		.map((task) => {
+			const deadlinePressure = strongestDeadlinePressure(
+				[
+					{ date: task.deadline, source: "task" },
+					{ date: task.milestone?.targetDate, source: "milestone" },
+					...task.epics.map(({ epic }) => ({
+						date: epic.targetDate,
+						source: "epic" as const,
+					})),
+				],
+				now,
+			);
 			const factors = {
-				deadline: deadlineScore(task.deadline, now),
+				deadline: deadlinePressure.score,
 				protected: protectedScore(task.protected, task.protectionReason),
 				projectHealth: projectHealthScore(
 					task.project?.type ?? null,
@@ -1069,6 +1137,8 @@ export async function recommendTaskForFocus(
 						protectionReason: task.protectionReason,
 						priority: task.priority,
 						deadline: task.deadline?.toISOString() ?? null,
+						effectiveDeadline: deadlinePressure.date?.toISOString() ?? null,
+						deadlineSource: deadlinePressure.source,
 						project: task.project
 							? {
 									id: task.project.id,
@@ -1118,6 +1188,8 @@ export async function recommendTaskForFocus(
 		title: entry.task.title,
 		score: entry.score,
 		deadline: entry.task.deadline,
+		effectiveDeadline: entry.task.effectiveDeadline,
+		deadlineSource: entry.task.deadlineSource,
 		size: entry.task.size,
 		urgency: entry.task.urgency,
 		protected: entry.task.protected,

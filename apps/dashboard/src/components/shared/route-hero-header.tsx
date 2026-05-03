@@ -1,5 +1,4 @@
-import { Badge } from "@repo/ui/components/ui/badge";
-import { Card, CardContent } from "@repo/ui/components/ui/card";
+import { Badge, type BadgeVariant } from "@repo/ui/components/ui/badge";
 import type { ReactNode } from "react";
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 
@@ -18,7 +17,7 @@ interface RouteHeroHeaderProps {
 }
 
 export function RouteHeroHeader({
-	eyebrow = "Execution Flow",
+	eyebrow,
 	title,
 	description,
 	badges,
@@ -26,32 +25,36 @@ export function RouteHeroHeader({
 	help,
 }: RouteHeroHeaderProps) {
 	return (
-		<Card className="overflow-hidden border-sky-800 bg-linear-to-br from-white via-slate-50/70 to-sky-50/80 shadow-lg shadow-slate-200/60">
-			<CardContent className="flex flex-wrap items-start justify-between gap-4 p-6 sm:p-7">
-				<div>
-					<p className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">
+		<div className="flex flex-wrap items-start justify-between gap-4">
+			<div className="min-w-0">
+				{eyebrow && (
+					<p className="mb-1.5 text-[11px] font-medium tracking-[0.12em] text-muted-foreground uppercase">
 						{eyebrow}
 					</p>
-					<div className="mt-2 flex items-center gap-2">
-						<h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl">
-							{title}
-						</h1>
-						{help ? <HelpTooltip {...help} className="h-6 w-6" /> : null}
-					</div>
-					{description && (
-						<p className="mt-2 max-w-2xl text-sm text-slate-600">
-							{description}
-						</p>
-					)}
-					{badges && (
-						<div className="mt-4 flex flex-wrap items-center gap-2">
-							{badges}
-						</div>
-					)}
+				)}
+				<div className="flex items-center gap-2">
+					<h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+						{title}
+					</h1>
+					{help ? <HelpTooltip {...help} className="h-5 w-5" /> : null}
 				</div>
-				{action ? <div className="w-full sm:w-auto">{action}</div> : null}
-			</CardContent>
-		</Card>
+				{description && (
+					<p className="mt-1.5 max-w-2xl text-sm text-muted-foreground leading-relaxed">
+						{description}
+					</p>
+				)}
+				{badges && (
+					<div className="mt-3 flex flex-wrap items-center gap-1.5">
+						{badges}
+					</div>
+				)}
+			</div>
+			{action ? (
+				<div className="shrink-0 w-full sm:w-auto">
+					{action}
+				</div>
+			) : null}
+		</div>
 	);
 }
 
@@ -61,11 +64,11 @@ export function RouteHeroBadge({
 	className = "",
 }: {
 	children: ReactNode;
-	variant?: "default" | "secondary" | "outline" | "destructive";
+	variant?: BadgeVariant;
 	className?: string;
 }) {
 	return (
-		<Badge variant={variant} className={className}>
+		<Badge variant={variant} className={`text-xs ${className}`}>
 			{children}
 		</Badge>
 	);

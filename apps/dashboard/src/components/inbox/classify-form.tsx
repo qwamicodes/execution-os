@@ -122,7 +122,7 @@ export function ClassifyForm({ taskId, onDone }: ClassifyFormProps) {
 		<Form {...form}>
 			<form
 				onSubmit={form.handleSubmit(onSubmit)}
-				className="space-y-4 border-t border-slate-200 pt-4"
+				className="space-y-4 border-t border-border pt-4"
 			>
 				<FormField
 					control={form.control}
@@ -132,7 +132,7 @@ export function ClassifyForm({ taskId, onDone }: ClassifyFormProps) {
 							<FormLabel>Project</FormLabel>
 							<Select onValueChange={field.onChange} defaultValue={field.value}>
 								<FormControl>
-									<SelectTrigger className="border-slate-300 bg-white">
+									<SelectTrigger className="border-border bg-card">
 										<SelectValue placeholder="No project" />
 									</SelectTrigger>
 								</FormControl>
@@ -262,7 +262,7 @@ export function ClassifyForm({ taskId, onDone }: ClassifyFormProps) {
 									}
 								>
 									<FormControl>
-										<SelectTrigger className="border-slate-300 bg-white">
+										<SelectTrigger className="border-border bg-card">
 											<SelectValue placeholder="Select reason" />
 										</SelectTrigger>
 									</FormControl>
@@ -290,7 +290,7 @@ export function ClassifyForm({ taskId, onDone }: ClassifyFormProps) {
 								<DatePicker
 									value={field.value}
 									onChange={(next) => field.onChange(next ?? "")}
-									className="border-slate-300 bg-white"
+									className="border-border bg-card"
 									boundary="end"
 								/>
 							</FormControl>
@@ -308,7 +308,7 @@ export function ClassifyForm({ taskId, onDone }: ClassifyFormProps) {
 							<FormControl>
 								<Input
 									placeholder="Comma-separated tags"
-									className="border-slate-300 bg-white"
+									className="border-border bg-card"
 									{...field}
 								/>
 							</FormControl>

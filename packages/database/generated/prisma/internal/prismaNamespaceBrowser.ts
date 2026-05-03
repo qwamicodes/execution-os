@@ -54,6 +54,9 @@ export const ModelName = {
   User: 'User',
   Project: 'Project',
   ProjectPart: 'ProjectPart',
+  TaskProjectPart: 'TaskProjectPart',
+  ProjectEpic: 'ProjectEpic',
+  TaskProjectEpic: 'TaskProjectEpic',
   ProjectMilestone: 'ProjectMilestone',
   Task: 'Task',
   Idea: 'Idea',
@@ -99,6 +102,7 @@ export const ProjectScalarFieldEnum = {
   name: 'name',
   description: 'description',
   type: 'type',
+  structureType: 'structureType',
   color: 'color',
   targetCompletionDate: 'targetCompletionDate',
   inHouseState: 'inHouseState',
@@ -124,6 +128,40 @@ export const ProjectPartScalarFieldEnum = {
 } as const
 
 export type ProjectPartScalarFieldEnum = (typeof ProjectPartScalarFieldEnum)[keyof typeof ProjectPartScalarFieldEnum]
+
+
+export const TaskProjectPartScalarFieldEnum = {
+  taskId: 'taskId',
+  partId: 'partId',
+  createdAt: 'createdAt'
+} as const
+
+export type TaskProjectPartScalarFieldEnum = (typeof TaskProjectPartScalarFieldEnum)[keyof typeof TaskProjectPartScalarFieldEnum]
+
+
+export const ProjectEpicScalarFieldEnum = {
+  id: 'id',
+  key: 'key',
+  name: 'name',
+  description: 'description',
+  targetDate: 'targetDate',
+  order: 'order',
+  projectId: 'projectId',
+  userId: 'userId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ProjectEpicScalarFieldEnum = (typeof ProjectEpicScalarFieldEnum)[keyof typeof ProjectEpicScalarFieldEnum]
+
+
+export const TaskProjectEpicScalarFieldEnum = {
+  taskId: 'taskId',
+  epicId: 'epicId',
+  createdAt: 'createdAt'
+} as const
+
+export type TaskProjectEpicScalarFieldEnum = (typeof TaskProjectEpicScalarFieldEnum)[keyof typeof TaskProjectEpicScalarFieldEnum]
 
 
 export const ProjectMilestoneScalarFieldEnum = {

@@ -7,10 +7,9 @@ import { errorMiddleware } from "./middleware/error";
 import { aiController } from "./modules/ai/ai.controller";
 import { authController } from "./modules/auth/auth.controller";
 import { realtimeController } from "./modules/events/realtime.controller";
-import { inboxController } from "./modules/inbox/inbox.controller";
-import { startInboxClassificationScheduler } from "./modules/inbox/inbox.scheduler";
-import { integrationController } from "./modules/integrations/integration.controller";
 import { ideaController } from "./modules/ideas/idea.controller";
+import { inboxController } from "./modules/inbox/inbox.controller";
+import { integrationController } from "./modules/integrations/integration.controller";
 import { pmAIController } from "./modules/pm-ai/pm-ai.controller";
 import { projectController } from "./modules/projects/project.controller";
 import { searchController } from "./modules/search/search.controller";
@@ -32,7 +31,6 @@ prisma
 	});
 
 startPriorityRecalculationScheduler();
-startInboxClassificationScheduler();
 
 const app = new Elysia()
 	.use(

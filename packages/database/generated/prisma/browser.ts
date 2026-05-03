@@ -33,6 +33,21 @@ export type Project = Prisma.ProjectModel
  */
 export type ProjectPart = Prisma.ProjectPartModel
 /**
+ * Model TaskProjectPart
+ * 
+ */
+export type TaskProjectPart = Prisma.TaskProjectPartModel
+/**
+ * Model ProjectEpic
+ * 
+ */
+export type ProjectEpic = Prisma.ProjectEpicModel
+/**
+ * Model TaskProjectEpic
+ * 
+ */
+export type TaskProjectEpic = Prisma.TaskProjectEpicModel
+/**
  * Model ProjectMilestone
  * 
  */

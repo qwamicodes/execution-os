@@ -49,7 +49,7 @@ export const EnvSchema = z.object({
 		.default(500),
 	LOG_SUCCESS_SAMPLE_RATE: z.coerce.number().min(0).max(1).default(0.1),
 
-	AI_AUTO_CLASSIFY_ON_TASK_CREATE: z.coerce.boolean().default(true),
+	AI_AUTO_CLASSIFY_ON_TASK_CREATE: z.coerce.boolean().default(false),
 	AI_ROUTING_MODE: z
 		.enum(["round_robin", "random", "fixed"])
 		.default("round_robin"),

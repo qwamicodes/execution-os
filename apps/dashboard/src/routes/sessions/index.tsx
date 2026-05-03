@@ -43,7 +43,7 @@ function SessionsPage() {
 							"Tracks timer, pause/resume state, notes, and final outcome for analytics.",
 					}}
 					badges={
-						<RouteHeroBadge className="rounded-full bg-slate-100 text-slate-600">
+						<RouteHeroBadge variant="neutral">
 							Loading session state
 						</RouteHeroBadge>
 					}
@@ -70,22 +70,22 @@ function SessionsPage() {
 							"Tracks timer, pause/resume state, notes, and final outcome for analytics.",
 					}}
 					badges={
-						<RouteHeroBadge className="rounded-full bg-sky-100 text-sky-700">
+						<RouteHeroBadge variant="sky">
 							No active session
 						</RouteHeroBadge>
 					}
 				/>
 
 				<div className="grid gap-4 md:grid-cols-2">
-					<Card className="border-slate-200 bg-white/85">
+					<Card className="border-border bg-card">
 						<CardContent className="space-y-4 p-6">
-							<div className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-medium tracking-[0.14em] text-slate-600 uppercase">
+							<div className="inline-flex rounded-full border border-border bg-muted/40 px-3 py-1 text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
 								Focus Mode
 							</div>
-							<h2 className="text-xl font-semibold tracking-tight text-slate-900">
+							<h2 className="text-xl font-semibold tracking-tight text-foreground">
 								No active session
 							</h2>
-							<p className="text-sm text-slate-600">
+							<p className="text-sm text-muted-foreground">
 								Start from a Ready task and keep momentum with the built-in
 								pomodoro timer, scratchpad, and outcome tracking.
 							</p>

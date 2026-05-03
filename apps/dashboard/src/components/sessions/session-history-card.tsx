@@ -21,7 +21,7 @@ export function SessionHistoryCard({ session }: SessionHistoryCardProps) {
 	const actualMinutes = session.actualDuration ?? session.duration;
 
 	return (
-		<Card className="border-slate-200 bg-white/95 shadow-sm transition-colors hover:border-slate-300">
+		<Card className="border-border bg-card shadow-sm transition-colors hover:bg-accent/30">
 			<CardContent className="p-4">
 				<div className="flex items-start justify-between gap-3">
 					<div className="min-w-0 flex-1">
@@ -29,27 +29,24 @@ export function SessionHistoryCard({ session }: SessionHistoryCardProps) {
 							<Link
 								to="/tasks/$taskId"
 								params={{ taskId: session.taskId }}
-								className="block truncate font-medium text-slate-900 transition-colors hover:text-slate-700"
+								className="block truncate font-medium text-foreground transition-colors hover:text-muted-foreground"
 							>
 								{session.task.title}
 							</Link>
 						) : (
-							<p className="truncate font-medium text-slate-900">
+							<p className="truncate font-medium text-foreground">
 								Task #{session.taskId.slice(0, 8)}
 							</p>
 						)}
 
-						<div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-slate-500">
+						<div className="mt-1.5 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
 							{outcomeConfig && (
-								<Badge
-									variant="outline"
-									className={`border-0 text-xs ${outcomeConfig.color}`}
-								>
+								<Badge variant={outcomeConfig.badge}>
 									{outcomeConfig.label}
 								</Badge>
 							)}
-							<span className="inline-flex items-center">
-								<Clock className="mr-1 h-3 w-3" />
+							<span className="inline-flex items-center gap-1">
+								<Clock className="h-3 w-3" />
 								{formatLoggedDuration(actualMinutes)}
 							</span>
 							<span>
@@ -58,13 +55,13 @@ export function SessionHistoryCard({ session }: SessionHistoryCardProps) {
 						</div>
 
 						{session.notes && (
-							<p className="mt-2 line-clamp-2 text-sm text-slate-600">
+							<p className="mt-2 line-clamp-2 text-sm text-muted-foreground">
 								{session.notes}
 							</p>
 						)}
 
 						{session.blockerNote && (
-							<p className="mt-1 line-clamp-1 text-sm text-red-600">
+							<p className="mt-1 line-clamp-1 text-sm text-red-500 dark:text-red-400">
 								Blocker: {session.blockerNote}
 							</p>
 						)}

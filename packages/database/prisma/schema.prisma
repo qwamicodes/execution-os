@@ -16,6 +16,11 @@ enum ProjectType {
   Office
 }
 
+enum ProjectStructureType {
+  SingleRepo
+  Monorepo
+}
+
 enum MilestoneStatus {
   Pending
   Completed
@@ -102,6 +107,7 @@ model User {
   stateHistory StateHistory[]
   milestones   ProjectMilestone[]
   projectParts ProjectPart[]
+  projectEpics ProjectEpic[]
 
   @@index([email])
   @@index([createdAt])
@@ -114,6 +120,7 @@ model Project {
   name        String      @db.VarChar(100)
   description String?     @db.VarChar(500)
   type        ProjectType @default(Core)
+  structureType ProjectStructureType @default(SingleRepo)
   color       String?     @db.VarChar(7)
   targetCompletionDate DateTime? @db.Timestamptz(6)
 
@@ -130,10 +137,12 @@ model Project {
   tasks Task[]
   milestones ProjectMilestone[]
   parts ProjectPart[]
+  epics ProjectEpic[]
 
   @@index([userId])
   @@index([name])
   @@index([type])
+  @@index([structureType])
   @@index([targetCompletionDate])
   @@index([archivedAt])
   @@index([deletedAt])
@@ -154,7 +163,8 @@ model ProjectPart {
   userId String @db.Uuid
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  tasks Task[]
+  tasks     Task[]
+  taskParts TaskProjectPart[]
 
   createdAt DateTime @default(now()) @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @db.Timestamptz(6)
@@ -164,6 +174,64 @@ model ProjectPart {
   @@index([userId])
   @@index([order])
   @@map("project_parts")
+}
+
+model TaskProjectPart {
+  taskId String @map("task_id") @db.Uuid
+  partId String @map("part_id") @db.Uuid
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  part ProjectPart @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([taskId, partId])
+  @@index([partId])
+  @@index([taskId])
+  @@map("task_project_parts")
+}
+
+model ProjectEpic {
+  id String @id @default(uuid()) @db.Uuid
+
+  key         String? @db.VarChar(40)
+  name        String  @db.VarChar(160)
+  description String? @db.VarChar(1000)
+  targetDate  DateTime? @db.Timestamptz(6)
+  order       Int?    @db.SmallInt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  userId String @db.Uuid
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  taskEpics TaskProjectEpic[]
+
+  createdAt DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @db.Timestamptz(6)
+
+  @@unique([projectId, name])
+  @@index([projectId])
+  @@index([userId])
+  @@index([targetDate])
+  @@index([order])
+  @@map("project_epics")
+}
+
+model TaskProjectEpic {
+  taskId  String @map("task_id") @db.Uuid
+  epicId  String @map("epic_id") @db.Uuid
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  epic ProjectEpic @relation(fields: [epicId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@id([taskId, epicId])
+  @@index([epicId])
+  @@index([taskId])
+  @@map("task_project_epics")
 }
 
 model ProjectMilestone {
@@ -226,6 +294,8 @@ model Task {
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
   partId    String?  @map("part_id") @db.Uuid
   part      ProjectPart? @relation(fields: [partId], references: [id], onDelete: SetNull)
+  parts     TaskProjectPart[]
+  epics     TaskProjectEpic[]
   milestoneId String? @map("milestone_id") @db.Uuid
   milestone   ProjectMilestone? @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
 

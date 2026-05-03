@@ -25,6 +25,7 @@ export type SessionState = "Active" | "Paused" | "Completed" | "Abandoned";
 export type SessionOutcome = "Done" | "Continue" | "Blocked" | "TooBig";
 
 export type ProjectType = "Clients" | "Core" | "InHouse" | "Office";
+export type ProjectStructureType = "SingleRepo" | "Monorepo";
 export type IntegrationProvider =
 	| "slack"
 	| "gmail"
@@ -49,6 +50,7 @@ export interface Project {
 	name: string;
 	description: string | null;
 	type: ProjectType;
+	structureType: ProjectStructureType;
 	color: string | null;
 	targetCompletionDate?: string | null;
 	userId: string;
@@ -88,6 +90,19 @@ export interface ProjectPart {
 	updatedAt: string;
 }
 
+export interface ProjectEpic {
+	id: string;
+	projectId: string;
+	userId: string;
+	key: string | null;
+	name: string;
+	description: string | null;
+	targetDate: string | null;
+	order: number | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
 export interface Task {
 	id: string;
 	title: string;
@@ -116,6 +131,22 @@ export interface Task {
 		name: string;
 		order: number | null;
 	} | null;
+	parts?: Array<{
+		part?: {
+			id: string;
+			name: string;
+			order: number | null;
+		};
+	}>;
+	epics?: Array<{
+		epic?: {
+			id: string;
+			key: string | null;
+			name: string;
+			order: number | null;
+			targetDate?: string | null;
+		};
+	}>;
 	milestoneId?: string | null;
 	milestone?: {
 		id: string;
@@ -128,8 +159,18 @@ export interface Task {
 	stateChangedAt: string | null;
 	deletedAt: string | null;
 	// Relations (optional, included on detail endpoints)
-	project?: { id: string; name: string; type: ProjectType } | null;
+	project?: {
+		id: string;
+		name: string;
+		type: ProjectType;
+		structureType: ProjectStructureType;
+	} | null;
 	subtasks?: Task[];
+	subtaskProgress?: {
+		total: number;
+		completed: number;
+		percent: number;
+	};
 	stateHistory?: StateHistory[];
 }
 
@@ -256,7 +297,10 @@ export interface CreateTaskInput {
 	description?: string;
 	projectId?: string;
 	partId?: string;
+	partIds?: string[];
+	epicIds?: string[];
 	milestoneId?: string;
+	priority?: number;
 	deadline?: string;
 	featureBlocked?: boolean;
 	featureBlockReason?: string | null;
@@ -273,7 +317,10 @@ export interface UpdateTaskInput {
 	description?: string;
 	projectId?: string | null;
 	partId?: string | null;
+	partIds?: string[] | null;
+	epicIds?: string[] | null;
 	milestoneId?: string | null;
+	priority?: number | null;
 	deadline?: string | null;
 	featureBlocked?: boolean;
 	featureBlockReason?: string | null;
@@ -287,12 +334,35 @@ export interface UpdateTaskInput {
 
 export interface DecomposeTaskInput {
 	feedback?: string;
+	replaceExisting?: boolean;
+	subtasks?: Array<{
+		title: string;
+		description?: string | null;
+		estimatedSessions: number;
+	}>;
+}
+
+export interface DecompositionPreviewSubtask {
+	title: string;
+	description: string | null;
+	estimatedSessions: number;
+	order: number;
+	state: TaskState;
+}
+
+export interface DecompositionPreview {
+	taskId: string;
+	reason: string | null;
+	provider: string;
+	model: string;
+	subtasks: DecompositionPreviewSubtask[];
 }
 
 export interface CreateProjectInput {
 	name: string;
 	description?: string;
 	type?: ProjectType;
+	structureType?: ProjectStructureType;
 	targetCompletionDate?: string;
 	color?: string;
 }
@@ -300,6 +370,7 @@ export interface CreateProjectInput {
 export interface UpdateProjectInput {
 	name?: string;
 	description?: string;
+	structureType?: ProjectStructureType;
 	targetCompletionDate?: string | null;
 	color?: string;
 	archived?: boolean;
@@ -319,6 +390,14 @@ export interface CreateProjectPartInput {
 	order?: number;
 }
 
+export interface CreateProjectEpicInput {
+	key?: string;
+	name: string;
+	description?: string;
+	targetDate?: string | null;
+	order?: number;
+}
+
 export interface UpdateProjectMilestoneInput {
 	title?: string;
 	description?: string | null;
@@ -332,6 +411,40 @@ export interface UpdateProjectPartInput {
 	name?: string;
 	description?: string | null;
 	order?: number;
+}
+
+export interface UpdateProjectEpicInput {
+	key?: string | null;
+	name?: string;
+	description?: string | null;
+	targetDate?: string | null;
+	order?: number;
+}
+
+export interface BatchApplyProjectTasksInput {
+	filters?: {
+		state?: TaskState;
+		partId?: string;
+		epicId?: string;
+		milestoneId?: string;
+		size?: TaskSize;
+		searchQuery?: string;
+	};
+	apply: {
+		state?: Exclude<TaskState, "Inbox" | "Active">;
+		partIds?: string[] | null;
+		epicIds?: string[] | null;
+		milestoneId?: string | null;
+		priority?: number | null;
+	};
+}
+
+export interface BatchApplyProjectTasksResponse {
+	matched: number;
+	updated: number;
+	failed: number;
+	updatedTasks: Array<{ id: string; title: string }>;
+	failedTasks: Array<{ id: string; title: string; reason: string }>;
 }
 
 export interface StartSessionInput {
@@ -368,12 +481,29 @@ export interface TaskFilters {
 	sortOrder?: "asc" | "desc";
 	state?: TaskState;
 	projectId?: string;
+	partId?: string;
+	epicId?: string;
+	milestoneId?: string;
 	size?: TaskSize;
 	protected?: boolean;
 	hasDeadline?: boolean;
 	search?: string;
 	searchQuery?: string;
 	tag?: string;
+}
+
+export interface InboxFilters {
+	sortBy?: "createdAt" | "updatedAt" | "deadline" | "priority" | "title";
+	sortOrder?: "asc" | "desc";
+	projectId?: string;
+	size?: TaskSize;
+	protected?: boolean;
+	hasDeadline?: boolean;
+	search?: string;
+	searchQuery?: string;
+	tag?: string;
+	source?: string;
+	triageStatus?: "pending" | "needsReview" | "classified";
 }
 
 export interface IdeaFilters {
@@ -392,6 +522,8 @@ export interface ProjectFilters {
 	includeArchived?: boolean;
 	search?: string;
 	searchQuery?: string;
+	sortBy?: "updatedAt" | "createdAt" | "name" | "targetCompletionDate";
+	sortOrder?: "asc" | "desc";
 }
 
 export interface SessionHistoryFilters {
@@ -448,6 +580,12 @@ export interface InboxResponse {
 	};
 }
 
+export interface InboxBulkActionResponse {
+	ignored?: number;
+	applied?: number;
+	deleted?: number;
+}
+
 export type SessionHistoryResponse = PaginatedResponse<Session>;
 
 export interface SearchResponse {
@@ -477,6 +615,8 @@ export interface TaskRecommendationEntry {
 		protectionReason: string | null;
 		priority: number | null;
 		deadline: string | null;
+		effectiveDeadline: string | null;
+		deadlineSource: "task" | "milestone" | "epic" | null;
 		project: {
 			id: string;
 			name: string;

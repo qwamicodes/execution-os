@@ -95,10 +95,10 @@ function SessionHistoryPage() {
 				}}
 				badges={
 					<>
-						<RouteHeroBadge className="border-0 bg-slate-900 text-white">
+						<RouteHeroBadge variant="default">
 							{total} sessions
 						</RouteHeroBadge>
-						<RouteHeroBadge className="rounded-full bg-sky-100 text-sky-700">
+						<RouteHeroBadge variant="sky">
 							Historical analytics
 						</RouteHeroBadge>
 					</>
@@ -114,42 +114,42 @@ function SessionHistoryPage() {
 			/>
 
 			<div className="grid gap-3 sm:grid-cols-3">
-				<Card className="border-slate-200 bg-white/85">
+				<Card className="border-border bg-card">
 					<CardContent className="p-4">
-						<p className="text-xs font-medium tracking-[0.14em] text-slate-500 uppercase">
+						<p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
 							Sessions
 						</p>
-						<p className="mt-1 text-2xl font-semibold text-slate-900">
+						<p className="mt-1 text-2xl font-semibold text-foreground">
 							{total}
 						</p>
 					</CardContent>
 				</Card>
-				<Card className="border-slate-200 bg-white/85">
+				<Card className="border-border bg-card">
 					<CardContent className="p-4">
-						<p className="text-xs font-medium tracking-[0.14em] text-slate-500 uppercase">
+						<p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
 							Done Outcomes
 						</p>
-						<p className="mt-1 text-2xl font-semibold text-slate-900">
+						<p className="mt-1 text-2xl font-semibold text-foreground">
 							{doneCount}
 						</p>
 					</CardContent>
 				</Card>
-				<Card className="border-slate-200 bg-white/85">
+				<Card className="border-border bg-card">
 					<CardContent className="p-4">
-						<p className="text-xs font-medium tracking-[0.14em] text-slate-500 uppercase">
+						<p className="text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase">
 							Time Logged
 						</p>
-						<p className="mt-1 text-2xl font-semibold text-slate-900">
+						<p className="mt-1 text-2xl font-semibold text-foreground">
 							{formatLoggedDuration(totalMinutes)}
 						</p>
 					</CardContent>
 				</Card>
 			</div>
 
-			<Card className="border-slate-200 bg-white/90">
+			<Card className="border-border bg-card">
 				<CardContent className="space-y-3 p-4">
-					<div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-						<CalendarClock className="h-4 w-4 text-slate-500" />
+					<div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+						<CalendarClock className="h-4 w-4 text-muted-foreground" />
 						Filter History
 						<HelpTooltip
 							feature="History Filters"
@@ -167,7 +167,7 @@ function SessionHistoryPage() {
 								})
 							}
 						>
-							<SelectTrigger className="w-37.5 border-slate-300 bg-white">
+							<SelectTrigger className="w-37.5 border-border bg-card">
 								<SelectValue placeholder="All outcomes" />
 							</SelectTrigger>
 							<SelectContent>
@@ -189,7 +189,7 @@ function SessionHistoryPage() {
 									})
 								}
 								placeholder="Start date"
-								className="border-slate-300 bg-white"
+								className="border-border bg-card"
 								boundary="start"
 							/>
 						</div>
@@ -203,7 +203,7 @@ function SessionHistoryPage() {
 									})
 								}
 								placeholder="End date"
-								className="border-slate-300 bg-white"
+								className="border-border bg-card"
 								boundary="end"
 							/>
 						</div>
@@ -218,7 +218,7 @@ function SessionHistoryPage() {
 				</CardContent>
 			</Card>
 
-			<Card className="border-slate-200 bg-white/90">
+			<Card className="border-border bg-card">
 				<CardContent className="p-4">
 					{isLoading && <SkeletonList count={5} />}
 

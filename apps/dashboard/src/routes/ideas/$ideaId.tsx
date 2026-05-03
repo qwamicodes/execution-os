@@ -1,6 +1,11 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@repo/ui/components/ui/card";
 import {
 	Select,
 	SelectContent,
@@ -54,7 +59,10 @@ function formatDateTime(value: string | null | undefined) {
 	return parsed.toLocaleString();
 }
 
-function buildFallbackInterviewPrompt(title: string, description: string | null) {
+function buildFallbackInterviewPrompt(
+	title: string,
+	description: string | null,
+) {
 	return [
 		"You are my product discovery partner for this project.",
 		"",
@@ -118,7 +126,10 @@ function IdeaDetailPage() {
 		currentIdea.sourceMetadata !== null &&
 		"agentInterviewPrompt" in currentIdea.sourceMetadata
 			? String(currentIdea.sourceMetadata.agentInterviewPrompt ?? "")
-			: buildFallbackInterviewPrompt(currentIdea.title, currentIdea.description);
+			: buildFallbackInterviewPrompt(
+					currentIdea.title,
+					currentIdea.description,
+				);
 
 	const activeIndex = IDEA_STATES.indexOf(currentIdea.state);
 	const stateProgress = IDEA_STATES.map((state, index) => ({
@@ -174,7 +185,10 @@ function IdeaDetailPage() {
 				toast.success("Idea converted to project", {
 					description: `Created project: ${result.project.name}`,
 				});
-				navigate({ to: "/projects/$projectId", params: { projectId: result.project.id } });
+				navigate({
+					to: "/projects/$projectId",
+					params: { projectId: result.project.id },
+				});
 			},
 			onError: (error) => toast.error(error.message),
 		});
@@ -198,7 +212,9 @@ function IdeaDetailPage() {
 					Ideas
 				</Link>
 				<ChevronRight className="size-3" />
-				<span className="max-w-60 truncate text-foreground">{currentIdea.title}</span>
+				<span className="max-w-60 truncate text-foreground">
+					{currentIdea.title}
+				</span>
 			</nav>
 
 			<Card className="overflow-hidden border-border/80 bg-linear-to-br from-background to-muted/30">
@@ -206,34 +222,59 @@ function IdeaDetailPage() {
 					<div className="flex flex-wrap items-start justify-between gap-4">
 						<div className="min-w-0 flex-1 space-y-2">
 							<div className="flex flex-wrap items-center gap-2">
-								<Badge variant="outline" className="border-sky-400/40 text-sky-600 dark:text-sky-300">
+								<Badge variant="sky">
 									<Lightbulb className="mr-1 h-3.5 w-3.5" />
 									Idea Detail
 								</Badge>
-								<Badge variant="secondary">{currentIdea.state}</Badge>
-								{currentIdea.size ? <Badge variant="outline">{currentIdea.size}</Badge> : null}
-								{currentIdea.urgency ? <Badge variant="outline">{currentIdea.urgency}</Badge> : null}
+								<Badge variant="neutral">{currentIdea.state}</Badge>
+								{currentIdea.size ? (
+									<Badge variant="neutral">{currentIdea.size}</Badge>
+								) : null}
+								{currentIdea.urgency ? (
+									<Badge variant="neutral">{currentIdea.urgency}</Badge>
+								) : null}
 							</div>
-							<CardTitle className="text-2xl sm:text-3xl">{currentIdea.title}</CardTitle>
+							<CardTitle className="text-2xl sm:text-3xl">
+								{currentIdea.title}
+							</CardTitle>
 							<p className="text-sm leading-relaxed text-muted-foreground">
 								{currentIdea.description || "No description yet."}
 							</p>
 						</div>
 
 						<div className="flex flex-wrap items-center gap-2">
-							<Button variant="outline" onClick={handleClassifyAndClarify} disabled={classifyIdeaAI.isPending}>
+							<Button
+								variant="outline"
+								onClick={handleClassifyAndClarify}
+								disabled={classifyIdeaAI.isPending}
+							>
 								<Bot className="mr-2 h-4 w-4" />
-								{classifyIdeaAI.isPending ? "Processing..." : "AI classify & clarify"}
+								{classifyIdeaAI.isPending
+									? "Processing..."
+									: "AI classify & clarify"}
 							</Button>
-							<Button variant="outline" onClick={handleConvertToProject} disabled={convertIdeaToProject.isPending}>
+							<Button
+								variant="outline"
+								onClick={handleConvertToProject}
+								disabled={convertIdeaToProject.isPending}
+							>
 								<FolderPlus className="mr-2 h-4 w-4" />
 								Convert to project
 							</Button>
-							<Button variant="outline" onClick={handleConvertToTask} disabled={convertIdeaToTask.isPending}>
+							<Button
+								variant="outline"
+								onClick={handleConvertToTask}
+								disabled={convertIdeaToTask.isPending}
+							>
 								<ArrowLeftRight className="mr-2 h-4 w-4" />
 								Convert to task
 							</Button>
-							<Button variant="outline" className="text-destructive" onClick={handleDelete} disabled={deleteIdea.isPending}>
+							<Button
+								variant="outline"
+								className="text-destructive"
+								onClick={handleDelete}
+								disabled={deleteIdea.isPending}
+							>
 								<Trash2 className="mr-2 h-4 w-4" />
 								Delete
 							</Button>
@@ -250,7 +291,7 @@ function IdeaDetailPage() {
 							{stateProgress.map((item) => (
 								<div
 									key={item.state}
-									className={`rounded-lg border px-3 py-2 text-sm ${item.active ? "border-sky-400/50 bg-sky-50/70 text-sky-700 dark:bg-sky-950/30 dark:text-sky-200" : item.complete ? "border-emerald-300/40 bg-emerald-50/60 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-200" : "border-border text-muted-foreground"}`}
+									className={`rounded-lg border px-3 py-2 text-sm ${item.active ? "border-primary/40 bg-primary/10 text-primary" : item.complete ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-400" : "border-border text-muted-foreground"}`}
 								>
 									{item.state}
 								</div>
@@ -279,7 +320,9 @@ function IdeaDetailPage() {
 								</SelectContent>
 							</Select>
 							{updateIdea.isPending ? (
-								<p className="text-xs text-muted-foreground">Updating state...</p>
+								<p className="text-xs text-muted-foreground">
+									Updating state...
+								</p>
 							) : null}
 						</div>
 
@@ -318,15 +361,21 @@ function IdeaDetailPage() {
 						</div>
 						<div className="flex items-center justify-between">
 							<span className="text-muted-foreground">Deadline</span>
-							<span className="font-medium">{formatDateTime(currentIdea.deadline)}</span>
+							<span className="font-medium">
+								{formatDateTime(currentIdea.deadline)}
+							</span>
 						</div>
 						<div className="flex items-center justify-between">
 							<span className="text-muted-foreground">Created</span>
-							<span className="font-medium">{formatDateTime(currentIdea.createdAt)}</span>
+							<span className="font-medium">
+								{formatDateTime(currentIdea.createdAt)}
+							</span>
 						</div>
 						<div className="flex items-center justify-between">
 							<span className="text-muted-foreground">Updated</span>
-							<span className="font-medium">{formatDateTime(currentIdea.updatedAt)}</span>
+							<span className="font-medium">
+								{formatDateTime(currentIdea.updatedAt)}
+							</span>
 						</div>
 						<div className="flex items-center justify-between">
 							<span className="inline-flex items-center gap-1 text-muted-foreground">

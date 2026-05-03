@@ -3,13 +3,16 @@ import { useNavigate } from "@tanstack/react-router";
 import { projects } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
 import type {
+	BatchApplyProjectTasksInput,
+	CreateProjectEpicInput,
+	CreateProjectInput,
 	CreateProjectMilestoneInput,
 	CreateProjectPartInput,
-	CreateProjectInput,
 	ProjectFilters,
+	UpdateProjectEpicInput,
+	UpdateProjectInput,
 	UpdateProjectMilestoneInput,
 	UpdateProjectPartInput,
-	UpdateProjectInput,
 } from "@/lib/types";
 
 export function useProjects(filters?: ProjectFilters) {
@@ -83,7 +86,9 @@ export function useCreateProjectMilestone(projectId: string) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.projects.milestones(projectId),
 			});
-			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
 			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
 		},
 	});
@@ -103,7 +108,9 @@ export function useUpdateProjectMilestone(projectId: string) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.projects.milestones(projectId),
 			});
-			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
 			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
 		},
 	});
@@ -118,7 +125,9 @@ export function useDeleteProjectMilestone(projectId: string) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.projects.milestones(projectId),
 			});
-			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
 			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
 		},
 	});
@@ -141,7 +150,9 @@ export function useCreateProjectPart(projectId: string) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.projects.parts(projectId),
 			});
-			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
 			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
 		},
 	});
@@ -161,7 +172,9 @@ export function useUpdateProjectPart(projectId: string) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.projects.parts(projectId),
 			});
-			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
 			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
 		},
 	});
@@ -175,8 +188,94 @@ export function useDeleteProjectPart(projectId: string) {
 			queryClient.invalidateQueries({
 				queryKey: queryKeys.projects.parts(projectId),
 			});
-			queryClient.invalidateQueries({ queryKey: queryKeys.projects.detail(projectId) });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
 			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useProjectEpics(projectId: string) {
+	return useQuery({
+		queryKey: queryKeys.projects.epics(projectId),
+		queryFn: () => projects.listEpics(projectId),
+		enabled: !!projectId,
+	});
+}
+
+export function useCreateProjectEpic(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (data: CreateProjectEpicInput) =>
+			projects.createEpic(projectId, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.epics(projectId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useUpdateProjectEpic(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: ({
+			epicId,
+			data,
+		}: {
+			epicId: string;
+			data: UpdateProjectEpicInput;
+		}) => projects.updateEpic(projectId, epicId, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.epics(projectId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useDeleteProjectEpic(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (epicId: string) => projects.deleteEpic(projectId, epicId),
+		onSuccess: () => {
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.epics(projectId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
+		},
+	});
+}
+
+export function useBatchApplyProjectTasks(projectId: string) {
+	const queryClient = useQueryClient();
+	return useMutation({
+		mutationFn: (data: BatchApplyProjectTasksInput) =>
+			projects.batchApplyTasks(projectId, data),
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.detail(projectId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.milestones(projectId),
+			});
+			queryClient.invalidateQueries({
+				queryKey: queryKeys.projects.epics(projectId),
+			});
+			queryClient.invalidateQueries({ queryKey: ["ai", "recommendation"] });
 		},
 	});
 }

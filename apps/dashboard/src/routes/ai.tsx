@@ -22,6 +22,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@repo/ui/components/ui/select";
+import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import {
 	Tabs,
 	TabsContent,
@@ -29,8 +30,8 @@ import {
 	TabsTrigger,
 } from "@repo/ui/components/ui/tabs";
 import { Textarea } from "@repo/ui/components/ui/textarea";
-import { Skeleton } from "@repo/ui/components/ui/skeleton";
 import { createFileRoute } from "@tanstack/react-router";
+import { goeyToast as toast } from "goey-toast";
 import {
 	Bot,
 	BrainCircuit,
@@ -41,15 +42,14 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { goeyToast as toast } from "goey-toast";
+import { z } from "zod";
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import {
 	RouteHeroBadge,
 	RouteHeroHeader,
 } from "@/components/shared/route-hero-header";
-import { ApiClientError } from "@/lib/api";
-import { runWithPromiseToast } from "@/lib/toast";
 import { useAIProviders, useTaskRecommendation } from "@/hooks/use-ai";
+import { useIdeas } from "@/hooks/use-ideas";
 import {
 	usePMAIAnalyzeImages,
 	usePMAIAnalyzeVideo,
@@ -66,10 +66,10 @@ import {
 	useTaskPriorityRecalculate,
 } from "@/hooks/use-pm-ai";
 import { useCreateProject, useProjects } from "@/hooks/use-projects";
-import { useIdeas } from "@/hooks/use-ideas";
 import { useTasks } from "@/hooks/use-tasks";
+import { ApiClientError } from "@/lib/api";
+import { runWithPromiseToast } from "@/lib/toast";
 import type { ProjectType } from "@/lib/types";
-import { z } from "zod";
 
 const AiSearchParams = z.object({
 	tab: z
@@ -144,7 +144,7 @@ function OutputCard({
 	lastOutput: unknown;
 }) {
 	return (
-		<Card className="border-slate-200 bg-white">
+		<Card className="border-border bg-card">
 			<CardHeader>
 				<CardTitle className="inline-flex items-center gap-2 text-base">
 					Last AI Output
@@ -157,8 +157,8 @@ function OutputCard({
 				</CardTitle>
 			</CardHeader>
 			<CardContent>
-				<p className="mb-2 text-xs text-slate-500">{lastAction}</p>
-				<pre className="max-h-[28rem] overflow-auto rounded-lg border border-slate-200 bg-slate-950 p-3 text-xs text-slate-100">
+				<p className="mb-2 text-xs text-muted-foreground">{lastAction}</p>
+				<pre className="no-scrollbar max-h-[28rem] overflow-auto rounded-lg border border-border bg-primary p-3 text-xs text-primary-foreground">
 					{lastOutput
 						? prettyJson(lastOutput)
 						: "Run an action to inspect output"}
@@ -214,7 +214,8 @@ function AIRoute() {
 	const [documentFeedbackInstructions, setDocumentFeedbackInstructions] =
 		useState("");
 	const [documentCreateTasks, setDocumentCreateTasks] = useState(true);
-	const [documentCreateMilestones, setDocumentCreateMilestones] = useState(true);
+	const [documentCreateMilestones, setDocumentCreateMilestones] =
+		useState(true);
 	const [documentSelectedMilestones, setDocumentSelectedMilestones] =
 		useState("");
 	const [createProjectPromptOpen, setCreateProjectPromptOpen] = useState(false);
@@ -264,9 +265,8 @@ function AIRoute() {
 
 	const [lastAction, setLastAction] = useState("No action yet");
 	const [lastOutput, setLastOutput] = useState<unknown>(null);
-	const [documentDraft, setDocumentDraft] = useState<PMAIDraftPlanOutput | null>(
-		null,
-	);
+	const [documentDraft, setDocumentDraft] =
+		useState<PMAIDraftPlanOutput | null>(null);
 	const ideaTaskOptions = ideaOptions;
 
 	const providerBadges = useMemo(
@@ -341,7 +341,8 @@ function AIRoute() {
 			documentText,
 			feedbackInstructions: documentFeedbackInstructions || undefined,
 			projectId: documentProjectId === "none" ? undefined : documentProjectId,
-			ideaTaskId: documentIdeaTaskId === "none" ? undefined : documentIdeaTaskId,
+			ideaTaskId:
+				documentIdeaTaskId === "none" ? undefined : documentIdeaTaskId,
 			usageMode,
 			teamMemberIds: parseCsvList(documentTeamIds),
 			createTasks: false,
@@ -362,7 +363,8 @@ function AIRoute() {
 			title: documentTitle || undefined,
 			feedbackInstructions: documentFeedbackInstructions || undefined,
 			projectId: documentProjectId === "none" ? undefined : documentProjectId,
-			ideaTaskId: documentIdeaTaskId === "none" ? undefined : documentIdeaTaskId,
+			ideaTaskId:
+				documentIdeaTaskId === "none" ? undefined : documentIdeaTaskId,
 			usageMode,
 			teamMemberIds: parseCsvList(documentTeamIds),
 			createTasks: false,
@@ -382,7 +384,8 @@ function AIRoute() {
 			documentType: documentDraft.documentType,
 			documentTitle: documentDraft.documentTitle,
 			projectId,
-			ideaTaskId: documentIdeaTaskId === "none" ? undefined : documentIdeaTaskId,
+			ideaTaskId:
+				documentIdeaTaskId === "none" ? undefined : documentIdeaTaskId,
 			usageMode,
 			teamMemberIds: parseCsvList(documentTeamIds),
 			createTasks: documentCreateTasks,
@@ -491,14 +494,11 @@ function AIRoute() {
 				}}
 				badges={
 					<>
-						<RouteHeroBadge className="border-0 bg-slate-900 text-white">
+						<RouteHeroBadge variant="default">
 							{providers?.routingMode ?? "-"} routing
 						</RouteHeroBadge>
 						{providerBadges.map((provider) => (
-							<RouteHeroBadge
-								key={provider}
-								className="rounded-full bg-sky-100 text-sky-700 capitalize"
-							>
+							<RouteHeroBadge key={provider} className="capitalize">
 								{provider}
 							</RouteHeroBadge>
 						))}
@@ -511,7 +511,7 @@ function AIRoute() {
 				value={activeTab}
 				onValueChange={(value) => setActiveTab(value as typeof activeTab)}
 			>
-				<div className="overflow-x-auto pb-1">
+				<div className="no-scrollbar overflow-x-auto pb-1">
 					<TabsList className="inline-flex w-max min-w-full sm:min-w-0">
 						<TabsTrigger
 							onClick={() =>
@@ -588,7 +588,7 @@ function AIRoute() {
 
 				<TabsContent value="overview" className="mt-4">
 					<div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-						<Card className="border-slate-200 bg-white">
+						<Card className="border-border bg-card">
 							<CardHeader>
 								<CardTitle className="flex items-center gap-2 text-base">
 									<BrainCircuit className="h-4 w-4" />
@@ -606,7 +606,7 @@ function AIRoute() {
 									<div className="space-y-3">
 										<Skeleton className="h-4 w-40" />
 										<Skeleton className="h-4 w-56" />
-										<div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+										<div className="rounded-lg border border-border bg-muted/40 p-3">
 											<Skeleton className="h-4 w-44" />
 											<Skeleton className="mt-2 h-5 w-3/4" />
 											<Skeleton className="mt-2 h-3.5 w-2/3" />
@@ -614,27 +614,27 @@ function AIRoute() {
 									</div>
 								) : (
 									<>
-										<p className="text-slate-600">
+										<p className="text-muted-foreground">
 											Routing mode:{" "}
 											<span className="font-medium">
 												{providers?.routingMode ?? "-"}
 											</span>
 										</p>
-										<p className="text-slate-600">
+										<p className="text-muted-foreground">
 											Provider order:{" "}
 											<span className="font-medium">
 												{providers?.providerOrder?.join(" -> ") ?? "-"}
 											</span>
 										</p>
-										<div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-											<p className="font-medium text-slate-900">
+										<div className="rounded-lg border border-border bg-muted/40 p-3">
+											<p className="font-medium text-foreground">
 												Current Recommendation
 											</p>
-											<p className="mt-1 text-slate-700">
+											<p className="mt-1 text-muted-foreground">
 												{recommendation?.recommendedTask?.task.title ??
 													"No recommended task"}
 											</p>
-											<p className="mt-1 text-xs text-slate-500">
+											<p className="mt-1 text-xs text-muted-foreground">
 												Strategy: {recommendation?.strategy ?? "-"} | Provider:{" "}
 												{recommendation?.provider ?? "rules"} | Confidence:{" "}
 												{recommendation?.confidence ?? "n/a"}
@@ -650,7 +650,7 @@ function AIRoute() {
 
 				<TabsContent value="planner" className="mt-4">
 					<div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-						<Card className="border-slate-200 bg-white">
+						<Card className="border-border bg-card">
 							<CardHeader>
 								<CardTitle className="flex items-center gap-2 text-base">
 									<FileStack className="h-4 w-4" />
@@ -753,7 +753,7 @@ function AIRoute() {
 									placeholder="Team member IDs (comma-separated, optional)"
 								/>
 								<div className="grid gap-3 sm:grid-cols-2">
-									<label className="flex items-center gap-2 text-sm text-slate-700">
+									<label className="flex items-center gap-2 text-sm text-muted-foreground">
 										<input
 											type="checkbox"
 											checked={documentCreateTasks}
@@ -763,7 +763,7 @@ function AIRoute() {
 										/>
 										Create tasks on approval
 									</label>
-									<label className="flex items-center gap-2 text-sm text-slate-700">
+									<label className="flex items-center gap-2 text-sm text-muted-foreground">
 										<input
 											type="checkbox"
 											checked={documentCreateMilestones}
@@ -823,7 +823,7 @@ function AIRoute() {
 											{ingestDocument.isPending ? (
 												<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 											) : (
-											<Sparkles className="mr-2 h-4 w-4" />
+												<Sparkles className="mr-2 h-4 w-4" />
 											)}
 											Generate Draft (Text)
 										</Button>
@@ -871,9 +871,7 @@ function AIRoute() {
 									<div className="flex items-center gap-2">
 										<Button
 											variant="default"
-											onClick={() =>
-												handleApproveDraft()
-											}
+											onClick={() => handleApproveDraft()}
 											disabled={!documentDraft || approveDocumentPlan.isPending}
 										>
 											{approveDocumentPlan.isPending ? (
@@ -881,7 +879,7 @@ function AIRoute() {
 											) : null}
 											Approve Draft & Create
 										</Button>
-										<p className="text-xs text-slate-500">
+										<p className="text-xs text-muted-foreground">
 											No tasks or milestones are persisted until approval. Plan
 											size is inferred from the document.
 										</p>
@@ -907,7 +905,9 @@ function AIRoute() {
 									<Label>Project name</Label>
 									<Input
 										value={draftProjectName}
-										onChange={(event) => setDraftProjectName(event.target.value)}
+										onChange={(event) =>
+											setDraftProjectName(event.target.value)
+										}
 										placeholder="Project name"
 									/>
 								</div>
@@ -959,7 +959,7 @@ function AIRoute() {
 				<TabsContent value="generation" className="mt-4">
 					<div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
 						<div className="space-y-4">
-							<Card className="border-slate-200 bg-white">
+							<Card className="border-border bg-card">
 								<CardHeader>
 									<CardTitle className="flex items-center gap-2 text-base">
 										<Bot className="h-4 w-4" />
@@ -1026,7 +1026,7 @@ function AIRoute() {
 								</CardContent>
 							</Card>
 
-							<Card className="border-slate-200 bg-white">
+							<Card className="border-border bg-card">
 								<CardHeader>
 									<CardTitle className="inline-flex items-center gap-2 text-base">
 										Images to Issue / Feature
@@ -1096,7 +1096,7 @@ function AIRoute() {
 
 				<TabsContent value="planning" className="mt-4">
 					<div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-						<Card className="border-slate-200 bg-white">
+						<Card className="border-border bg-card">
 							<CardHeader>
 								<CardTitle className="flex items-center gap-2 text-base">
 									<Layers3 className="h-4 w-4" />
@@ -1110,7 +1110,7 @@ function AIRoute() {
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-4">
-								<div className="space-y-2 rounded-lg border border-slate-200 p-3">
+								<div className="space-y-2 rounded-lg border border-border p-3">
 									<p className="inline-flex items-center gap-1.5 text-sm font-medium">
 										Decompose Task
 										<HelpTooltip
@@ -1154,32 +1154,32 @@ function AIRoute() {
 											<SelectItem value="sequential">Sequential</SelectItem>
 										</SelectContent>
 									</Select>
-										<Button
-											size="sm"
-											onClick={() =>
-												runAction(
-													"PM AI decompose task",
-													() =>
-														decomposeTask.mutateAsync({
-															taskId: decomposeTaskId,
-															decompositionStrategy: decomposeStrategy,
-														}),
-													{
-														successMessage: "Decomposition requested",
-														successAction: {
-															label: "View task & subtasks",
-															successLabel: "Opening...",
-															onClick: () =>
-																navigate({
-																	to: "/tasks/$taskId",
-																	params: { taskId: decomposeTaskId },
-																}),
-														},
+									<Button
+										size="sm"
+										onClick={() =>
+											runAction(
+												"PM AI decompose task",
+												() =>
+													decomposeTask.mutateAsync({
+														taskId: decomposeTaskId,
+														decompositionStrategy: decomposeStrategy,
+													}),
+												{
+													successMessage: "Decomposition requested",
+													successAction: {
+														label: "View task & subtasks",
+														successLabel: "Opening...",
+														onClick: () =>
+															navigate({
+																to: "/tasks/$taskId",
+																params: { taskId: decomposeTaskId },
+															}),
 													},
-												)
-											}
-											disabled={decomposeTaskId === "none"}
-										>
+												},
+											)
+										}
+										disabled={decomposeTaskId === "none"}
+									>
 										Decompose
 									</Button>
 									<HelpTooltip
@@ -1190,7 +1190,7 @@ function AIRoute() {
 									/>
 								</div>
 
-								<div className="space-y-2 rounded-lg border border-slate-200 p-3">
+								<div className="space-y-2 rounded-lg border border-border p-3">
 									<p className="inline-flex items-center gap-1.5 text-sm font-medium">
 										Suggest Assignee
 										<HelpTooltip
@@ -1231,7 +1231,7 @@ function AIRoute() {
 									/>
 								</div>
 
-								<div className="space-y-2 rounded-lg border border-slate-200 p-3">
+								<div className="space-y-2 rounded-lg border border-border p-3">
 									<p className="inline-flex items-center gap-1.5 text-sm font-medium">
 										Plan Sprint
 										<HelpTooltip
@@ -1270,7 +1270,9 @@ function AIRoute() {
 												<SelectValue placeholder="Select backlog task" />
 											</SelectTrigger>
 											<SelectContent>
-												<SelectItem value="none">Select backlog task</SelectItem>
+												<SelectItem value="none">
+													Select backlog task
+												</SelectItem>
 												{taskOptions.map((task) => (
 													<SelectItem key={task.id} value={task.id}>
 														{task.title}
@@ -1290,7 +1292,9 @@ function AIRoute() {
 									{backlogTaskIds.length > 0 && (
 										<div className="flex flex-wrap gap-2">
 											{backlogTaskIds.map((taskId) => {
-												const task = taskOptions.find((entry) => entry.id === taskId);
+												const task = taskOptions.find(
+													(entry) => entry.id === taskId,
+												);
 												return (
 													<Button
 														key={taskId}
@@ -1331,7 +1335,7 @@ function AIRoute() {
 									/>
 								</div>
 
-								<div className="space-y-2 rounded-lg border border-slate-200 p-3">
+								<div className="space-y-2 rounded-lg border border-border p-3">
 									<p className="inline-flex items-center gap-1.5 text-sm font-medium">
 										Rebalance Sprint
 										<HelpTooltip
@@ -1403,7 +1407,7 @@ function AIRoute() {
 
 				<TabsContent value="priority" className="mt-4">
 					<div className="grid gap-4 xl:grid-cols-[2fr_1fr]">
-						<Card className="border-slate-200 bg-white">
+						<Card className="border-border bg-card">
 							<CardHeader>
 								<CardTitle className="flex items-center gap-2 text-base">
 									<ShieldCheck className="h-4 w-4" />
@@ -1417,7 +1421,10 @@ function AIRoute() {
 								</CardTitle>
 							</CardHeader>
 							<CardContent className="space-y-3">
-								<Select value={priorityTaskId} onValueChange={setPriorityTaskId}>
+								<Select
+									value={priorityTaskId}
+									onValueChange={setPriorityTaskId}
+								>
 									<SelectTrigger>
 										<SelectValue placeholder="Select task" />
 									</SelectTrigger>

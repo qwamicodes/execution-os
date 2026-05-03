@@ -3,6 +3,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/ui/dialog";
@@ -61,6 +62,9 @@ export function LogIdeaDialog({ open, onOpenChange }: LogIdeaDialogProps) {
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Log idea</DialogTitle>
+					<DialogDescription>
+						Capture the raw thought now; classification can happen later.
+					</DialogDescription>
 				</DialogHeader>
 				<Form {...form}>
 					<form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -98,7 +102,7 @@ export function LogIdeaDialog({ open, onOpenChange }: LogIdeaDialogProps) {
 								</FormItem>
 							)}
 						/>
-						<div className="flex justify-end gap-2 pt-2">
+						<div className="flex justify-end gap-2 border-t pt-4">
 							<Button
 								type="button"
 								variant="outline"
@@ -106,7 +110,11 @@ export function LogIdeaDialog({ open, onOpenChange }: LogIdeaDialogProps) {
 							>
 								Cancel
 							</Button>
-							<Button type="submit" disabled={createIdea.isPending}>
+							<Button
+								type="submit"
+								className="bg-primary text-primary-foreground hover:bg-primary/90"
+								disabled={createIdea.isPending}
+							>
 								{createIdea.isPending ? (
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 								) : null}

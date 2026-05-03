@@ -1,19 +1,13 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
 import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "@repo/ui/components/ui/card";
-import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@repo/ui/components/ui/dropdown-menu";
+import { Progress } from "@repo/ui/components/ui/progress";
 import { ScrollArea } from "@repo/ui/components/ui/scroll-area";
-import { Separator } from "@repo/ui/components/ui/separator";
 import { Spinner } from "@repo/ui/components/ui/spinner";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { goeyToast as toast } from "goey-toast";
@@ -32,10 +26,10 @@ import {
 	Tag,
 	Trash2,
 } from "lucide-react";
-import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { StartSessionDialog } from "@/components/sessions/start-session-dialog";
 import { HelpTooltip } from "@/components/shared/help-tooltip";
+import { TaskAISuggestionPanel } from "@/components/tasks/ai-suggestion-panel";
 import { DecomposeTaskDialog } from "@/components/tasks/decompose-task-dialog";
 import { EditTaskDialog } from "@/components/tasks/edit-task-dialog";
 import { StateHistoryEntry } from "@/components/tasks/state-history-entry";
@@ -43,8 +37,10 @@ import { SubtaskRow } from "@/components/tasks/subtask-row";
 import { TaskStateDropdown } from "@/components/tasks/task-state-dropdown";
 import { useConvertTaskToIdea } from "@/hooks/use-ideas";
 import {
+	useAIClassifyTask,
 	useDecomposeTask,
 	useDeleteTask,
+	usePreviewTaskDecomposition,
 	useTask,
 	useUpdateTask,
 } from "@/hooks/use-tasks";
@@ -54,44 +50,20 @@ import {
 	TASK_SIZE_CONFIG,
 	TASK_URGENCY_CONFIG,
 } from "@/lib/constants";
-import type { Task, TaskState } from "@/lib/types";
+import type { DecompositionPreview, Task, TaskState } from "@/lib/types";
 
 export const Route = createFileRoute("/tasks/$taskId")({
 	component: TaskDetailPage,
 });
 
-function StaggerReveal({
-	visible,
-	delayMs = 0,
-	className = "",
-	children,
-}: {
-	visible: boolean;
-	delayMs?: number;
-	className?: string;
-	children: ReactNode;
-}) {
-	const style: CSSProperties = { transitionDelay: `${delayMs}ms` };
-
-	return (
-		<div
-			style={style}
-			className={`transform-gpu transition-[opacity,transform] duration-700 ease-out will-change-transform ${visible ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0"} ${className}`}
-		>
-			{children}
-		</div>
-	);
-}
-
 function readFeatureGate(task: Task | undefined) {
-	if (!task) {
+	if (!task)
 		return {
 			blocked: false,
 			reason: null as string | null,
 			blockingTaskIds: [] as string[],
 			blocksTaskIds: [] as string[],
 		};
-	}
 	const fallbackBlocked = task.featureBlocked === true;
 	const fallbackReason = task.featureBlockReason ?? null;
 	if (!task.sourceMetadata || typeof task.sourceMetadata !== "object") {
@@ -139,19 +111,27 @@ function TaskDetailPage() {
 	const navigate = useNavigate();
 	const { data: task, isLoading } = useTask(taskId);
 	const featureGate = readFeatureGate(task);
-	const [isLoaded, setIsLoaded] = useState(false);
+	const [visible, setVisible] = useState(false);
 	const updateTask = useUpdateTask();
+	const aiClassifyTask = useAIClassifyTask();
 	const convertTaskToIdea = useConvertTaskToIdea();
 	const deleteTask = useDeleteTask();
 	const decomposeTask = useDecomposeTask();
+	const previewDecomposition = usePreviewTaskDecomposition();
 	const [editOpen, setEditOpen] = useState(false);
 	const [sessionOpen, setSessionOpen] = useState(false);
 	const [decomposeOpen, setDecomposeOpen] = useState(false);
+	const [decompositionPreview, setDecompositionPreview] =
+		useState<DecompositionPreview | null>(null);
 
 	useEffect(() => {
-		const frame = requestAnimationFrame(() => setIsLoaded(true));
+		const frame = requestAnimationFrame(() => setVisible(true));
 		return () => cancelAnimationFrame(frame);
 	}, []);
+
+	useEffect(() => {
+		if (!decomposeOpen) setDecompositionPreview(null);
+	}, [decomposeOpen]);
 
 	if (isLoading) {
 		return (
@@ -184,458 +164,532 @@ function TaskDetailPage() {
 		});
 	}
 
-	function handleDecompose(feedback?: string) {
+	function handlePreviewDecomposition(feedback?: string) {
 		if (!task) return;
-		decomposeTask.mutate(
+		previewDecomposition.mutate(
 			{ id: task.id, data: { feedback } },
 			{
-				onSuccess: () => {
-					toast.success("Decomposition requested", {
-						action: {
-							label: "View subtasks",
-							successLabel: "Opened",
-							onClick: () => {
-								document
-									.getElementById("subtasks-section")
-									?.scrollIntoView({ behavior: "smooth", block: "start" });
+				onSuccess: (preview) => setDecompositionPreview(preview),
+				onError: (error) => toast.error(error.message),
+			},
+		);
+	}
+
+	function handleApplyDecomposition(input: {
+		feedback?: string;
+		replaceExisting?: boolean;
+		subtasks: DecompositionPreview["subtasks"];
+	}) {
+		if (!task) return;
+		decomposeTask.mutate(
+			{
+				id: task.id,
+				data: {
+					feedback: input.feedback,
+					replaceExisting: input.replaceExisting,
+					subtasks: input.subtasks.map((s) => ({
+						title: s.title,
+						description: s.description,
+						estimatedSessions: s.estimatedSessions,
+					})),
+				},
+			},
+			{
+				onSuccess: (result) => {
+					toast.success(
+						`${result.subtasksCreated} subtask${result.subtasksCreated === 1 ? "" : "s"} created`,
+						{
+							action: {
+								label: "View subtasks",
+								successLabel: "Opened",
+								onClick: () =>
+									document
+										.getElementById("subtasks-section")
+										?.scrollIntoView({ behavior: "smooth", block: "start" }),
 							},
 						},
-					});
+					);
+					setDecompositionPreview(null);
 					setDecomposeOpen(false);
 				},
-				onError: (error) => {
-					toast.error(error.message);
-				},
+				onError: (error) => toast.error(error.message),
 			},
 		);
 	}
 
 	function handleConvertToIdea() {
 		if (!task) return;
-		convertTaskToIdea.mutate(
-			task.id,
-			{
-				onSuccess: (result) => {
-					toast.success("Task converted to idea", {
-						description: result.migration.suggestion,
-					});
-					navigate({ to: "/ideas/$ideaId", params: { ideaId: result.idea.id } });
-				},
-				onError: (error) => {
-					toast.error(error.message);
-				},
+		convertTaskToIdea.mutate(task.id, {
+			onSuccess: (result) => {
+				toast.success("Task converted to idea", {
+					description: result.migration.suggestion,
+				});
+				navigate({ to: "/ideas/$ideaId", params: { ideaId: result.idea.id } });
 			},
-		);
+			onError: (error) => toast.error(error.message),
+		});
 	}
 
+	function handleAISuggestion() {
+		if (!task) return;
+		aiClassifyTask.mutate(task.id, {
+			onSuccess: () => toast.success("AI suggestion ready"),
+			onError: (error) => toast.error(error.message),
+		});
+	}
+
+	const canStartSession = task.state === "Ready" || task.state === "Active";
+	const epicDeadlines = (task.epics || [])
+		.map((entry) => entry.epic)
+		.filter(
+			(
+				epic,
+			): epic is NonNullable<NonNullable<Task["epics"]>[number]["epic"]> & {
+				targetDate?: string | null;
+			} => Boolean(epic?.targetDate),
+		);
+	const hasDeadlineContext =
+		Boolean(task.deadline) ||
+		Boolean(task.milestone?.targetDate) ||
+		epicDeadlines.length > 0;
+
 	return (
-		<div className="relative space-y-6 overflow-hidden">
-			<div aria-hidden className="pointer-events-none absolute inset-0">
-				<div className="absolute -top-20 left-1/3 h-56 w-56 rounded-full bg-sky-200/30 blur-3xl" />
-				<div className="absolute right-0 top-24 h-52 w-52 rounded-full bg-cyan-100/45 blur-3xl" />
+		<div
+			className={`space-y-6 transition-[opacity,transform] duration-500 ease-out ${visible ? "translate-y-0 opacity-100" : "translate-y-2 opacity-0"}`}
+		>
+			{/* ── Breadcrumb ── */}
+			<nav className="flex items-center gap-1.5 text-xs text-muted-foreground">
+				<Link to="/tasks" className="hover:text-foreground transition-colors">
+					Tasks
+				</Link>
+				<ChevronRight className="h-3 w-3" />
+				<span className="max-w-72 truncate text-foreground">{task.title}</span>
+			</nav>
+
+			{/* ── Title block ── */}
+			<div className="space-y-4 rounded-lg border border-border bg-card p-5 sm:p-6">
+				{/* Row 1: title + actions */}
+				<div className="flex flex-wrap items-start justify-between gap-3">
+					<div className="min-w-0 flex-1">
+						<h1 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+							{task.title}
+						</h1>
+					</div>
+
+					{/* Actions */}
+					<div className="flex shrink-0 flex-wrap items-center gap-2">
+						<Button
+							size="sm"
+							variant="info"
+							onClick={handleAISuggestion}
+							disabled={aiClassifyTask.isPending}
+							className="h-8 gap-1.5"
+						>
+							<Sparkles className="h-3.5 w-3.5" />
+							{aiClassifyTask.isPending ? "Thinking…" : "AI"}
+						</Button>
+						{canStartSession && (
+							<Button
+								size="sm"
+								onClick={() => setSessionOpen(true)}
+								className="h-8 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+							>
+								<Play className="h-3.5 w-3.5" />
+								Start session
+							</Button>
+						)}
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline" size="icon" className="h-8 w-8">
+									<MoreHorizontal className="h-4 w-4" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem onClick={handleConvertToIdea}>
+									Convert to idea
+								</DropdownMenuItem>
+								<DropdownMenuItem onClick={() => setEditOpen(true)}>
+									<Pencil className="mr-2 h-4 w-4" />
+									Edit
+								</DropdownMenuItem>
+								{task.state !== "Active" && (
+									<DropdownMenuItem
+										onClick={handleDelete}
+										className="text-destructive"
+									>
+										<Trash2 className="mr-2 h-4 w-4" />
+										Delete
+									</DropdownMenuItem>
+								)}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					</div>
+				</div>
+
+				{/* Row 2: state + meta badges */}
+				<div className="flex flex-wrap items-center gap-2">
+					<TaskStateDropdown
+						currentState={task.state}
+						onStateChange={handleStateChange}
+						disabled={task.state === "Active"}
+					/>
+					{task.project && (
+						<Badge variant="lavender">
+							<FolderKanban className="mr-1 h-3 w-3" />
+							{task.project.name}
+						</Badge>
+					)}
+					{task.size && (
+						<Badge variant={TASK_SIZE_CONFIG[task.size].badge}>
+							<Layers3 className="mr-1 h-3 w-3" />
+							{TASK_SIZE_CONFIG[task.size].label}
+						</Badge>
+					)}
+					{task.urgency && (
+						<Badge variant={TASK_URGENCY_CONFIG[task.urgency].badge}>
+							{TASK_URGENCY_CONFIG[task.urgency].label}
+						</Badge>
+					)}
+					{task.protected && (
+						<Badge variant="danger">
+							<Shield className="mr-1 h-3 w-3" />
+							Protected
+						</Badge>
+					)}
+					{featureGate.blocked && (
+						<Badge variant="warning">Feature blocked</Badge>
+					)}
+					{task.deadline && (
+						<span
+							className={`inline-flex items-center gap-1 text-sm ${isOverdue(task.deadline) ? "text-destructive" : "text-muted-foreground"}`}
+						>
+							<Calendar className="h-3.5 w-3.5" />
+							{formatDate(task.deadline)}
+						</span>
+					)}
+					{!task.deadline && task.milestone?.targetDate && (
+						<span
+							className={`inline-flex items-center gap-1 text-sm ${isOverdue(task.milestone.targetDate) ? "text-destructive" : "text-muted-foreground"}`}
+						>
+							<Calendar className="h-3.5 w-3.5" />
+							Inherits {formatDate(task.milestone.targetDate)}
+						</span>
+					)}
+				</div>
+
+				{/* AI suggestion inline */}
+				<TaskAISuggestionPanel task={task} />
 			</div>
 
-			<div className="relative space-y-6">
-				<StaggerReveal visible={isLoaded} delayMs={20}>
-					<nav className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/85 px-3 py-1.5 text-xs text-slate-600 shadow-sm backdrop-blur">
-						<Link to="/tasks" className="font-medium hover:text-slate-900">
-							Tasks
-						</Link>
-						<ChevronRight className="h-3 w-3" />
-						<span className="max-w-60 truncate text-slate-900">
-							{task.title}
-						</span>
-					</nav>
-				</StaggerReveal>
+			{/* ── Two column grid ── */}
+			<div className="grid gap-6 lg:grid-cols-3">
+				{/* ── Left column ── */}
+				<div className="space-y-5 lg:col-span-2">
+					{/* Description */}
+					<Section
+						title="Description"
+						help={{
+							feature: "Task Description",
+							what: "Defines scope, context, and delivery criteria.",
+							use: "Keep this updated with the latest implementation details.",
+							works:
+								"Stored as task description and reused by AI planning features.",
+						}}
+					>
+						{task.description ? (
+							<p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+								{task.description}
+							</p>
+						) : (
+							<p className="text-sm text-muted-foreground italic">
+								No description added yet.
+							</p>
+						)}
+					</Section>
 
-				<StaggerReveal visible={isLoaded} delayMs={90}>
-					<Card className="overflow-hidden border-sky-100 bg-linear-to-br from-white via-slate-50/70 to-sky-50/80 shadow-lg shadow-slate-200/60">
-						<CardContent className="space-y-4 p-6 sm:p-7">
-							<div className="flex flex-wrap items-start justify-between gap-4">
-								<div className="min-w-0 flex-1">
-									<div className="mb-2 inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-medium text-sky-700">
-										<Sparkles className="h-3 w-3" />
-										Task Detail
-									</div>
-									<h1 className="text-3xl font-semibold tracking-tight wrap-break-word text-slate-950 sm:text-4xl">
-										<span className="inline-flex items-center gap-2">
-											{task.title}
-											<HelpTooltip
-												feature="Task Detail"
-												what="Full execution context for one task."
-												use="Review metadata, update state, and drive execution actions from here."
-												works="Combines task data, subtasks, state history, and actions in one view."
-											/>
-										</span>
-									</h1>
-									<div className="mt-3 flex flex-wrap items-center gap-2">
-										<TaskStateDropdown
-											currentState={task.state}
-											onStateChange={handleStateChange}
-											disabled={task.state === "Active"}
-										/>
-										{task.project && (
-											<Badge
-												variant="secondary"
-												className="bg-slate-100 text-slate-700"
-											>
-												<FolderKanban className="mr-1 h-3 w-3" />
-												{task.project.name}
-											</Badge>
-										)}
-										{task.size && (
-											<Badge
-												variant="outline"
-												className="border-slate-200 bg-white text-slate-700"
-											>
-												<Layers3 className="mr-1 h-3 w-3" />
-												{TASK_SIZE_CONFIG[task.size].label}
-											</Badge>
-										)}
-										{task.urgency && (
-											<Badge
-												variant="outline"
-												className={`border-0 ${TASK_URGENCY_CONFIG[task.urgency].color}`}
-											>
-												{TASK_URGENCY_CONFIG[task.urgency].label}
-											</Badge>
-										)}
-										{task.protected && (
-											<Badge
-												variant="outline"
-												className="border-red-200 bg-red-50 text-red-700"
-											>
-												<Shield className="mr-1 h-3 w-3" />
-												Protected
-											</Badge>
-										)}
-										{featureGate.blocked && (
-											<Badge
-												variant="outline"
-												className="border-amber-200 bg-amber-50 text-amber-700"
-											>
-												Feature blocked
-											</Badge>
-										)}
-										{task.deadline && (
-											<span
-												className={`inline-flex items-center text-sm ${isOverdue(task.deadline) ? "text-red-600" : "text-slate-600"}`}
-											>
-												<Calendar className="mr-1 h-3.5 w-3.5" />
-												{formatDate(task.deadline)}
-											</span>
-										)}
-									</div>
-								</div>
-
-								<div className="flex shrink-0 items-center gap-2">
-									{(task.state === "Ready" || task.state === "Active") && (
-										<div className="flex items-center gap-1.5">
-											<Button
-												size="sm"
-												onClick={() => setSessionOpen(true)}
-												className="bg-slate-950 hover:bg-slate-800 dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white"
-											>
-												<Play className="mr-1 h-4 w-4" />
-												Start Session
-											</Button>
-											<HelpTooltip
-												feature="Start Session"
-												what="Begins a focus session on this task."
-												use="Use when the task is ready and you are committing focused time."
-												works="Creates an active timer session linked to this task id."
-											/>
-										</div>
-									)}
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button
-												variant="outline"
-												size="icon"
-												className="border-slate-200 bg-white"
-											>
-												<MoreHorizontal className="h-4 w-4" />
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end">
-											<DropdownMenuItem onClick={handleConvertToIdea}>
-												Convert to idea
-											</DropdownMenuItem>
-											<DropdownMenuItem onClick={() => setEditOpen(true)}>
-												<Pencil className="mr-2 h-4 w-4" />
-												Edit
-											</DropdownMenuItem>
-											{task.state !== "Active" && (
-												<DropdownMenuItem
-													onClick={handleDelete}
-													className="text-destructive"
-												>
-													<Trash2 className="mr-2 h-4 w-4" />
-													Delete
-												</DropdownMenuItem>
-											)}
-										</DropdownMenuContent>
-									</DropdownMenu>
-								</div>
+					{/* Feature blocking */}
+					{featureGate.blocked && (
+						<div className="rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50/60 dark:bg-amber-950/20 p-4 space-y-3">
+							<div className="flex items-center gap-2">
+								<Link2 className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+								<h3 className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+									Feature Blocking
+								</h3>
 							</div>
-						</CardContent>
-					</Card>
-				</StaggerReveal>
-
-				<div className="grid gap-6 lg:grid-cols-3">
-					<div className="space-y-6 lg:col-span-2">
-						<StaggerReveal visible={isLoaded} delayMs={160}>
-							<Card className="border-white/80 bg-white/95 shadow-sm">
-								<CardHeader>
-									<CardTitle className="inline-flex items-center gap-2 text-base">
-										Description
-										<HelpTooltip
-											feature="Task Description"
-											what="Defines scope, context, and delivery criteria."
-											use="Keep this section updated with the latest implementation details."
-											works="Stored as task description field and reused by AI planning features."
-										/>
-									</CardTitle>
-								</CardHeader>
-								<CardContent>
-									{task.description ? (
-										<p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
-											{task.description}
-										</p>
-									) : (
-										<p className="text-sm text-slate-500">No description</p>
-									)}
-								</CardContent>
-							</Card>
-						</StaggerReveal>
-
-						<StaggerReveal visible={isLoaded} delayMs={220}>
-							{featureGate.blocked && (
-								<Card className="border-amber-200/80 bg-amber-50/40 shadow-sm">
-									<CardHeader>
-										<CardTitle className="text-base text-amber-900">
-											Feature Blocking
-										</CardTitle>
-									</CardHeader>
-									<CardContent className="space-y-3">
-										<div>
-											<p className="text-sm font-medium text-amber-900">
-												This task is blocked by feature readiness.
-											</p>
-											{featureGate.reason && (
-												<p className="mt-1 text-sm text-amber-800">
-													{featureGate.reason}
-												</p>
-											)}
-										</div>
-										{featureGate.blockingTaskIds.length > 0 && (
-											<div className="rounded-md border border-amber-200 bg-white/80 p-3">
-												<p className="text-xs uppercase tracking-wide text-amber-700">
-													Blocking tasks
-												</p>
-												<div className="mt-1 flex flex-wrap items-center gap-2">
-													{featureGate.blockingTaskIds.map((blockingTaskId) => (
-														<Link
-															key={blockingTaskId}
-															to="/tasks/$taskId"
-															params={{ taskId: blockingTaskId }}
-															className="inline-flex items-center gap-1 text-sm font-medium text-amber-900 underline underline-offset-2"
-														>
-															<Link2 className="h-3.5 w-3.5" />
-															{blockingTaskId}
-														</Link>
-													))}
-												</div>
-											</div>
-										)}
-										{featureGate.blocksTaskIds.length > 0 && (
-											<div className="rounded-md border border-amber-200 bg-white/80 p-3">
-												<p className="text-xs uppercase tracking-wide text-amber-700">
-													Tasks being blocked
-												</p>
-												<div className="mt-1 flex flex-wrap items-center gap-2">
-													{featureGate.blocksTaskIds.map((blockedTaskId) => (
-														<Link
-															key={blockedTaskId}
-															to="/tasks/$taskId"
-															params={{ taskId: blockedTaskId }}
-															className="inline-flex items-center gap-1 text-sm font-medium text-amber-900 underline underline-offset-2"
-														>
-															<Link2 className="h-3.5 w-3.5" />
-															{blockedTaskId}
-														</Link>
-													))}
-												</div>
-											</div>
-										)}
-									</CardContent>
-								</Card>
+							{featureGate.reason && (
+								<p className="text-sm text-amber-700 dark:text-amber-400">
+									{featureGate.reason}
+								</p>
 							)}
-						</StaggerReveal>
+							{featureGate.blockingTaskIds.length > 0 && (
+								<div className="space-y-1">
+									<p className="text-xs font-medium uppercase tracking-wider text-amber-600 dark:text-amber-500">
+										Blocking tasks
+									</p>
+									<div className="flex flex-wrap gap-2">
+										{featureGate.blockingTaskIds.map((id) => (
+											<Link
+												key={id}
+												to="/tasks/$taskId"
+												params={{ taskId: id }}
+												className="inline-flex items-center gap-1 text-xs font-medium text-amber-800 dark:text-amber-300 underline underline-offset-2"
+											>
+												<Link2 className="h-3 w-3" />
+												{id.slice(0, 8)}
+											</Link>
+										))}
+									</div>
+								</div>
+							)}
+							{featureGate.blocksTaskIds.length > 0 && (
+								<div className="space-y-1">
+									<p className="text-xs font-medium uppercase tracking-wider text-amber-600 dark:text-amber-500">
+										Blocking downstream
+									</p>
+									<div className="flex flex-wrap gap-2">
+										{featureGate.blocksTaskIds.map((id) => (
+											<Link
+												key={id}
+												to="/tasks/$taskId"
+												params={{ taskId: id }}
+												className="inline-flex items-center gap-1 text-xs font-medium text-amber-800 dark:text-amber-300 underline underline-offset-2"
+											>
+												<Link2 className="h-3 w-3" />
+												{id.slice(0, 8)}
+											</Link>
+										))}
+									</div>
+								</div>
+							)}
+						</div>
+					)}
 
-						<StaggerReveal visible={isLoaded} delayMs={240}>
-							<Card
-								id="subtasks-section"
-								className="border-white/80 bg-white/95 shadow-sm"
-							>
-								<CardHeader className="flex-row items-center justify-between space-y-0">
-									<CardTitle className="inline-flex items-center gap-2 text-base">
-										Subtasks ({task.subtasks?.length || 0})
-										<HelpTooltip
-											feature="Subtasks"
-											what="Breakdown of the parent task into smaller executable parts."
-											use="Track progress by moving each subtask through its own state."
-											works="Can be manually managed or generated through decomposition."
-										/>
-									</CardTitle>
-									{!task.subtasks?.length && task.size !== "Small" && (
-										<Button
-											size="sm"
-											variant="outline"
-											onClick={() => setDecomposeOpen(true)}
-											disabled={decomposeTask.isPending}
-											className="border-slate-300 bg-white"
-										>
-											{decomposeTask.isPending ? "Decomposing..." : "Decompose"}
-										</Button>
-									)}
-								</CardHeader>
-								<CardContent>
-									{task.subtasks && task.subtasks.length > 0 ? (
-										<div className="space-y-1.5">
-											{task.subtasks.map((subtask) => (
-												<SubtaskRow
-													key={subtask.id}
-													task={subtask}
-													onStateChange={(id, state) =>
-														updateTask.mutate({
-															id,
-															data: { state },
-														})
-													}
-													onSelect={(id) =>
-														navigate({
-															to: "/tasks/$taskId",
-															params: { taskId: id },
-														})
-													}
-												/>
-											))}
-										</div>
-									) : (
-										<p className="text-sm text-slate-500">
-											No subtasks yet. Use &quot;Decompose&quot; to break this
-											task down.
-										</p>
-									)}
-								</CardContent>
-							</Card>
-						</StaggerReveal>
-					</div>
-
-					<div className="space-y-6">
-						<StaggerReveal visible={isLoaded} delayMs={190}>
-							<Card className="border-white/80 bg-white/95 shadow-sm">
-								<CardHeader>
-									<CardTitle className="inline-flex items-center gap-2 text-base">
-										Snapshot
-										<HelpTooltip
-											feature="Snapshot"
-											what="At-a-glance metadata summary for this task."
-											use="Use this panel to confirm priority, size, urgency, and tracking fields."
-											works="Reads normalized task fields and derived labels from constants."
-										/>
-									</CardTitle>
-								</CardHeader>
-								<CardContent className="space-y-3">
-									<MetadataRow
-										label="Project"
-										value={task.project?.name || "None"}
-										icon={FolderKanban}
-									/>
-									<Separator />
-									<MetadataRow
-										label="Project part"
-										value={task.part?.name || "None"}
-										icon={Layers3}
-									/>
-									<Separator />
-									<MetadataRow
-										label="Size"
-										value={
-											task.size ? TASK_SIZE_CONFIG[task.size].label : "Not set"
+					{/* Subtasks */}
+					<Section
+						id="subtasks-section"
+						title={`Subtasks${task.subtasks?.length ? ` · ${task.subtasks.length}` : ""}`}
+						help={{
+							feature: "Subtasks",
+							what: "Breakdown of the parent task into smaller executable parts.",
+							use: "Track progress by moving each subtask through its own state.",
+							works:
+								"Can be manually managed or generated through decomposition.",
+						}}
+						action={
+							task.size !== "Small" ? (
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={() => setDecomposeOpen(true)}
+									disabled={
+										decomposeTask.isPending || previewDecomposition.isPending
+									}
+									className="h-7 text-xs"
+								>
+									<Sparkles className="mr-1 h-3 w-3" />
+									{decomposeTask.isPending
+										? "Applying…"
+										: previewDecomposition.isPending
+											? "Generating…"
+											: task.subtasks?.length
+												? "Regenerate"
+												: "Decompose"}
+								</Button>
+							) : null
+						}
+					>
+						{task.subtaskProgress && task.subtaskProgress.total > 0 && (
+							<div className="mb-3 space-y-1.5">
+								<div className="flex items-center justify-between text-xs text-muted-foreground">
+									<span>Progress</span>
+									<span className="tabular-nums">
+										{task.subtaskProgress.completed} /{" "}
+										{task.subtaskProgress.total}
+									</span>
+								</div>
+								<Progress
+									value={task.subtaskProgress.percent}
+									className="h-1.5"
+								/>
+							</div>
+						)}
+						{task.subtasks && task.subtasks.length > 0 ? (
+							<div className="space-y-1">
+								{task.subtasks.map((subtask) => (
+									<SubtaskRow
+										key={subtask.id}
+										task={subtask}
+										onStateChange={(id, state) =>
+											updateTask.mutate({ id, data: { state } })
 										}
-										icon={Layers3}
-									/>
-									<Separator />
-									<MetadataRow
-										label="Urgency"
-										value={
-											task.urgency
-												? TASK_URGENCY_CONFIG[task.urgency].label
-												: "Not set"
+										onSelect={(id) =>
+											navigate({ to: "/tasks/$taskId", params: { taskId: id } })
 										}
-										icon={Sparkles}
 									/>
-									<Separator />
-									<MetadataRow
-										label="Sessions"
-										value={`${task.completedSessions} completed`}
-										icon={Clock3}
-									/>
-									<Separator />
-									<MetadataRow
-										label="Protected"
-										value={task.protected ? "Yes" : "No"}
-										icon={Shield}
-									/>
-									<Separator />
-									<MetadataRow
-										label="Tags"
-										value={task.tags.length ? task.tags.join(", ") : "None"}
-										icon={Tag}
-									/>
-									<Separator />
-									<MetadataRow label="Source" value={task.source} />
-									<Separator />
-									<MetadataRow
-										label="Created"
-										value={formatDate(task.createdAt)}
-									/>
-								</CardContent>
-							</Card>
-						</StaggerReveal>
+								))}
+							</div>
+						) : (
+							<p className="text-sm text-muted-foreground">
+								No subtasks yet. Use Decompose to break this down.
+							</p>
+						)}
+					</Section>
+				</div>
 
-						<StaggerReveal visible={isLoaded} delayMs={250}>
-							<Card className="border-white/80 bg-white/95 shadow-sm">
-								<CardHeader>
-									<CardTitle className="inline-flex items-center gap-2 text-base">
-										History
-										<HelpTooltip
-											feature="State History"
-											what="Chronological log of task state transitions."
-											use="Review this when diagnosing workflow delays or regressions."
-											works="Persists state transition events and renders them in timeline order."
+				{/* ── Right sidebar ── */}
+				<div className="space-y-5">
+					{/* Deadline context */}
+					{hasDeadlineContext && (
+						<Section
+							title="Deadline Context"
+							help={{
+								feature: "Inherited Deadlines",
+								what: "Shows direct task deadline plus deadline pressure inherited from linked milestone and epics.",
+								use: "Use this to understand why a task may score higher in recommendations even without its own deadline.",
+								works:
+									"Recommendation scoring uses the strongest deadline pressure from task, milestone, and epic dates.",
+							}}
+						>
+							<div className="space-y-2">
+								<DeadlineContextRow
+									label="Task"
+									name={task.title}
+									date={task.deadline}
+									empty="No direct deadline"
+								/>
+								<DeadlineContextRow
+									label="Milestone"
+									name={task.milestone?.title ?? "No milestone"}
+									date={task.milestone?.targetDate ?? null}
+									empty={
+										task.milestone ? "No milestone deadline" : "No milestone"
+									}
+								/>
+								{epicDeadlines.length > 0 ? (
+									epicDeadlines.map((epic) => (
+										<DeadlineContextRow
+											key={epic.id}
+											label="Epic"
+											name={`${epic.key ? `${epic.key} ` : ""}${epic.name}`}
+											date={epic.targetDate ?? null}
+											empty="No epic deadline"
 										/>
-									</CardTitle>
-								</CardHeader>
-								<CardContent>
-									{task.stateHistory && task.stateHistory.length > 0 ? (
-										<ScrollArea className="h-52 pr-2">
-											{task.stateHistory.map((entry) => (
-												<StateHistoryEntry key={entry.id} entry={entry} />
-											))}
-										</ScrollArea>
-									) : (
-										<p className="text-sm text-slate-500">No history yet</p>
-									)}
-								</CardContent>
-							</Card>
-						</StaggerReveal>
-					</div>
+									))
+								) : (
+									<DeadlineContextRow
+										label="Epic"
+										name="No epic deadline"
+										date={null}
+										empty="No epic deadline"
+									/>
+								)}
+							</div>
+						</Section>
+					)}
+
+					{/* Snapshot */}
+					<Section
+						title="Snapshot"
+						help={{
+							feature: "Snapshot",
+							what: "At-a-glance metadata summary for this task.",
+							use: "Confirm priority, size, urgency, and tracking fields.",
+							works:
+								"Reads normalized task fields and derived labels from constants.",
+						}}
+					>
+						<dl className="space-y-0 divide-y divide-border/60">
+							<MetaRow
+								icon={FolderKanban}
+								label="Project"
+								value={task.project?.name || "—"}
+							/>
+							<MetaRow
+								icon={Layers3}
+								label="Parts"
+								value={
+									(
+										task.parts?.map((e) => e.part?.name).filter(Boolean) ?? []
+									).join(", ") ||
+									task.part?.name ||
+									"—"
+								}
+							/>
+							<MetaRow
+								label="Epics"
+								value={
+									(task.epics || [])
+										.map((e) =>
+											e.epic
+												? `${e.epic.key ? `${e.epic.key} ` : ""}${e.epic.name}`
+												: null,
+										)
+										.filter(Boolean)
+										.join(", ") || "—"
+								}
+							/>
+							<MetaRow
+								label="Priority"
+								value={task.priority == null ? "Auto" : `${task.priority}/100`}
+							/>
+							<MetaRow
+								icon={Layers3}
+								label="Size"
+								value={task.size ? TASK_SIZE_CONFIG[task.size].label : "—"}
+							/>
+							<MetaRow
+								icon={Sparkles}
+								label="Urgency"
+								value={
+									task.urgency ? TASK_URGENCY_CONFIG[task.urgency].label : "—"
+								}
+							/>
+							<MetaRow
+								icon={Clock3}
+								label="Sessions"
+								value={`${task.completedSessions} completed`}
+							/>
+							<MetaRow
+								icon={Shield}
+								label="Protected"
+								value={task.protected ? "Yes" : "No"}
+							/>
+							<MetaRow
+								icon={Tag}
+								label="Tags"
+								value={task.tags.length ? task.tags.join(", ") : "—"}
+							/>
+							<MetaRow label="Source" value={task.source} />
+							<MetaRow label="Created" value={formatDate(task.createdAt)} />
+						</dl>
+					</Section>
+
+					{/* History */}
+					<Section
+						title="History"
+						help={{
+							feature: "State History",
+							what: "Chronological log of task state transitions.",
+							use: "Review when diagnosing workflow delays.",
+							works: "Persists state transition events in timeline order.",
+						}}
+					>
+						{task.stateHistory && task.stateHistory.length > 0 ? (
+							<ScrollArea className="h-48 pr-1">
+								<div className="space-y-0">
+									{task.stateHistory.map((entry) => (
+										<StateHistoryEntry key={entry.id} entry={entry} />
+									))}
+								</div>
+							</ScrollArea>
+						) : (
+							<p className="text-sm text-muted-foreground">No history yet.</p>
+						)}
+					</Section>
 				</div>
 			</div>
 
+			{/* Dialogs */}
 			{editOpen && (
 				<EditTaskDialog
 					task={task}
@@ -643,7 +697,6 @@ function TaskDetailPage() {
 					onOpenChange={setEditOpen}
 				/>
 			)}
-
 			{sessionOpen && (
 				<StartSessionDialog
 					task={task}
@@ -651,38 +704,110 @@ function TaskDetailPage() {
 					onOpenChange={setSessionOpen}
 				/>
 			)}
-
 			{decomposeOpen && (
 				<DecomposeTaskDialog
 					open={decomposeOpen}
 					onOpenChange={setDecomposeOpen}
 					isSubmitting={decomposeTask.isPending}
+					isPreviewing={previewDecomposition.isPending}
 					taskTitle={task.title}
-					onSubmit={({ feedback }) => handleDecompose(feedback)}
+					existingSubtaskCount={task.subtasks?.length ?? 0}
+					preview={decompositionPreview}
+					onPreview={({ feedback }) => handlePreviewDecomposition(feedback)}
+					onRegenerate={({ feedback }) => handlePreviewDecomposition(feedback)}
+					onApply={(input) => handleApplyDecomposition(input)}
 				/>
 			)}
 		</div>
 	);
 }
 
-function MetadataRow({
+// ── Shared section wrapper ────────────────────────────────────────────────────
+
+function Section({
+	id,
+	title,
+	help,
+	action,
+	children,
+}: {
+	id?: string;
+	title: string;
+	help?: { feature: string; what: string; use: string; works: string };
+	action?: React.ReactNode;
+	children: React.ReactNode;
+}) {
+	return (
+		<div id={id} className="rounded-lg border border-border bg-card">
+			<div className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+				<h2 className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+					{title}
+					{help && <HelpTooltip {...help} className="h-4 w-4" />}
+				</h2>
+				{action}
+			</div>
+			<div className="p-4">{children}</div>
+		</div>
+	);
+}
+
+// ── Deadline context row ─────────────────────────────────────────────────────
+
+function DeadlineContextRow({
+	label,
+	name,
+	date,
+	empty,
+}: {
+	label: string;
+	name: string;
+	date: string | null | undefined;
+	empty: string;
+}) {
+	const overdue = Boolean(date && isOverdue(date));
+
+	return (
+		<div className="rounded-md border border-border bg-muted/20 px-3 py-2">
+			<div className="flex items-start justify-between gap-3">
+				<div className="min-w-0">
+					<p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+						{label}
+					</p>
+					<p className="mt-0.5 truncate text-xs font-medium text-foreground">
+						{name}
+					</p>
+				</div>
+				<div
+					className={`inline-flex shrink-0 items-center gap-1 text-xs font-medium ${overdue ? "text-destructive" : date ? "text-foreground" : "text-muted-foreground"}`}
+				>
+					<Calendar className="h-3.5 w-3.5" />
+					{date ? formatDate(date) : empty}
+				</div>
+			</div>
+		</div>
+	);
+}
+
+// ── Metadata row ─────────────────────────────────────────────────────────────
+
+function MetaRow({
 	label,
 	value,
 	icon: Icon,
 }: {
 	label: string;
 	value: string;
-	icon?: ComponentType<{ className?: string }>;
+	icon?: React.ComponentType<{ className?: string }>;
 }) {
 	return (
-		<div className="flex items-center justify-between">
-			<span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
-				{Icon ? <Icon className="h-3.5 w-3.5" /> : null}
+		<div className="flex items-center justify-between gap-3 py-2">
+			<dt className="inline-flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+				{Icon && <Icon className="h-3.5 w-3.5" />}
 				{label}
-			</span>
-			<span className="max-w-[60%] truncate text-right text-sm font-medium text-slate-900">
+			</dt>
+			<dd className="max-w-[55%] truncate text-right text-xs font-medium text-foreground">
 				{value}
-			</span>
+			</dd>
 		</div>
 	);
 }

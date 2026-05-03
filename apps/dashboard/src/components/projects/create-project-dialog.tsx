@@ -3,6 +3,7 @@ import { Button } from "@repo/ui/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/ui/dialog";
@@ -22,12 +23,13 @@ import { z } from "zod";
 import { useCreateProject } from "@/hooks/use-projects";
 import { PROJECT_COLORS } from "@/lib/constants";
 import { runWithPromiseToast } from "@/lib/toast";
-import type { ProjectType } from "@/lib/types";
+import type { ProjectStructureType, ProjectType } from "@/lib/types";
 
 const createProjectSchema = z.object({
 	name: z.string().min(1, "Name is required").max(100),
 	description: z.string().max(500).optional(),
 	type: z.enum(["Clients", "Core", "InHouse", "Office"]),
+	structureType: z.enum(["SingleRepo", "Monorepo"]),
 	color: z.string(),
 });
 
@@ -50,6 +52,7 @@ export function CreateProjectDialog({
 			name: "",
 			description: "",
 			type: "Core",
+			structureType: "SingleRepo",
 			color: PROJECT_COLORS[0],
 		},
 	});
@@ -60,6 +63,7 @@ export function CreateProjectDialog({
 				name: data.name,
 				description: data.description || undefined,
 				type: data.type as ProjectType,
+				structureType: data.structureType as ProjectStructureType,
 				color: data.color,
 			}),
 		);
@@ -89,11 +93,27 @@ export function CreateProjectDialog({
 		},
 	] as const;
 
+	const projectStructures = [
+		{
+			value: "SingleRepo",
+			label: "Single repo",
+			desc: "Hide technical parts for a simple project structure",
+		},
+		{
+			value: "Monorepo",
+			label: "Monorepo",
+			desc: "Use parts to track which app or service owns the work",
+		},
+	] as const;
+
 	return (
 		<Dialog open={open} onOpenChange={onOpenChange}>
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>Create project</DialogTitle>
+					<DialogDescription>
+						Set the project category and structure before adding tasks.
+					</DialogDescription>
 				</DialogHeader>
 
 				<Form {...form}>
@@ -167,6 +187,40 @@ export function CreateProjectDialog({
 
 						<FormField
 							control={form.control}
+							name="structureType"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel>Structure</FormLabel>
+									<FormControl>
+										<div className="grid grid-cols-2 gap-2">
+											{projectStructures.map((structure) => (
+												<button
+													key={structure.value}
+													type="button"
+													onClick={() => field.onChange(structure.value)}
+													className={`flex min-h-[76px] flex-col items-start justify-between rounded-md border px-3 py-2 text-left transition-colors ${
+														field.value === structure.value
+															? "border-primary bg-primary/5"
+															: "border-border hover:border-primary/40"
+													}`}
+												>
+													<div className="text-sm font-medium">
+														{structure.label}
+													</div>
+													<div className="text-xs text-muted-foreground">
+														{structure.desc}
+													</div>
+												</button>
+											))}
+										</div>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						<FormField
+							control={form.control}
 							name="color"
 							render={({ field }) => (
 								<FormItem>
@@ -193,7 +247,7 @@ export function CreateProjectDialog({
 							)}
 						/>
 
-						<div className="flex justify-end gap-2">
+						<div className="flex justify-end gap-2 border-t pt-4">
 							<Button
 								type="button"
 								variant="outline"
@@ -201,7 +255,11 @@ export function CreateProjectDialog({
 							>
 								Cancel
 							</Button>
-							<Button type="submit" disabled={createProject.isPending}>
+							<Button
+								type="submit"
+								className="bg-primary text-primary-foreground hover:bg-primary/90"
+								disabled={createProject.isPending}
+							>
 								{createProject.isPending ? (
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 								) : null}

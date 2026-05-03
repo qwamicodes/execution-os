@@ -1,19 +1,26 @@
 import { canQueueRequest, enqueueOfflineOperation } from "./offline-queue";
 import type {
 	AIRoutingStatusResponse,
+	BatchApplyProjectTasksInput,
+	BatchApplyProjectTasksResponse,
 	ClassifyTaskInput,
 	CompleteSessionInput,
+	CreateIdeaInput,
+	CreateProjectEpicInput,
 	CreateProjectInput,
 	CreateProjectMilestoneInput,
 	CreateProjectPartInput,
 	CreateTaskInput,
 	DecomposeTaskInput,
+	DecompositionPreview,
 	ExtendSessionInput,
 	GitConnectInput,
 	GitImportCommitInput,
 	Idea,
 	IdeaFilters,
 	IdeaListResponse,
+	InboxBulkActionResponse,
+	InboxFilters,
 	InboxResponse,
 	IntegrationRecord,
 	PMAIAnalyzeImagesInput,
@@ -25,6 +32,7 @@ import type {
 	PMAIRebalanceSprintInput,
 	PMAISuggestAssigneeInput,
 	Project,
+	ProjectEpic,
 	ProjectFilters,
 	ProjectMilestone,
 	ProjectPart,
@@ -42,15 +50,15 @@ import type {
 	TaskPriorityOverrideInput,
 	TaskPriorityOverrideResponse,
 	TaskRecommendationResponse,
+	UpdateIdeaInput,
+	UpdateProjectEpicInput,
 	UpdateProjectInput,
 	UpdateProjectMilestoneInput,
 	UpdateProjectPartInput,
-	UpdateIdeaInput,
 	UpdateTaskInput,
 	User,
 	VoiceConnectInput,
 	VoiceTranscribeInput,
-	CreateIdeaInput,
 } from "./types";
 
 // ─── Base Request ─────────────────────────────────────────────────────────────
@@ -276,16 +284,36 @@ export const tasks = {
 		request<Task>(`/tasks/${id}/restore`, { method: "POST" }),
 
 	decompose: (id: string, data?: DecomposeTaskInput) =>
-		request<{ message: string; taskId: string; jobId: string }>(
-			`/tasks/${id}/decompose`,
-			{
-				method: "POST",
-				body: JSON.stringify(data ?? {}),
-			},
-		),
+		request<{
+			message: string;
+			taskId: string;
+			subtasksCreated: number;
+			reason: string | null;
+			provider: string;
+			model: string;
+		}>(`/tasks/${id}/decompose`, {
+			method: "POST",
+			body: JSON.stringify(data ?? {}),
+		}),
+
+	previewDecomposition: (id: string, data?: DecomposeTaskInput) =>
+		request<DecompositionPreview>(`/tasks/${id}/decompose/preview`, {
+			method: "POST",
+			body: JSON.stringify(data ?? {}),
+		}),
 
 	classifyAI: (id: string) =>
 		request<Task>(`/tasks/${id}/classify/ai`, {
+			method: "POST",
+		}),
+
+	applyAISuggestion: (id: string) =>
+		request<Task>(`/tasks/${id}/ai-suggestion/apply`, {
+			method: "POST",
+		}),
+
+	ignoreAISuggestion: (id: string) =>
+		request<Task>(`/tasks/${id}/ai-suggestion/ignore`, {
 			method: "POST",
 		}),
 
@@ -450,6 +478,39 @@ export const projects = {
 		request<null>(`/projects/${projectId}/parts/${partId}`, {
 			method: "DELETE",
 		}),
+
+	listEpics: (projectId: string) =>
+		request<ProjectEpic[]>(`/projects/${projectId}/epics`),
+
+	createEpic: (projectId: string, data: CreateProjectEpicInput) =>
+		request<ProjectEpic>(`/projects/${projectId}/epics`, {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+
+	updateEpic: (
+		projectId: string,
+		epicId: string,
+		data: UpdateProjectEpicInput,
+	) =>
+		request<ProjectEpic>(`/projects/${projectId}/epics/${epicId}`, {
+			method: "PATCH",
+			body: JSON.stringify(data),
+		}),
+
+	deleteEpic: (projectId: string, epicId: string) =>
+		request<null>(`/projects/${projectId}/epics/${epicId}`, {
+			method: "DELETE",
+		}),
+
+	batchApplyTasks: (projectId: string, data: BatchApplyProjectTasksInput) =>
+		request<BatchApplyProjectTasksResponse>(
+			`/projects/${projectId}/tasks/batch-apply`,
+			{
+				method: "POST",
+				body: JSON.stringify(data),
+			},
+		),
 };
 
 // ─── Sessions ─────────────────────────────────────────────────────────────────
@@ -510,7 +571,8 @@ export const sessions = {
 // ─── Inbox ────────────────────────────────────────────────────────────────────
 
 export const inbox = {
-	list: () => request<InboxResponse>("/inbox"),
+	list: (filters?: InboxFilters) =>
+		request<InboxResponse>(`/inbox${buildQuery(filters || {})}`),
 
 	classify: (id: string, data: ClassifyTaskInput) =>
 		request<Task>(`/inbox/${id}/classify`, {
@@ -521,6 +583,26 @@ export const inbox = {
 	autoClassify: (id: string) =>
 		request<Task>(`/inbox/${id}/classify/auto`, {
 			method: "POST",
+		}),
+
+	ignoreAISuggestion: (id: string) =>
+		request<Task>(`/inbox/${id}/classify/ignore`, {
+			method: "POST",
+		}),
+
+	ignoreAllAISuggestions: () =>
+		request<InboxBulkActionResponse>("/inbox/classify/ignore-all", {
+			method: "POST",
+		}),
+
+	applyAllAISuggestions: () =>
+		request<InboxBulkActionResponse>("/inbox/classify/apply-all", {
+			method: "POST",
+		}),
+
+	deleteAllAISuggestions: () =>
+		request<InboxBulkActionResponse>("/inbox/classify/delete-all", {
+			method: "DELETE",
 		}),
 };
 

@@ -30,7 +30,7 @@ import {
 	PlugZap,
 	Radar,
 } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { type ReactNode, useMemo, useState } from "react";
 import { HelpTooltip } from "@/components/shared/help-tooltip";
 import {
 	RouteHeroBadge,
@@ -140,10 +140,10 @@ function IntegrationsRoute() {
 				}}
 				badges={
 					<>
-						<RouteHeroBadge className="border-0 bg-slate-900 text-white">
+						<RouteHeroBadge variant="default">
 							{integrations.length} configured
 						</RouteHeroBadge>
-						<RouteHeroBadge className="rounded-full bg-sky-100 text-sky-700">
+						<RouteHeroBadge variant="sky">
 							Slack · Gmail · Linear · Git · Voice
 						</RouteHeroBadge>
 					</>
@@ -151,7 +151,7 @@ function IntegrationsRoute() {
 			/>
 
 			<Tabs value={activeTab} onValueChange={setActiveTab}>
-				<div className="overflow-x-auto pb-1">
+				<div className="no-scrollbar overflow-x-auto pb-1">
 					<TabsList className="inline-flex w-max min-w-full sm:min-w-0">
 						<TabsTrigger value="connections" className="whitespace-nowrap">
 							Connections
@@ -218,13 +218,15 @@ function IntegrationsRoute() {
 							}
 							fields={
 								<>
-									<Label className="text-xs text-slate-600">API key</Label>
+									<Label className="text-xs text-muted-foreground">
+										API key
+									</Label>
 									<Input
 										type="password"
 										value={linearApiKey}
 										onChange={(event) => setLinearApiKey(event.target.value)}
 									/>
-									<Label className="text-xs text-slate-600">
+									<Label className="text-xs text-muted-foreground">
 										Workspace name
 									</Label>
 									<Input
@@ -262,7 +264,7 @@ function IntegrationsRoute() {
 				</TabsContent>
 
 				<TabsContent value="git" className="mt-4 space-y-4">
-					<Card className="border-slate-200 bg-white">
+					<Card className="border-border bg-card">
 						<CardHeader>
 							<CardTitle className="inline-flex items-center gap-2 text-base">
 								<PlugZap className="h-4 w-4" />
@@ -319,7 +321,7 @@ function IntegrationsRoute() {
 							</div>
 							<div className="md:col-span-2">
 								<Button
-									className="bg-slate-950 text-white hover:bg-slate-800"
+									className="bg-primary text-primary-foreground hover:bg-primary/90"
 									onClick={() =>
 										runAction("Git connect", async () => {
 											await connectGit.mutateAsync({
@@ -337,7 +339,7 @@ function IntegrationsRoute() {
 						</CardContent>
 					</Card>
 
-					<Card className="border-slate-200 bg-white">
+					<Card className="border-border bg-card">
 						<CardHeader>
 							<CardTitle className="inline-flex items-center gap-2 text-base">
 								Import Commit as Task
@@ -395,7 +397,7 @@ function IntegrationsRoute() {
 						</CardContent>
 					</Card>
 
-					<Card className="border-slate-200 bg-white">
+					<Card className="border-border bg-card">
 						<CardHeader>
 							<CardTitle className="text-base">
 								Create Branch from Task
@@ -445,7 +447,7 @@ function IntegrationsRoute() {
 								</Button>
 							</div>
 							{branchResult ? (
-								<p className="md:col-span-3 text-xs text-slate-600">
+								<p className="md:col-span-3 text-xs text-muted-foreground">
 									{branchResult}
 								</p>
 							) : null}
@@ -454,7 +456,7 @@ function IntegrationsRoute() {
 				</TabsContent>
 
 				<TabsContent value="voice" className="mt-4 space-y-4">
-					<Card className="border-slate-200 bg-white">
+					<Card className="border-border bg-card">
 						<CardHeader>
 							<CardTitle className="inline-flex items-center gap-2 text-base">
 								Connect Voice Provider
@@ -505,7 +507,7 @@ function IntegrationsRoute() {
 						</CardContent>
 					</Card>
 
-					<Card className="border-slate-200 bg-white">
+					<Card className="border-border bg-card">
 						<CardHeader>
 							<CardTitle className="inline-flex items-center gap-2 text-base">
 								Transcribe Voice Note
@@ -547,7 +549,7 @@ function IntegrationsRoute() {
 							</div>
 							<div className="md:col-span-2">
 								<Button
-									className="bg-slate-950 text-white hover:bg-slate-800"
+									className="bg-primary text-primary-foreground hover:bg-primary/90"
 									onClick={() =>
 										runAction("Voice transcribe", async () => {
 											const result = await transcribeVoice.mutateAsync({
@@ -564,7 +566,7 @@ function IntegrationsRoute() {
 								</Button>
 							</div>
 							{voiceJob ? (
-								<div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-700 md:col-span-2">
+								<div className="rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground md:col-span-2">
 									<p>Status: {voiceJob.status}</p>
 									{voiceJob.transcription ? (
 										<p className="mt-1">Transcript: {voiceJob.transcription}</p>
@@ -604,7 +606,7 @@ function ProviderCard({
 	fields?: ReactNode;
 }) {
 	return (
-		<Card className="border-slate-200 bg-white">
+		<Card className="border-border bg-card">
 			<CardHeader>
 				<CardTitle className="inline-flex items-center gap-2 text-base">
 					<Icon className="h-4 w-4" />
@@ -612,8 +614,8 @@ function ProviderCard({
 					<span
 						className={`rounded-full px-2 py-0.5 text-[11px] ${
 							connected
-								? "bg-emerald-100 text-emerald-700"
-								: "bg-slate-100 text-slate-600"
+								? "border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800/50 dark:bg-emerald-950/30 dark:text-emerald-400"
+								: "bg-muted/60 text-muted-foreground"
 						}`}
 					>
 						{connected ? "Connected" : "Not connected"}

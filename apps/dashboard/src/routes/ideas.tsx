@@ -1,9 +1,25 @@
 import { Badge } from "@repo/ui/components/ui/badge";
 import { Button } from "@repo/ui/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardHeader,
+	CardTitle,
+} from "@repo/ui/components/ui/card";
 import { Input } from "@repo/ui/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/ui/select";
-import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@repo/ui/components/ui/select";
+import {
+	createFileRoute,
+	Outlet,
+	useNavigate,
+	useRouterState,
+} from "@tanstack/react-router";
 import { Lightbulb, Plus, WandSparkles } from "lucide-react";
 import { goeyToast as toast } from "goey-toast";
 import { useState } from "react";
@@ -31,7 +47,9 @@ export const Route = createFileRoute("/ideas")({
 function IdeasPage() {
 	const search = Route.useSearch();
 	const navigate = useNavigate({ from: "/ideas" });
-	const pathname = useRouterState({ select: (state) => state.location.pathname });
+	const pathname = useRouterState({
+		select: (state) => state.location.pathname,
+	});
 	const [logIdeaOpen, setLogIdeaOpen] = useState(false);
 	const migrateLegacyIdeas = useMigrateLegacyIdeaTasks();
 
@@ -50,7 +68,11 @@ function IdeasPage() {
 
 	function updateSearch(updates: Partial<IdeasSearch>) {
 		navigate({
-			search: (prev: IdeasSearch) => ({ ...prev, ...updates, page: updates.page ?? 1 }),
+			search: (prev: IdeasSearch) => ({
+				...prev,
+				...updates,
+				page: updates.page ?? 1,
+			}),
 		});
 	}
 
@@ -72,82 +94,118 @@ function IdeasPage() {
 	return (
 		<>
 			<div className="space-y-6">
-			<Card className="border-sky-100 bg-linear-to-br from-white via-slate-50/70 to-sky-50/80">
-				<CardContent className="flex items-start justify-between gap-4 p-6">
-					<div>
-						<p className="text-xs font-medium tracking-[0.16em] text-slate-500 uppercase">Idea Space</p>
-						<h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Ideas</h1>
-						<p className="mt-2 text-sm text-slate-600">Ideas are now separate from tasks and mutually exclusive.</p>
-						<div className="mt-3">
-							<Badge className="border-0 bg-slate-900 text-white">{data?.total ?? 0} total</Badge>
+				<Card className="border-border bg-card shadow-none">
+					<CardContent className="flex items-start justify-between gap-4 p-6">
+						<div>
+							<p className="text-xs font-medium tracking-[0.16em] text-muted-foreground uppercase">
+								Idea Space
+							</p>
+							<h1 className="mt-2 text-3xl font-semibold tracking-tight text-foreground">
+								Ideas
+							</h1>
+							<p className="mt-2 text-sm text-muted-foreground">
+								Ideas are now separate from tasks and mutually exclusive.
+							</p>
+							<div className="mt-3">
+								<Badge variant="default">{data?.total ?? 0} total</Badge>
+							</div>
 						</div>
-					</div>
-					<div className="flex items-center gap-2">
-						<Button variant="outline" onClick={handleLegacyMigration}>
-							<WandSparkles className="mr-2 h-4 w-4" />
-							Migrate legacy idea-tags
-						</Button>
-						<Button className="dark:bg-blue-600 dark:hover:bg-blue-700 dark:text-white" onClick={handleCreateIdea}>
-							<Plus className="mr-2 h-4 w-4" />
-							Log idea
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
+						<div className="flex items-center gap-2">
+							<Button variant="outline" onClick={handleLegacyMigration}>
+								<WandSparkles className="mr-2 h-4 w-4" />
+								Migrate legacy idea-tags
+							</Button>
+							<Button
+								className="bg-primary text-primary-foreground hover:bg-primary/90"
+								onClick={handleCreateIdea}
+							>
+								<Plus className="mr-2 h-4 w-4" />
+								Log idea
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
 
-			<div className="flex flex-wrap items-center gap-2">
-				<Input
-					placeholder="Search ideas..."
-					value={search.searchQuery || ""}
-					onChange={(event) =>
-						updateSearch({ searchQuery: event.target.value || undefined })
-					}
-					className="w-64"
-				/>
-				<Select value={search.state || "all"} onValueChange={(value) => updateSearch({ state: value === "all" ? undefined : value })}>
-					<SelectTrigger className="w-40">
-						<SelectValue placeholder="State" />
-					</SelectTrigger>
-					<SelectContent>
-						<SelectItem value="all">All states</SelectItem>
-						{["Captured", "Classified", "Clarified", "Planned", "Incubating", "Archived"].map((state) => (
-							<SelectItem key={state} value={state}>{state}</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</div>
-
-			{isLoading ? (
-				<SkeletonList count={6} />
-			) : ideas.length === 0 ? (
-				<EmptyState
-					icon={Lightbulb}
-					title="No ideas found"
-					description="Capture your next idea to get started."
-				>
-					<Button onClick={handleCreateIdea}>Log idea</Button>
-				</EmptyState>
-			) : (
-				<div className="grid gap-3 md:grid-cols-2">
-					{ideas.map((idea) => (
-						<Card key={idea.id} className="cursor-pointer" onClick={() => navigate({ to: "/ideas/$ideaId", params: { ideaId: idea.id } })}>
-							<CardHeader className="pb-2">
-								<CardTitle className="line-clamp-1 text-base">{idea.title}</CardTitle>
-							</CardHeader>
-							<CardContent className="space-y-2">
-								<p className="line-clamp-2 text-sm text-slate-600">{idea.description || "No description"}</p>
-								<div className="flex items-center gap-2">
-									<Badge variant="outline">{idea.state}</Badge>
-									<Badge variant="outline" className="ml-auto">
-										<Lightbulb className="mr-1 h-3 w-3" />
-										Idea
-									</Badge>
-								</div>
-							</CardContent>
-						</Card>
-					))}
+				<div className="flex flex-wrap items-center gap-2">
+					<Input
+						placeholder="Search ideas..."
+						value={search.searchQuery || ""}
+						onChange={(event) =>
+							updateSearch({ searchQuery: event.target.value || undefined })
+						}
+						className="w-64"
+					/>
+					<Select
+						value={search.state || "all"}
+						onValueChange={(value) =>
+							updateSearch({ state: value === "all" ? undefined : value })
+						}
+					>
+						<SelectTrigger className="w-40">
+							<SelectValue placeholder="State" />
+						</SelectTrigger>
+						<SelectContent>
+							<SelectItem value="all">All states</SelectItem>
+							{[
+								"Captured",
+								"Classified",
+								"Clarified",
+								"Planned",
+								"Incubating",
+								"Archived",
+							].map((state) => (
+								<SelectItem key={state} value={state}>
+									{state}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
 				</div>
-			)}
+
+				{isLoading ? (
+					<SkeletonList count={6} />
+				) : ideas.length === 0 ? (
+					<EmptyState
+						icon={Lightbulb}
+						title="No ideas found"
+						description="Capture your next idea to get started."
+					>
+						<Button onClick={handleCreateIdea}>Log idea</Button>
+					</EmptyState>
+				) : (
+					<div className="grid gap-3 md:grid-cols-2">
+						{ideas.map((idea) => (
+							<Card
+								key={idea.id}
+								className="cursor-pointer"
+								onClick={() =>
+									navigate({
+										to: "/ideas/$ideaId",
+										params: { ideaId: idea.id },
+									})
+								}
+							>
+								<CardHeader className="pb-2">
+									<CardTitle className="line-clamp-1 text-base">
+										{idea.title}
+									</CardTitle>
+								</CardHeader>
+								<CardContent className="space-y-2">
+									<p className="line-clamp-2 text-sm text-muted-foreground">
+										{idea.description || "No description"}
+									</p>
+									<div className="flex items-center gap-2">
+										<Badge variant="outline">{idea.state}</Badge>
+										<Badge variant="outline" className="ml-auto">
+											<Lightbulb className="mr-1 h-3 w-3" />
+											Idea
+										</Badge>
+									</div>
+								</CardContent>
+							</Card>
+						))}
+					</div>
+				)}
 			</div>
 			<LogIdeaDialog open={logIdeaOpen} onOpenChange={setLogIdeaOpen} />
 		</>

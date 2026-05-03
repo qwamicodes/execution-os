@@ -1,15 +1,18 @@
 import Elysia from "elysia";
 import { authMiddleware } from "../../middleware/auth";
 import { basePlugin } from "../../plugins/base";
-import { publishRealtimeEvent } from "../events/realtime.service";
 import { ValidationError } from "../../shared/errors";
 import { created, success } from "../../shared/response";
+import { publishRealtimeEvent } from "../events/realtime.service";
 import {
+	BatchApplyProjectTasksSchema,
 	CreateMilestoneSchema,
+	CreateProjectEpicSchema,
 	CreateProjectPartSchema,
 	CreateProjectSchema,
 	ProjectQuerySchema,
 	UpdateMilestoneSchema,
+	UpdateProjectEpicSchema,
 	UpdateProjectPartSchema,
 	UpdateProjectSchema,
 } from "./project.schema";
@@ -96,6 +99,42 @@ export const projectController = new Elysia({ prefix: "/projects" })
 		return success(project);
 	})
 
+	.post(
+		"/:id/tasks/batch-apply",
+		async ({ params, body, userId, internal_logger }) => {
+			internal_logger.set("flow", "projects_tasks_batch_apply");
+			const parsed = BatchApplyProjectTasksSchema.safeParse(body);
+			if (!parsed.success) {
+				throw new ValidationError(parsed.error.flatten().fieldErrors);
+			}
+			internal_logger.set("batch_apply_input", {
+				project_id: params.id,
+				user_id: userId,
+				filters: parsed.data.filters,
+				fields: Object.keys(parsed.data.apply),
+			});
+
+			const result = await projectService.batchApplyProjectTasks(
+				userId,
+				params.id,
+				parsed.data,
+				internal_logger,
+			);
+			internal_logger.set("result", {
+				matched: result.matched,
+				updated: result.updated,
+				failed: result.failed,
+			});
+			publishRealtimeEvent(userId, "project.tasks.batch_applied", {
+				projectId: params.id,
+				matched: result.matched,
+				updated: result.updated,
+				failed: result.failed,
+			});
+			return success(result);
+		},
+	)
+
 	.get("/:id/milestones", async ({ params, userId, internal_logger }) => {
 		internal_logger.set("flow", "projects_milestones_list");
 		const milestones = await projectService.listMilestones(
@@ -138,66 +177,153 @@ export const projectController = new Elysia({ prefix: "/projects" })
 		return created(part);
 	})
 
-	.patch("/:id/parts/:partId", async ({ params, body, userId, internal_logger }) => {
-		internal_logger.set("flow", "projects_parts_update");
-		const parsed = UpdateProjectPartSchema.safeParse(body);
+	.patch(
+		"/:id/parts/:partId",
+		async ({ params, body, userId, internal_logger }) => {
+			internal_logger.set("flow", "projects_parts_update");
+			const parsed = UpdateProjectPartSchema.safeParse(body);
+			if (!parsed.success) {
+				throw new ValidationError(parsed.error.flatten().fieldErrors);
+			}
+			const part = await projectService.updatePart(
+				userId,
+				params.id,
+				params.partId,
+				parsed.data,
+				internal_logger,
+			);
+			internal_logger.set("result", { part_id: part.id });
+			publishRealtimeEvent(userId, "project.part.updated", {
+				projectId: params.id,
+				partId: part.id,
+			});
+			return success(part);
+		},
+	)
+
+	.delete(
+		"/:id/parts/:partId",
+		async ({ params, userId, internal_logger, set }) => {
+			internal_logger.set("flow", "projects_parts_delete");
+			await projectService.deletePart(
+				userId,
+				params.id,
+				params.partId,
+				internal_logger,
+			);
+			internal_logger.set("result", {
+				project_id: params.id,
+				part_id: params.partId,
+				deleted: true,
+			});
+			publishRealtimeEvent(userId, "project.part.deleted", {
+				projectId: params.id,
+				partId: params.partId,
+			});
+			set.status = 204;
+		},
+	)
+
+	.get("/:id/epics", async ({ params, userId, internal_logger }) => {
+		internal_logger.set("flow", "projects_epics_list");
+		const epics = await projectService.listEpics(
+			userId,
+			params.id,
+			internal_logger,
+		);
+		internal_logger.set("result", { returned: epics.length });
+		return success(epics);
+	})
+
+	.post("/:id/epics", async ({ params, body, userId, internal_logger }) => {
+		internal_logger.set("flow", "projects_epics_create");
+		const parsed = CreateProjectEpicSchema.safeParse(body);
 		if (!parsed.success) {
 			throw new ValidationError(parsed.error.flatten().fieldErrors);
 		}
-		const part = await projectService.updatePart(
-			userId,
-			params.id,
-			params.partId,
-			parsed.data,
-			internal_logger,
-		);
-		internal_logger.set("result", { part_id: part.id });
-		publishRealtimeEvent(userId, "project.part.updated", {
-			projectId: params.id,
-			partId: part.id,
-		});
-		return success(part);
-	})
-
-	.delete("/:id/parts/:partId", async ({ params, userId, internal_logger, set }) => {
-		internal_logger.set("flow", "projects_parts_delete");
-		await projectService.deletePart(
-			userId,
-			params.id,
-			params.partId,
-			internal_logger,
-		);
-		internal_logger.set("result", {
-			project_id: params.id,
-			part_id: params.partId,
-			deleted: true,
-		});
-		publishRealtimeEvent(userId, "project.part.deleted", {
-			projectId: params.id,
-			partId: params.partId,
-		});
-		set.status = 204;
-	})
-
-	.post("/:id/milestones", async ({ params, body, userId, internal_logger }) => {
-		internal_logger.set("flow", "projects_milestones_create");
-		const parsed = CreateMilestoneSchema.safeParse(body);
-		if (!parsed.success) {
-			throw new ValidationError(parsed.error.flatten().fieldErrors);
-		}
-		const milestone = await projectService.createMilestone(
+		const epic = await projectService.createEpic(
 			userId,
 			params.id,
 			parsed.data,
 			internal_logger,
 		);
-		internal_logger.set("result", { milestone_id: milestone.id });
-		publishRealtimeEvent(userId, "project.milestone.created", {
+		internal_logger.set("result", { epic_id: epic.id });
+		publishRealtimeEvent(userId, "project.epic.created", {
 			projectId: params.id,
-			milestoneId: milestone.id,
+			epicId: epic.id,
 		});
-		return created(milestone);
+		return created(epic);
 	})
+
+	.patch(
+		"/:id/epics/:epicId",
+		async ({ params, body, userId, internal_logger }) => {
+			internal_logger.set("flow", "projects_epics_update");
+			const parsed = UpdateProjectEpicSchema.safeParse(body);
+			if (!parsed.success) {
+				throw new ValidationError(parsed.error.flatten().fieldErrors);
+			}
+			const epic = await projectService.updateEpic(
+				userId,
+				params.id,
+				params.epicId,
+				parsed.data,
+				internal_logger,
+			);
+			internal_logger.set("result", { epic_id: epic.id });
+			publishRealtimeEvent(userId, "project.epic.updated", {
+				projectId: params.id,
+				epicId: epic.id,
+			});
+			return success(epic);
+		},
+	)
+
+	.delete(
+		"/:id/epics/:epicId",
+		async ({ params, userId, internal_logger, set }) => {
+			internal_logger.set("flow", "projects_epics_delete");
+			await projectService.deleteEpic(
+				userId,
+				params.id,
+				params.epicId,
+				internal_logger,
+			);
+			internal_logger.set("result", {
+				project_id: params.id,
+				epic_id: params.epicId,
+				deleted: true,
+			});
+			publishRealtimeEvent(userId, "project.epic.deleted", {
+				projectId: params.id,
+				epicId: params.epicId,
+			});
+			set.status = 204;
+		},
+	)
+
+	.post(
+		"/:id/milestones",
+		async ({ params, body, userId, internal_logger }) => {
+			internal_logger.set("flow", "projects_milestones_create");
+			const parsed = CreateMilestoneSchema.safeParse(body);
+			if (!parsed.success) {
+				throw new ValidationError(parsed.error.flatten().fieldErrors);
+			}
+			const milestone = await projectService.createMilestone(
+				userId,
+				params.id,
+				parsed.data,
+				internal_logger,
+			);
+			internal_logger.set("result", { milestone_id: milestone.id });
+			publishRealtimeEvent(userId, "project.milestone.created", {
+				projectId: params.id,
+				milestoneId: milestone.id,
+			});
+			return created(milestone);
+		},
+	)
 
 	.patch(
 		"/:id/milestones/:milestoneId",

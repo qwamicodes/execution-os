@@ -342,6 +342,59 @@ function classifyStateFromClassification(
 	return size === "Large" || size === "Huge" ? "Ongoing" : "Ready";
 }
 
+function getAIClassification(sourceMetadata: Prisma.JsonValue | null) {
+	const metadata = isJsonObject(sourceMetadata) ? sourceMetadata : {};
+	return isJsonObject(metadata.aiClassification)
+		? metadata.aiClassification
+		: {};
+}
+
+function getAISuggestion(sourceMetadata: Prisma.JsonValue | null) {
+	const aiClassification = getAIClassification(sourceMetadata);
+	return isJsonObject(aiClassification.suggested)
+		? aiClassification.suggested
+		: {};
+}
+
+function isPendingAISuggestion(sourceMetadata: Prisma.JsonValue | null) {
+	return getAIClassification(sourceMetadata).status === "needs_review";
+}
+
+function isClassificationSize(value: unknown): value is TaskSize {
+	return (
+		value === "Small" ||
+		value === "Medium" ||
+		value === "Large" ||
+		value === "Huge"
+	);
+}
+
+function isClassificationUrgency(value: unknown): value is TaskUrgency {
+	return (
+		value === "Urgent" ||
+		value === "High" ||
+		value === "Medium" ||
+		value === "Low"
+	);
+}
+
+function isProtectionReason(
+	value: unknown,
+): value is "contract" | "sla" | "client" | "investor" {
+	return (
+		value === "contract" ||
+		value === "sla" ||
+		value === "client" ||
+		value === "investor"
+	);
+}
+
+function suggestedTags(value: unknown) {
+	if (!Array.isArray(value)) return undefined;
+	const tags = value.filter((tag): tag is string => typeof tag === "string");
+	return tags.length > 0 ? Array.from(new Set(tags)) : undefined;
+}
+
 function normalizeUniqueTags(tags: string[]) {
 	return Array.from(
 		new Set(tags.map((tag) => tag.trim().toLowerCase()).filter(Boolean)),
@@ -352,6 +405,67 @@ function mergeClassificationTags(existingTags: string[], aiTags: string[]) {
 	const normalizedExisting = normalizeUniqueTags(existingTags);
 	const normalizedAI = normalizeUniqueTags(aiTags);
 	return normalizedAI.length > 0 ? normalizedAI : normalizedExisting;
+}
+
+function normalizePartIds(partIds?: string[] | null, partId?: string | null) {
+	return Array.from(new Set([...(partIds ?? []), ...(partId ? [partId] : [])]));
+}
+
+async function validateTaskPartIds(
+	userId: string,
+	projectId: string | null | undefined,
+	partIds: string[],
+) {
+	if (partIds.length === 0) return;
+	if (!projectId) {
+		throw new UnprocessableError(
+			"Parts require the task to belong to a project",
+		);
+	}
+	const project = await prisma.project.findFirst({
+		where: { id: projectId, userId, deletedAt: null },
+		select: { structureType: true },
+	});
+	if (project?.structureType !== "Monorepo") {
+		throw new UnprocessableError(
+			"Parts can only be assigned on monorepo projects",
+		);
+	}
+	const matchingParts = await prisma.projectPart.findMany({
+		where: { id: { in: partIds }, userId, projectId },
+		select: { id: true },
+	});
+	if (matchingParts.length !== partIds.length) {
+		throw new UnprocessableError(
+			"All parts must belong to the selected project",
+		);
+	}
+}
+
+function normalizeEpicIds(epicIds?: string[] | null) {
+	return Array.from(new Set(epicIds ?? []));
+}
+
+async function validateTaskEpicIds(
+	userId: string,
+	projectId: string | null | undefined,
+	epicIds: string[],
+) {
+	if (epicIds.length === 0) return;
+	if (!projectId) {
+		throw new UnprocessableError(
+			"Epics require the task to belong to a project",
+		);
+	}
+	const matchingEpics = await prisma.projectEpic.findMany({
+		where: { id: { in: epicIds }, userId, projectId },
+		select: { id: true },
+	});
+	if (matchingEpics.length !== epicIds.length) {
+		throw new UnprocessableError(
+			"All epics must belong to the selected project",
+		);
+	}
 }
 
 export async function createTask(
@@ -372,22 +486,10 @@ export async function createTask(
 			throw new NotFoundError("Project");
 		}
 	}
-	if (input.partId) {
-		if (!input.projectId) {
-			throw new UnprocessableError(
-				"Project part requires the task to belong to a project",
-			);
-		}
-		const part = await prisma.projectPart.findFirst({
-			where: { id: input.partId, userId, projectId: input.projectId },
-			select: { id: true },
-		});
-		if (!part) {
-			throw new UnprocessableError(
-				"Project part must belong to the selected project",
-			);
-		}
-	}
+	const inputPartIds = normalizePartIds(input.partIds, input.partId);
+	const inputEpicIds = normalizeEpicIds(input.epicIds);
+	await validateTaskPartIds(userId, input.projectId, inputPartIds);
+	await validateTaskEpicIds(userId, input.projectId, inputEpicIds);
 	if (input.milestoneId) {
 		if (!input.projectId) {
 			throw new UnprocessableError(
@@ -489,8 +591,28 @@ export async function createTask(
 				title: input.title,
 				description: input.description,
 				projectId: input.projectId,
-				partId: input.partId,
+				partId: inputPartIds[0],
+				parts:
+					inputPartIds.length > 0
+						? {
+								create: inputPartIds.map((partId) => ({
+									partId,
+								})),
+							}
+						: undefined,
+				epics:
+					inputEpicIds.length > 0
+						? {
+								create: inputEpicIds.map((epicId) => ({
+									epicId,
+								})),
+							}
+						: undefined,
 				milestoneId: input.milestoneId,
+				priority: input.priority,
+				priorityOverride: input.priority,
+				priorityOverrideReason:
+					input.priority !== undefined ? "Manual task priority" : undefined,
 				deadline: input.deadline ? new Date(input.deadline) : undefined,
 				tags: input.tags ?? [],
 				source: input.source,
@@ -514,10 +636,20 @@ export async function createTask(
 			},
 			include: {
 				project: {
-					select: { id: true, name: true, type: true },
+					select: { id: true, name: true, type: true, structureType: true },
 				},
 				part: {
 					select: { id: true, name: true, order: true },
+				},
+				parts: {
+					select: {
+						part: { select: { id: true, name: true, order: true } },
+					},
+				},
+				epics: {
+					select: {
+						epic: { select: { id: true, key: true, name: true, order: true } },
+					},
 				},
 				milestone: {
 					select: { id: true, title: true, targetDate: true, status: true },
@@ -608,8 +740,7 @@ function computePriorityForTask(
 ): PriorityComputationResult {
 	const overrideActive = Boolean(
 		task.priorityOverride !== null &&
-			task.priorityOverrideUntil &&
-			task.priorityOverrideUntil > now,
+			(!task.priorityOverrideUntil || task.priorityOverrideUntil > now),
 	);
 
 	const factors: PriorityFactors = {
@@ -914,10 +1045,28 @@ export async function autoClassifyTask(
 		where: { id: taskId, userId, deletedAt: null },
 		include: {
 			project: {
-				select: { id: true, name: true, type: true },
+				select: { id: true, name: true, type: true, structureType: true },
 			},
 			part: {
 				select: { id: true, name: true, order: true },
+			},
+			parts: {
+				select: {
+					part: { select: { id: true, name: true, order: true } },
+				},
+			},
+			epics: {
+				select: {
+					epic: {
+						select: {
+							id: true,
+							key: true,
+							name: true,
+							order: true,
+							targetDate: true,
+						},
+					},
+				},
 			},
 			milestone: {
 				select: { id: true, title: true, targetDate: true, status: true },
@@ -983,8 +1132,6 @@ export async function autoClassifyTask(
 		const reviewUpdate = await prisma.task.update({
 			where: { id: task.id },
 			data: {
-				title: rewrittenTitle || task.title,
-				description: rewrittenDescription || task.description,
 				sourceMetadata: mergeAIClassificationMetadata(task.sourceMetadata, {
 					status: "needs_review",
 					jobStatus: "completed_low_confidence",
@@ -997,6 +1144,8 @@ export async function autoClassifyTask(
 						protected: classification.protected,
 						protectionReason: classification.protectionReason,
 						tags: mergedTags,
+						originalTitle: task.title,
+						originalDescription: task.description,
 						title: rewrittenTitle,
 						description: rewrittenDescription,
 					},
@@ -1008,10 +1157,20 @@ export async function autoClassifyTask(
 			},
 			include: {
 				project: {
-					select: { id: true, name: true, type: true },
+					select: { id: true, name: true, type: true, structureType: true },
 				},
 				part: {
 					select: { id: true, name: true, order: true },
+				},
+				parts: {
+					select: {
+						part: { select: { id: true, name: true, order: true } },
+					},
+				},
+				epics: {
+					select: {
+						epic: { select: { id: true, key: true, name: true, order: true } },
+					},
 				},
 				milestone: {
 					select: { id: true, title: true, targetDate: true, status: true },
@@ -1079,10 +1238,28 @@ export async function autoClassifyTask(
 		},
 		include: {
 			project: {
-				select: { id: true, name: true, type: true },
+				select: { id: true, name: true, type: true, structureType: true },
 			},
 			part: {
 				select: { id: true, name: true, order: true },
+			},
+			parts: {
+				select: {
+					part: { select: { id: true, name: true, order: true } },
+				},
+			},
+			epics: {
+				select: {
+					epic: {
+						select: {
+							id: true,
+							key: true,
+							name: true,
+							order: true,
+							targetDate: true,
+						},
+					},
+				},
 			},
 			milestone: {
 				select: { id: true, title: true, targetDate: true, status: true },
@@ -1111,7 +1288,7 @@ export async function autoClassifyTask(
 	});
 
 	if (classification.size === "Large" || classification.size === "Huge") {
-		void runAIDecomposition(userId, task.id).catch((error) => {
+		void createSubtasksFromDecomposition(userId, task.id).catch((error) => {
 			logger.warn({
 				event: "task_auto_decomposition_failed",
 				task_id: task.id,
@@ -1120,6 +1297,203 @@ export async function autoClassifyTask(
 			});
 		});
 	}
+
+	return updated;
+}
+
+export async function applyTaskAISuggestion(
+	userId: string,
+	taskId: string,
+	requestLogger?: RequestLogger,
+) {
+	requestLogger?.set("task_service", {
+		operation: "apply_ai_suggestion",
+		user_id: userId,
+		task_id: taskId,
+	});
+
+	const task = await prisma.task.findFirst({
+		where: { id: taskId, userId, deletedAt: null },
+		include: {
+			project: {
+				select: { id: true, name: true, type: true, structureType: true },
+			},
+			part: {
+				select: { id: true, name: true, order: true },
+			},
+			parts: {
+				select: {
+					part: { select: { id: true, name: true, order: true } },
+				},
+			},
+			epics: {
+				select: {
+					epic: {
+						select: {
+							id: true,
+							key: true,
+							name: true,
+							order: true,
+							targetDate: true,
+						},
+					},
+				},
+			},
+			milestone: {
+				select: { id: true, title: true, targetDate: true, status: true },
+			},
+		},
+	});
+
+	if (!task) throw new NotFoundError("Task");
+	if (!isPendingAISuggestion(task.sourceMetadata)) {
+		throw new ConflictError("Task has no AI suggestion awaiting review");
+	}
+
+	const suggestion = getAISuggestion(task.sourceMetadata);
+	const size = isClassificationSize(suggestion.size)
+		? suggestion.size
+		: task.size;
+	const urgency = isClassificationUrgency(suggestion.urgency)
+		? suggestion.urgency
+		: task.urgency;
+	const deadline =
+		typeof suggestion.deadline === "string"
+			? (toDateOnly(suggestion.deadline) ?? task.deadline)
+			: task.deadline;
+	const nextState =
+		task.state === "Inbox" && size && urgency
+			? classifyStateFromClassification(size, urgency, deadline)
+			: task.state;
+	const projectId =
+		typeof suggestion.project === "string"
+			? ((await resolveProjectIdByName(userId, suggestion.project)) ??
+				task.projectId)
+			: task.projectId;
+
+	const updated = await prisma.task.update({
+		where: { id: task.id },
+		data: {
+			title:
+				typeof suggestion.title === "string" ? suggestion.title : undefined,
+			description:
+				typeof suggestion.description === "string"
+					? suggestion.description
+					: undefined,
+			projectId,
+			size: size ?? undefined,
+			urgency: urgency ?? undefined,
+			protected:
+				typeof suggestion.protected === "boolean"
+					? suggestion.protected
+					: undefined,
+			protectionReason: isProtectionReason(suggestion.protectionReason)
+				? suggestion.protectionReason
+				: undefined,
+			deadline,
+			tags: suggestedTags(suggestion.tags),
+			state: nextState,
+			stateChangedAt: nextState !== task.state ? new Date() : undefined,
+			sourceMetadata: mergeAIClassificationMetadata(task.sourceMetadata, {
+				status: "applied",
+				appliedAt: new Date().toISOString(),
+			}),
+			stateHistory:
+				nextState !== task.state
+					? {
+							create: {
+								fromState: task.state,
+								toState: nextState,
+								reason: "AI suggestion applied",
+								userId,
+							},
+						}
+					: undefined,
+		},
+		include: {
+			project: {
+				select: { id: true, name: true, type: true, structureType: true },
+			},
+			part: {
+				select: { id: true, name: true, order: true },
+			},
+			parts: {
+				select: {
+					part: { select: { id: true, name: true, order: true } },
+				},
+			},
+			epics: {
+				select: {
+					epic: {
+						select: {
+							id: true,
+							key: true,
+							name: true,
+							order: true,
+							targetDate: true,
+						},
+					},
+				},
+			},
+			milestone: {
+				select: { id: true, title: true, targetDate: true, status: true },
+			},
+		},
+	});
+
+	void recalculatePrioritiesForUser(userId, requestLogger);
+	return updated;
+}
+
+export async function ignoreTaskAISuggestion(
+	userId: string,
+	taskId: string,
+	requestLogger?: RequestLogger,
+) {
+	requestLogger?.set("task_service", {
+		operation: "ignore_ai_suggestion",
+		user_id: userId,
+		task_id: taskId,
+	});
+
+	const task = await prisma.task.findFirst({
+		where: { id: taskId, userId, deletedAt: null },
+	});
+	if (!task) throw new NotFoundError("Task");
+	if (!isPendingAISuggestion(task.sourceMetadata)) {
+		throw new ConflictError("Task has no AI suggestion awaiting review");
+	}
+
+	const updated = await prisma.task.update({
+		where: { id: task.id },
+		data: {
+			sourceMetadata: mergeAIClassificationMetadata(task.sourceMetadata, {
+				status: "ignored",
+				ignoredAt: new Date().toISOString(),
+			}),
+		},
+		include: {
+			project: {
+				select: { id: true, name: true, type: true, structureType: true },
+			},
+			part: {
+				select: { id: true, name: true, order: true },
+			},
+			parts: {
+				select: {
+					part: { select: { id: true, name: true, order: true } },
+				},
+			},
+			epics: {
+				select: {
+					epic: { select: { id: true, key: true, name: true, order: true } },
+				},
+			},
+			milestone: {
+				select: { id: true, title: true, targetDate: true, status: true },
+			},
+		},
+	});
 
 	return updated;
 }
@@ -1181,10 +1555,20 @@ async function refreshTaskClassificationAfterContentUpdate(
 		where: { id: taskId, userId, deletedAt: null },
 		include: {
 			project: {
-				select: { id: true, name: true, type: true },
+				select: { id: true, name: true, type: true, structureType: true },
 			},
 			part: {
 				select: { id: true, name: true, order: true },
+			},
+			parts: {
+				select: {
+					part: { select: { id: true, name: true, order: true } },
+				},
+			},
+			epics: {
+				select: {
+					epic: { select: { id: true, key: true, name: true, order: true } },
+				},
 			},
 			milestone: {
 				select: { id: true, title: true, targetDate: true, status: true },
@@ -1248,10 +1632,20 @@ async function refreshTaskClassificationAfterContentUpdate(
 		},
 		include: {
 			project: {
-				select: { id: true, name: true, type: true },
+				select: { id: true, name: true, type: true, structureType: true },
 			},
 			part: {
 				select: { id: true, name: true, order: true },
+			},
+			parts: {
+				select: {
+					part: { select: { id: true, name: true, order: true } },
+				},
+			},
+			epics: {
+				select: {
+					epic: { select: { id: true, key: true, name: true, order: true } },
+				},
 			},
 			milestone: {
 				select: { id: true, title: true, targetDate: true, status: true },
@@ -1292,6 +1686,24 @@ export async function listTasks(
 
 	if (query.state) where.state = query.state as TaskState;
 	if (query.projectId) where.projectId = query.projectId;
+	if (query.partId) {
+		where.AND = [
+			...(Array.isArray(where.AND) ? where.AND : []),
+			{
+				OR: [
+					{ partId: query.partId },
+					{ parts: { some: { partId: query.partId } } },
+				],
+			},
+		];
+	}
+	if (query.epicId) {
+		where.AND = [
+			...(Array.isArray(where.AND) ? where.AND : []),
+			{ epics: { some: { epicId: query.epicId } } },
+		];
+	}
+	if (query.milestoneId) where.milestoneId = query.milestoneId;
 	if (query.size) where.size = query.size;
 	if (query.protected !== undefined) where.protected = query.protected;
 	if (query.hasDeadline !== undefined) {
@@ -1320,10 +1732,20 @@ export async function listTasks(
 					}),
 			include: {
 				project: {
-					select: { id: true, name: true, type: true },
+					select: { id: true, name: true, type: true, structureType: true },
 				},
 				part: {
 					select: { id: true, name: true, order: true },
+				},
+				parts: {
+					select: {
+						part: { select: { id: true, name: true, order: true } },
+					},
+				},
+				epics: {
+					select: {
+						epic: { select: { id: true, key: true, name: true, order: true } },
+					},
 				},
 				milestone: {
 					select: { id: true, title: true, targetDate: true, status: true },
@@ -1350,10 +1772,28 @@ export async function getTask(
 		where: { id: taskId, userId, deletedAt: null },
 		include: {
 			project: {
-				select: { id: true, name: true, type: true },
+				select: { id: true, name: true, type: true, structureType: true },
 			},
 			part: {
 				select: { id: true, name: true, order: true },
+			},
+			parts: {
+				select: {
+					part: { select: { id: true, name: true, order: true } },
+				},
+			},
+			epics: {
+				select: {
+					epic: {
+						select: {
+							id: true,
+							key: true,
+							name: true,
+							order: true,
+							targetDate: true,
+						},
+					},
+				},
 			},
 			milestone: {
 				select: { id: true, title: true, targetDate: true, status: true },
@@ -1387,7 +1827,22 @@ export async function getTask(
 		throw new NotFoundError("Task");
 	}
 
-	return task;
+	const totalSubtasks = task.subtasks.length;
+	const completedSubtasks = task.subtasks.filter(
+		(subtask) => subtask.state === "Done",
+	).length;
+
+	return {
+		...task,
+		subtaskProgress: {
+			total: totalSubtasks,
+			completed: completedSubtasks,
+			percent:
+				totalSubtasks > 0
+					? Math.round((completedSubtasks / totalSubtasks) * 100)
+					: 0,
+		},
+	};
 }
 
 export async function updateTask(
@@ -1425,7 +1880,10 @@ export async function updateTask(
 	const {
 		state,
 		partId,
+		partIds,
+		epicIds,
 		milestoneId,
+		priority,
 		featureBlocked,
 		featureBlockReason,
 		blockingTaskIds,
@@ -1450,25 +1908,27 @@ export async function updateTask(
 			throw new NotFoundError("Project");
 		}
 	}
-	if (partId !== undefined && partId !== null) {
+	const explicitPartIds =
+		partIds !== undefined
+			? normalizePartIds(partIds, null)
+			: partId !== undefined
+				? normalizePartIds(undefined, partId)
+				: undefined;
+	if (explicitPartIds !== undefined) {
 		const effectiveProjectId =
 			updateData.projectId !== undefined
 				? updateData.projectId
 				: existing.projectId;
-		if (!effectiveProjectId) {
-			throw new UnprocessableError(
-				"Project part requires the task to belong to a project",
-			);
-		}
-		const part = await prisma.projectPart.findFirst({
-			where: { id: partId, userId, projectId: effectiveProjectId },
-			select: { id: true },
-		});
-		if (!part) {
-			throw new UnprocessableError(
-				"Project part must belong to the selected project",
-			);
-		}
+		await validateTaskPartIds(userId, effectiveProjectId, explicitPartIds);
+	}
+	const explicitEpicIds =
+		epicIds !== undefined ? normalizeEpicIds(epicIds) : undefined;
+	if (explicitEpicIds !== undefined) {
+		const effectiveProjectId =
+			updateData.projectId !== undefined
+				? updateData.projectId
+				: existing.projectId;
+		await validateTaskEpicIds(userId, effectiveProjectId, explicitEpicIds);
 	}
 	if (milestoneId !== undefined && milestoneId !== null) {
 		const effectiveProjectId =
@@ -1653,10 +2113,32 @@ export async function updateTask(
 			data: {
 				...updateData,
 				partId:
-					partId !== undefined
-						? partId
+					explicitPartIds !== undefined
+						? (explicitPartIds[0] ?? null)
 						: updateData.projectId !== undefined
 							? null
+							: undefined,
+				parts:
+					explicitPartIds !== undefined
+						? {
+								deleteMany: {},
+								create: explicitPartIds.map((partId) => ({
+									partId,
+								})),
+							}
+						: updateData.projectId === null
+							? { deleteMany: {} }
+							: undefined,
+				epics:
+					explicitEpicIds !== undefined
+						? {
+								deleteMany: {},
+								create: explicitEpicIds.map((epicId) => ({
+									epicId,
+								})),
+							}
+						: updateData.projectId === null
+							? { deleteMany: {} }
 							: undefined,
 				milestoneId:
 					milestoneId !== undefined
@@ -1664,6 +2146,15 @@ export async function updateTask(
 						: updateData.projectId === null
 							? null
 							: undefined,
+				priority: priority !== undefined ? priority : undefined,
+				priorityOverride: priority !== undefined ? priority : undefined,
+				priorityOverrideUntil: priority !== undefined ? null : undefined,
+				priorityOverrideReason:
+					priority !== undefined
+						? priority === null
+							? null
+							: "Manual task priority"
+						: undefined,
 				deadline:
 					updateData.deadline !== undefined
 						? updateData.deadline
@@ -1696,10 +2187,20 @@ export async function updateTask(
 			},
 			include: {
 				project: {
-					select: { id: true, name: true, type: true },
+					select: { id: true, name: true, type: true, structureType: true },
 				},
 				part: {
 					select: { id: true, name: true, order: true },
+				},
+				parts: {
+					select: {
+						part: { select: { id: true, name: true, order: true } },
+					},
+				},
+				epics: {
+					select: {
+						epic: { select: { id: true, key: true, name: true, order: true } },
+					},
 				},
 				milestone: {
 					select: { id: true, title: true, targetDate: true, status: true },
@@ -1713,6 +2214,39 @@ export async function updateTask(
 	});
 
 	let task = updatedTask;
+	if (state === "Done" && existing.parentId) {
+		const nextSubtask = await prisma.task.findFirst({
+			where: {
+				parentId: existing.parentId,
+				userId,
+				deletedAt: null,
+				state: { in: ["Ongoing", "Paused"] },
+				order:
+					existing.order === null || existing.order === undefined
+						? undefined
+						: { gt: existing.order },
+			},
+			orderBy: { order: "asc" },
+		});
+
+		if (nextSubtask) {
+			await prisma.task.update({
+				where: { id: nextSubtask.id },
+				data: {
+					state: "Ready",
+					stateChangedAt: new Date(),
+					stateHistory: {
+						create: {
+							fromState: nextSubtask.state,
+							toState: "Ready",
+							reason: "Previous subtask completed",
+							userId,
+						},
+					},
+				},
+			});
+		}
+	}
 	if (shouldReclassifyAfterEdit) {
 		requestLogger?.set("task_edit_reclassification", {
 			task_id: taskId,
@@ -1955,10 +2489,20 @@ export async function restoreTask(
 		data: { deletedAt: null },
 		include: {
 			project: {
-				select: { id: true, name: true, type: true },
+				select: { id: true, name: true, type: true, structureType: true },
 			},
 			part: {
 				select: { id: true, name: true, order: true },
+			},
+			parts: {
+				select: {
+					part: { select: { id: true, name: true, order: true } },
+				},
+			},
+			epics: {
+				select: {
+					epic: { select: { id: true, key: true, name: true, order: true } },
+				},
 			},
 			milestone: {
 				select: { id: true, title: true, targetDate: true, status: true },
@@ -1978,7 +2522,7 @@ export async function restoreTask(
 	return restored;
 }
 
-async function runAIDecomposition(
+async function generateTaskDecomposition(
 	userId: string,
 	taskId: string,
 	feedback?: string,
@@ -1987,8 +2531,9 @@ async function runAIDecomposition(
 		where: { id: taskId, userId, deletedAt: null },
 	});
 
-	if (!task) {
-		return;
+	if (!task) throw new NotFoundError("Task");
+	if (task.size === "Small") {
+		throw new UnprocessableError("Task size is Small (cannot decompose)");
 	}
 
 	const decomposition = await decomposeTaskWithAI({
@@ -2003,16 +2548,123 @@ async function runAIDecomposition(
 		throw new UnprocessableError("AI decomposition returned no subtasks");
 	}
 
+	return { task, decomposition, subtasks };
+}
+
+export async function previewTaskDecomposition(
+	userId: string,
+	taskId: string,
+	feedback?: string,
+	requestLogger?: RequestLogger,
+) {
+	requestLogger?.set("task_service", {
+		operation: "preview_decomposition",
+		user_id: userId,
+		task_id: taskId,
+		has_feedback: Boolean(feedback),
+	});
+
+	const { decomposition, subtasks } = await generateTaskDecomposition(
+		userId,
+		taskId,
+		feedback,
+	);
+
+	return {
+		taskId,
+		reason: decomposition.reason,
+		provider: decomposition.provider,
+		model: decomposition.model,
+		subtasks: subtasks.map((subtask, index) => ({
+			title: subtask.title,
+			description: subtask.description ?? null,
+			estimatedSessions: subtask.estimatedSessions,
+			order: index,
+			state: index === 0 ? "Ready" : "Ongoing",
+		})),
+	};
+}
+
+async function createSubtasksFromDecomposition(
+	userId: string,
+	taskId: string,
+	feedback?: string,
+	replaceExisting = false,
+	acceptedSubtasks?: Array<{
+		title: string;
+		description?: string | null;
+		estimatedSessions: number;
+	}>,
+) {
+	const generated = acceptedSubtasks
+		? null
+		: await generateTaskDecomposition(userId, taskId, feedback);
+	const subtasks = acceptedSubtasks ?? generated?.subtasks ?? [];
+	const decomposition = generated?.decomposition ?? {
+		reason: "Accepted decomposition preview",
+		provider: "preview",
+		model: "accepted",
+	};
+
 	await prisma.$transaction(async (tx) => {
 		const parentTask = await tx.task.findFirst({
 			where: { id: taskId, userId, deletedAt: null },
+			include: {
+				project: {
+					select: { structureType: true },
+				},
+				parts: {
+					select: { partId: true },
+				},
+				epics: {
+					select: { epicId: true },
+				},
+			},
 		});
 		if (!parentTask) return;
+		const parentPartIds =
+			parentTask.project?.structureType === "Monorepo"
+				? normalizePartIds(
+						parentTask.parts.map((entry) => entry.partId),
+						parentTask.partId,
+					)
+				: [];
+		const parentEpicIds = normalizeEpicIds(
+			parentTask.epics.map((entry) => entry.epicId),
+		);
 
 		const currentSubtasks = await tx.task.count({
 			where: { parentId: taskId, deletedAt: null },
 		});
-		if (currentSubtasks > 0) return;
+		if (currentSubtasks > 0 && !replaceExisting) {
+			throw new ConflictError("Task already has subtasks");
+		}
+		if (currentSubtasks > 0 && replaceExisting) {
+			await tx.task.updateMany({
+				where: { parentId: taskId, userId, deletedAt: null },
+				data: { deletedAt: new Date() },
+			});
+		}
+
+		if (parentTask.state !== "Ongoing") {
+			await tx.task.update({
+				where: { id: taskId },
+				data: {
+					state: "Ongoing",
+					stateChangedAt: new Date(),
+					stateHistory: {
+						create: {
+							fromState: parentTask.state,
+							toState: "Ongoing",
+							reason: replaceExisting
+								? "Decomposition replaced"
+								: "Decomposition applied",
+							userId,
+						},
+					},
+				},
+			});
+		}
 
 		for (const [index, subtask] of subtasks.entries()) {
 			const targetState: TaskState = index === 0 ? "Ready" : "Ongoing";
@@ -2020,7 +2672,7 @@ async function runAIDecomposition(
 			await tx.task.create({
 				data: {
 					title: subtask.title,
-					description: subtask.description,
+					description: subtask.description ?? null,
 					state: targetState,
 					size: "Small",
 					urgency: parentTask.urgency,
@@ -2031,6 +2683,23 @@ async function runAIDecomposition(
 					order: index,
 					userId,
 					projectId: parentTask.projectId,
+					partId: parentPartIds[0],
+					parts:
+						parentPartIds.length > 0
+							? {
+									create: parentPartIds.map((partId) => ({
+										partId,
+									})),
+								}
+							: undefined,
+					epics:
+						parentEpicIds.length > 0
+							? {
+									create: parentEpicIds.map((epicId) => ({
+										epicId,
+									})),
+								}
+							: undefined,
 					source: parentTask.source,
 					sourceMetadata: {
 						decomposedBy: decomposition.provider,
@@ -2066,12 +2735,29 @@ async function runAIDecomposition(
 		provider: decomposition.provider,
 		model: decomposition.model,
 	});
+
+	return {
+		message: replaceExisting
+			? "Decomposition replaced"
+			: "Decomposition applied",
+		taskId,
+		subtasksCreated: subtasks.length,
+		reason: decomposition.reason,
+		provider: decomposition.provider,
+		model: decomposition.model,
+	};
 }
 
 export async function decomposeTask(
 	userId: string,
 	taskId: string,
 	feedback?: string,
+	replaceExisting = false,
+	acceptedSubtasks?: Array<{
+		title: string;
+		description?: string | null;
+		estimatedSessions: number;
+	}>,
 	requestLogger?: RequestLogger,
 ) {
 	requestLogger?.set("task_service", {
@@ -2079,6 +2765,8 @@ export async function decomposeTask(
 		user_id: userId,
 		task_id: taskId,
 		has_feedback: Boolean(feedback),
+		replace_existing: replaceExisting,
+		accepted_preview: Boolean(acceptedSubtasks?.length),
 	});
 	const task = await prisma.task.findFirst({
 		where: { id: taskId, userId, deletedAt: null },
@@ -2093,55 +2781,20 @@ export async function decomposeTask(
 	});
 
 	if (existingSubtasks > 0) {
-		throw new ConflictError("Task already has subtasks");
+		if (!replaceExisting) throw new ConflictError("Task already has subtasks");
 	}
 
 	if (task.size === "Small") {
 		throw new UnprocessableError("Task size is Small (cannot decompose)");
 	}
 
-	// Transition to Ongoing
-	if (task.state !== "Ongoing") {
-		await prisma.task.update({
-			where: { id: taskId },
-			data: {
-				state: "Ongoing",
-				stateChangedAt: new Date(),
-				stateHistory: {
-					create: {
-						fromState: task.state,
-						toState: "Ongoing",
-						reason: "Decomposition requested",
-						userId,
-					},
-				},
-			},
-		});
-	}
-
-	void runAIDecomposition(userId, taskId, feedback).catch((error) => {
-		logger.error({
-			event: "task_decomposition_failed",
-			task_id: taskId,
-			user_id: userId,
-			error: error instanceof Error ? error.message : "Unknown error",
-		});
-	});
-
-	void recalculatePrioritiesForUser(userId).catch((error) => {
-		logger.warn({
-			event: "priority_recalc_after_decomposition_request_failed",
-			task_id: taskId,
-			user_id: userId,
-			error: error instanceof Error ? error.message : "Unknown error",
-		});
-	});
-
-	return {
-		message: "Decomposition requested with AI",
+	return createSubtasksFromDecomposition(
+		userId,
 		taskId,
-		jobId: `job_${Date.now()}`,
-	};
+		feedback,
+		replaceExisting,
+		acceptedSubtasks,
+	);
 }
 
 export async function getSubtasks(

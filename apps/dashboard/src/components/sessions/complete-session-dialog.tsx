@@ -2,14 +2,15 @@ import { Button } from "@repo/ui/components/ui/button";
 import {
 	Dialog,
 	DialogContent,
+	DialogDescription,
 	DialogHeader,
 	DialogTitle,
 } from "@repo/ui/components/ui/dialog";
 import { Label } from "@repo/ui/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@repo/ui/components/ui/radio-group";
 import { Textarea } from "@repo/ui/components/ui/textarea";
-import { useState } from "react";
 import { goeyToast as toast } from "goey-toast";
+import { useState } from "react";
 import { useSessionSounds } from "@/hooks/use-session-sounds";
 import { useCompleteSession } from "@/hooks/use-sessions";
 import { SESSION_OUTCOME_CONFIG } from "@/lib/constants";
@@ -72,6 +73,9 @@ export function CompleteSessionDialog({
 			<DialogContent className="sm:max-w-md">
 				<DialogHeader>
 					<DialogTitle>End session</DialogTitle>
+					<DialogDescription>
+						Record the outcome so the next task state is clear.
+					</DialogDescription>
 				</DialogHeader>
 
 				<div className="space-y-4">
@@ -132,11 +136,12 @@ export function CompleteSessionDialog({
 						/>
 					</div>
 
-					<div className="flex justify-end gap-2">
+					<div className="flex justify-end gap-2 border-t pt-4">
 						<Button variant="outline" onClick={() => onOpenChange(false)}>
 							Cancel
 						</Button>
 						<Button
+							className="bg-primary text-primary-foreground hover:bg-primary/90"
 							onClick={handleComplete}
 							disabled={completeSession.isPending}
 						>

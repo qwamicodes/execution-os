@@ -14,7 +14,7 @@ export function SubtaskRow({ task, onStateChange, onSelect }: SubtaskRowProps) {
 
 	return (
 		<div
-			className={`group flex items-center gap-3 rounded-lg border border-slate-200/80 bg-slate-50/70 px-3 py-2 transition-[transform,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:border-slate-300 hover:bg-white ${onSelect ? "cursor-pointer" : ""}`}
+			className={`group flex items-center gap-3 rounded-md border border-border bg-muted/40 px-3 py-2 transition-[transform,border-color,background-color] duration-200 hover:-translate-y-0.5 hover:border-border/80 hover:bg-accent/40 ${onSelect ? "cursor-pointer" : ""}`}
 			onClick={() => onSelect?.(task.id)}
 		>
 			<Checkbox
@@ -27,16 +27,11 @@ export function SubtaskRow({ task, onStateChange, onSelect }: SubtaskRowProps) {
 				onClick={(e) => e.stopPropagation()}
 			/>
 			<span
-				className={`flex-1 text-sm text-slate-800 ${task.state === "Done" ? "line-through text-slate-500" : ""}`}
+				className={`flex-1 text-sm text-foreground ${task.state === "Done" ? "line-through text-muted-foreground" : ""}`}
 			>
 				{task.title}
 			</span>
-			<Badge
-				variant="outline"
-				className={`border-0 text-xs shadow-sm ${stateConfig.color}`}
-			>
-				{stateConfig.label}
-			</Badge>
+			<Badge variant={stateConfig.badge}>{stateConfig.label}</Badge>
 		</div>
 	);
 }

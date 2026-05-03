@@ -19,6 +19,14 @@ export const ProjectType = {
 export type ProjectType = (typeof ProjectType)[keyof typeof ProjectType]
 
 
+export const ProjectStructureType = {
+  SingleRepo: 'SingleRepo',
+  Monorepo: 'Monorepo'
+} as const
+
+export type ProjectStructureType = (typeof ProjectStructureType)[keyof typeof ProjectStructureType]
+
+
 export const MilestoneStatus = {
   Pending: 'Pending',
   Completed: 'Completed',

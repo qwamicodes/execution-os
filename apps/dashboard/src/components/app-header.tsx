@@ -67,31 +67,32 @@ export function AppHeader({
 	const { preference, setPreference } = useThemePreference();
 
 	return (
-		<header className="flex h-14 items-center justify-between gap-2 border-b px-3 sm:px-6">
+		<header className="flex h-12 items-center justify-between gap-2 border-b border-border bg-background/95 backdrop-blur-sm px-3 sm:px-4">
+			{/* Mobile menu */}
 			<div className="flex items-center gap-2 md:hidden">
 				<Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
 					<SheetTrigger asChild>
-						<Button variant="outline" size="icon" className="h-9 w-9">
+						<Button variant="ghost" size="icon" className="h-8 w-8">
 							<Menu className="h-4 w-4" />
 						</Button>
 					</SheetTrigger>
-					<SheetContent side="left" className="w-[84vw] max-w-sm p-0">
-						<SheetHeader className="border-b border-slate-200 p-4">
-							<SheetTitle className="inline-flex items-center gap-2">
+					<SheetContent side="left" className="w-[80vw] max-w-xs p-0 bg-sidebar border-sidebar-border">
+						<SheetHeader className="border-b border-sidebar-border px-4 py-3">
+							<SheetTitle className="inline-flex items-center gap-2 text-sm font-semibold text-sidebar-foreground">
 								<img
 									src="/favicon.svg"
-									alt="Execution OS logo"
-									className="h-6 w-6 rounded-md"
+									alt="Execution OS"
+									className="h-5 w-5 rounded-md"
 								/>
 								Execution OS
 							</SheetTitle>
 							{user ? (
-								<p className="text-sm text-slate-500">
+								<p className="text-xs text-sidebar-foreground/50 mt-0.5">
 									{user.name} · {user.email}
 								</p>
 							) : null}
 						</SheetHeader>
-						<nav className="space-y-1 p-3">
+						<nav className="space-y-0.5 p-2">
 							{navItems.map((item) => {
 								const isActive = matchRoute({
 									to: item.to,
@@ -102,20 +103,20 @@ export function AppHeader({
 										key={item.to}
 										to={item.to}
 										onClick={() => setMobileOpen(false)}
-										className={`flex items-center justify-between rounded-lg px-3 py-2 text-sm transition-colors ${
+										className={`flex items-center justify-between rounded-md px-2.5 py-1.5 text-sm transition-colors duration-150 ${
 											isActive
-												? "bg-slate-900 text-white"
-												: "text-slate-700 hover:bg-slate-100"
+												? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
+												: "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
 										}`}
 									>
-										<span className="inline-flex items-center gap-2">
-											<item.icon className="h-4 w-4" />
+										<span className="inline-flex items-center gap-2.5">
+											<item.icon className="h-4 w-4 shrink-0" />
 											{item.label}
 										</span>
 										{item.to === "/inbox" && inboxCount > 0 ? (
 											<Badge
 												variant="secondary"
-												className="h-5 min-w-5 justify-center px-1 text-xs"
+												className="h-4 min-w-4 justify-center px-1 text-[10px] bg-primary/15 text-primary border-0"
 											>
 												{inboxCount}
 											</Badge>
@@ -130,101 +131,90 @@ export function AppHeader({
 
 			<div className="hidden md:block" />
 
-			<div className="flex min-w-0 items-center gap-2 sm:gap-3">
-				<div className="inline-flex items-center rounded-md border border-border bg-muted/50 p-0.5">
-					<Button
-						variant={preference === "system" ? "default" : "ghost"}
-						size="sm"
-						className="h-7 w-7 p-0"
-						onClick={() => setPreference("system")}
-						aria-label="Theme: system"
-						title="System theme"
-					>
-						<Laptop className="h-3.5 w-3.5" />
-					</Button>
-					<Button
-						variant={preference === "light" ? "default" : "ghost"}
-						size="sm"
-						className="h-7 w-7 p-0"
-						onClick={() => setPreference("light")}
-						aria-label="Theme: light"
-						title="Light theme"
-					>
-						<Sun className="h-3.5 w-3.5" />
-					</Button>
-					<Button
-						variant={preference === "dark" ? "default" : "ghost"}
-						size="sm"
-						className="h-7 w-7 p-0"
-						onClick={() => setPreference("dark")}
-						aria-label="Theme: dark"
-						title="Dark theme"
-					>
-						<Moon className="h-3.5 w-3.5" />
-					</Button>
-				</div>
-
+			{/* Right side controls */}
+			<div className="flex min-w-0 items-center gap-2">
+				{/* Offline / syncing status */}
 				{!isOnline ? (
 					<Badge
 						variant="secondary"
-						className="border border-amber-200 bg-amber-50 text-amber-800"
+						className="border border-amber-200 bg-amber-50 text-amber-800 text-xs"
 					>
-						Offline
-						{offlineQueueSize > 0 ? ` · ${offlineQueueSize} queued` : ""}
+						Offline{offlineQueueSize > 0 ? ` · ${offlineQueueSize}` : ""}
 					</Badge>
 				) : isSyncingOfflineQueue ? (
 					<Badge
 						variant="secondary"
-						className="border border-sky-200 bg-sky-50 text-sky-800"
+						className="text-xs border-0 bg-primary/10 text-primary"
 					>
-						Syncing queued changes
+						Syncing…
 					</Badge>
 				) : null}
 
+				{/* Active session indicator */}
 				{activeSession ? (
 					<Link
 						to="/sessions/$sessionId"
 						params={{ sessionId: activeSession.id }}
-						className="flex min-w-0 items-center gap-2"
+						className="flex min-w-0 items-center gap-1.5 rounded-md border border-border px-2.5 py-1 transition-colors hover:bg-accent"
 					>
-						<span
-							className={`relative flex h-2 w-2 ${isPaused ? "" : "animate-pulse"}`}
-						>
+						<span className={`relative flex h-1.5 w-1.5 shrink-0 ${isPaused ? "" : "animate-pulse"}`}>
 							<span
 								className={`inline-flex h-full w-full rounded-full ${
-									isPaused ? "bg-yellow-500" : "bg-green-500"
+									isPaused ? "bg-yellow-400" : "bg-green-400"
 								}`}
 							/>
 						</span>
-						<Badge
-							variant="secondary"
-							className={`gap-1.5 font-mono text-xs ${
-								isPaused
-									? "bg-yellow-50 text-yellow-700"
-									: "bg-green-50 text-green-700"
-							}`}
-						>
-							<Timer className="h-3 w-3" />
+						<span className="font-mono text-xs text-foreground tabular-nums">
 							{formattedTime}
-						</Badge>
+						</span>
 						{activeSession.task ? (
-							<span className="max-w-[120px] truncate text-sm text-muted-foreground sm:max-w-[220px]">
-								{activeSession.task.title}
+							<span className="hidden max-w-[160px] truncate text-xs text-muted-foreground sm:block">
+								· {activeSession.task.title}
 							</span>
 						) : null}
 					</Link>
 				) : (
-					<span className="hidden text-xs text-muted-foreground sm:inline-flex sm:items-center sm:gap-1">
-						<kbd className="inline-flex items-center gap-0.5 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-							<Command className="h-2.5 w-2.5" />K
+					<span className="hidden items-center gap-1 text-[11px] text-muted-foreground sm:flex">
+						<kbd className="inline-flex items-center gap-0.5 rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none">
+							<Command className="h-2 w-2" />K
 						</kbd>
-						to search ·
-						<kbd className="inline-flex items-center gap-0.5 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px]">
-							<Command className="h-2.5 w-2.5" />/
+						<span className="opacity-50">·</span>
+						<kbd className="inline-flex items-center gap-0.5 rounded border border-border bg-muted px-1 py-0.5 font-mono text-[10px] leading-none">
+							<Command className="h-2 w-2" />/
 						</kbd>
-						for shortcuts
 					</span>
 				)}
+
+				{/* Theme toggle */}
+				<div className="flex items-center rounded-md border border-border bg-muted/40 p-0.5">
+					<Button
+						variant={preference === "system" ? "secondary" : "ghost"}
+						size="sm"
+						className="h-6 w-6 p-0"
+						onClick={() => setPreference("system")}
+						aria-label="System theme"
+					>
+						<Laptop className="h-3 w-3" />
+					</Button>
+					<Button
+						variant={preference === "light" ? "secondary" : "ghost"}
+						size="sm"
+						className="h-6 w-6 p-0"
+						onClick={() => setPreference("light")}
+						aria-label="Light theme"
+					>
+						<Sun className="h-3 w-3" />
+					</Button>
+					<Button
+						variant={preference === "dark" ? "secondary" : "ghost"}
+						size="sm"
+						className="h-6 w-6 p-0"
+						onClick={() => setPreference("dark")}
+						aria-label="Dark theme"
+					>
+						<Moon className="h-3 w-3" />
+					</Button>
+				</div>
 			</div>
 		</header>
 	);

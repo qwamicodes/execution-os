@@ -1,17 +1,81 @@
-import type { Prisma, ProjectType } from "@repo/database";
+import type {
+	Prisma,
+	ProjectStructureType,
+	ProjectType,
+	TaskState,
+} from "@repo/database";
 
 import { prisma } from "../../shared/database";
-import { ConflictError, NotFoundError } from "../../shared/errors";
+import {
+	ConflictError,
+	NotFoundError,
+	UnprocessableError,
+} from "../../shared/errors";
 import type { RequestLogger } from "../../shared/wide-event";
+import { updateTask } from "../tasks/task.service";
 import type {
+	BatchApplyProjectTasksInput,
 	CreateMilestoneInput,
-	CreateProjectPartInput,
+	CreateProjectEpicInput,
 	CreateProjectInput,
+	CreateProjectPartInput,
 	ProjectQuery,
 	UpdateMilestoneInput,
-	UpdateProjectPartInput,
+	UpdateProjectEpicInput,
 	UpdateProjectInput,
+	UpdateProjectPartInput,
 } from "./project.schema";
+
+function buildProjectTaskBatchWhere(
+	userId: string,
+	projectId: string,
+	filters: BatchApplyProjectTasksInput["filters"],
+) {
+	const where: Prisma.TaskWhereInput = {
+		userId,
+		projectId,
+		deletedAt: null,
+	};
+
+	if (filters.state) where.state = filters.state as TaskState;
+	if (filters.partId) {
+		where.AND = [
+			...(Array.isArray(where.AND) ? where.AND : []),
+			{
+				OR: [
+					{ partId: filters.partId },
+					{ parts: { some: { partId: filters.partId } } },
+				],
+			},
+		];
+	}
+	if (filters.epicId) {
+		where.AND = [
+			...(Array.isArray(where.AND) ? where.AND : []),
+			{ epics: { some: { epicId: filters.epicId } } },
+		];
+	}
+	if (filters.milestoneId) where.milestoneId = filters.milestoneId;
+	if (filters.size) where.size = filters.size;
+	if (filters.searchQuery) {
+		where.AND = [
+			...(Array.isArray(where.AND) ? where.AND : []),
+			{
+				OR: [
+					{ title: { contains: filters.searchQuery, mode: "insensitive" } },
+					{
+						description: {
+							contains: filters.searchQuery,
+							mode: "insensitive",
+						},
+					},
+				],
+			},
+		];
+	}
+
+	return where;
+}
 
 async function recalculateProjectTargetCompletionDate(projectId: string) {
 	const latestMilestone = await prisma.projectMilestone.findFirst({
@@ -39,6 +103,7 @@ export async function createProject(
 			name: input.name,
 			description: input.description,
 			type: input.type as ProjectType,
+			structureType: input.structureType as ProjectStructureType,
 			targetCompletionDate: input.targetCompletionDate
 				? new Date(input.targetCompletionDate)
 				: undefined,
@@ -77,7 +142,7 @@ export async function listProjects(
 
 	const projects = await prisma.project.findMany({
 		where,
-		orderBy: { createdAt: "desc" },
+		orderBy: { [query.sortBy]: query.sortOrder },
 		include: {
 			_count: {
 				select: { tasks: true },
@@ -110,6 +175,7 @@ export async function listProjects(
 				name: project.name,
 				description: project.description,
 				type: project.type,
+				structureType: project.structureType,
 				targetCompletionDate: project.targetCompletionDate,
 				color: project.color,
 				taskCount: project._count.tasks,
@@ -179,6 +245,9 @@ export async function updateProject(
 	const data: Prisma.ProjectUpdateInput = {};
 	if (input.name !== undefined) data.name = input.name;
 	if (input.description !== undefined) data.description = input.description;
+	if (input.structureType !== undefined) {
+		data.structureType = input.structureType as ProjectStructureType;
+	}
 	if (input.targetCompletionDate !== undefined) {
 		data.targetCompletionDate = input.targetCompletionDate
 			? new Date(input.targetCompletionDate)
@@ -252,6 +321,63 @@ export async function deleteProject(
 	});
 }
 
+export async function batchApplyProjectTasks(
+	userId: string,
+	projectId: string,
+	input: BatchApplyProjectTasksInput,
+	logger?: RequestLogger,
+) {
+	logger?.set("project_service", {
+		operation: "batch_apply_tasks",
+		user_id: userId,
+		project_id: projectId,
+	});
+	await getProject(userId, projectId, logger);
+
+	const where = buildProjectTaskBatchWhere(userId, projectId, input.filters);
+	const candidates = await prisma.task.findMany({
+		where,
+		select: { id: true, title: true },
+		orderBy: { createdAt: "asc" },
+	});
+
+	const updated: Array<{ id: string; title: string }> = [];
+	const failed: Array<{ id: string; title: string; reason: string }> = [];
+
+	for (const candidate of candidates) {
+		try {
+			const task = await updateTask(
+				userId,
+				candidate.id,
+				input.apply,
+				logger,
+			);
+			updated.push({ id: task.id, title: task.title });
+		} catch (error) {
+			failed.push({
+				id: candidate.id,
+				title: candidate.title,
+				reason: error instanceof Error ? error.message : "Unknown error",
+			});
+		}
+	}
+
+	logger?.set("project_service_result", {
+		operation: "batch_apply_tasks",
+		matched: candidates.length,
+		updated: updated.length,
+		failed: failed.length,
+	});
+
+	return {
+		matched: candidates.length,
+		updated: updated.length,
+		failed: failed.length,
+		updatedTasks: updated,
+		failedTasks: failed,
+	};
+}
+
 export async function listMilestones(
 	userId: string,
 	projectId: string,
@@ -322,7 +448,9 @@ export async function updateMilestone(
 		data: {
 			title: input.title,
 			description:
-				input.description === undefined ? undefined : (input.description ?? null),
+				input.description === undefined
+					? undefined
+					: (input.description ?? null),
 			targetDate:
 				input.targetDate === undefined
 					? undefined
@@ -379,7 +507,8 @@ export async function listParts(
 		user_id: userId,
 		project_id: projectId,
 	});
-	await getProject(userId, projectId, logger);
+	const project = await getProject(userId, projectId, logger);
+	if (project.structureType !== "Monorepo") return [];
 	return prisma.projectPart.findMany({
 		where: { projectId, userId },
 		orderBy: [{ order: "asc" }, { name: "asc" }],
@@ -397,7 +526,12 @@ export async function createPart(
 		user_id: userId,
 		project_id: projectId,
 	});
-	await getProject(userId, projectId, logger);
+	const project = await getProject(userId, projectId, logger);
+	if (project.structureType !== "Monorepo") {
+		throw new UnprocessableError(
+			"Project parts are only available for monorepos",
+		);
+	}
 
 	return prisma.projectPart.create({
 		data: {
@@ -423,7 +557,12 @@ export async function updatePart(
 		project_id: projectId,
 		part_id: partId,
 	});
-	await getProject(userId, projectId, logger);
+	const project = await getProject(userId, projectId, logger);
+	if (project.structureType !== "Monorepo") {
+		throw new UnprocessableError(
+			"Project parts are only available for monorepos",
+		);
+	}
 	const existing = await prisma.projectPart.findFirst({
 		where: { id: partId, projectId, userId },
 		select: { id: true },
@@ -435,7 +574,9 @@ export async function updatePart(
 		data: {
 			name: input.name?.trim(),
 			description:
-				input.description === undefined ? undefined : (input.description ?? null),
+				input.description === undefined
+					? undefined
+					: (input.description ?? null),
 			order: input.order,
 		},
 	});
@@ -453,7 +594,12 @@ export async function deletePart(
 		project_id: projectId,
 		part_id: partId,
 	});
-	await getProject(userId, projectId, logger);
+	const project = await getProject(userId, projectId, logger);
+	if (project.structureType !== "Monorepo") {
+		throw new UnprocessableError(
+			"Project parts are only available for monorepos",
+		);
+	}
 	const existing = await prisma.projectPart.findFirst({
 		where: { id: partId, projectId, userId },
 		select: { id: true },
@@ -462,5 +608,112 @@ export async function deletePart(
 
 	await prisma.projectPart.delete({
 		where: { id: partId },
+	});
+}
+
+export async function listEpics(
+	userId: string,
+	projectId: string,
+	logger?: RequestLogger,
+) {
+	logger?.set("project_service", {
+		operation: "list_epics",
+		user_id: userId,
+		project_id: projectId,
+	});
+	await getProject(userId, projectId, logger);
+	return prisma.projectEpic.findMany({
+		where: { projectId, userId },
+		orderBy: [{ order: "asc" }, { name: "asc" }],
+	});
+}
+
+export async function createEpic(
+	userId: string,
+	projectId: string,
+	input: CreateProjectEpicInput,
+	logger?: RequestLogger,
+) {
+	logger?.set("project_service", {
+		operation: "create_epic",
+		user_id: userId,
+		project_id: projectId,
+	});
+	await getProject(userId, projectId, logger);
+
+	return prisma.projectEpic.create({
+		data: {
+			projectId,
+			userId,
+			key: input.key?.trim() || null,
+			name: input.name.trim(),
+			description: input.description,
+			targetDate: input.targetDate ? new Date(input.targetDate) : null,
+			order: input.order,
+		},
+	});
+}
+
+export async function updateEpic(
+	userId: string,
+	projectId: string,
+	epicId: string,
+	input: UpdateProjectEpicInput,
+	logger?: RequestLogger,
+) {
+	logger?.set("project_service", {
+		operation: "update_epic",
+		user_id: userId,
+		project_id: projectId,
+		epic_id: epicId,
+	});
+	await getProject(userId, projectId, logger);
+	const existing = await prisma.projectEpic.findFirst({
+		where: { id: epicId, projectId, userId },
+		select: { id: true },
+	});
+	if (!existing) throw new NotFoundError("Project epic");
+
+	return prisma.projectEpic.update({
+		where: { id: epicId },
+		data: {
+			key: input.key === undefined ? undefined : input.key?.trim() || null,
+			name: input.name?.trim(),
+			description:
+				input.description === undefined
+					? undefined
+					: (input.description ?? null),
+			targetDate:
+				input.targetDate === undefined
+					? undefined
+					: input.targetDate
+						? new Date(input.targetDate)
+						: null,
+			order: input.order,
+		},
+	});
+}
+
+export async function deleteEpic(
+	userId: string,
+	projectId: string,
+	epicId: string,
+	logger?: RequestLogger,
+) {
+	logger?.set("project_service", {
+		operation: "delete_epic",
+		user_id: userId,
+		project_id: projectId,
+		epic_id: epicId,
+	});
+	await getProject(userId, projectId, logger);
+	const existing = await prisma.projectEpic.findFirst({
+		where: { id: epicId, projectId, userId },
+		select: { id: true },
+	});
+	if (!existing) throw new NotFoundError("Project epic");
+
+	await prisma.projectEpic.delete({
+		where: { id: epicId },
 	});
 }

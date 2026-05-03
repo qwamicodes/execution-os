@@ -218,6 +218,7 @@ export type UserWhereInput = {
   stateHistory?: Prisma.StateHistoryListRelationFilter
   milestones?: Prisma.ProjectMilestoneListRelationFilter
   projectParts?: Prisma.ProjectPartListRelationFilter
+  projectEpics?: Prisma.ProjectEpicListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -238,6 +239,7 @@ export type UserOrderByWithRelationInput = {
   stateHistory?: Prisma.StateHistoryOrderByRelationAggregateInput
   milestones?: Prisma.ProjectMilestoneOrderByRelationAggregateInput
   projectParts?: Prisma.ProjectPartOrderByRelationAggregateInput
+  projectEpics?: Prisma.ProjectEpicOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -261,6 +263,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   stateHistory?: Prisma.StateHistoryListRelationFilter
   milestones?: Prisma.ProjectMilestoneListRelationFilter
   projectParts?: Prisma.ProjectPartListRelationFilter
+  projectEpics?: Prisma.ProjectEpicListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -311,6 +314,7 @@ export type UserCreateInput = {
   stateHistory?: Prisma.StateHistoryCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -331,6 +335,7 @@ export type UserUncheckedCreateInput = {
   stateHistory?: Prisma.StateHistoryUncheckedCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneUncheckedCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartUncheckedCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -351,6 +356,7 @@ export type UserUpdateInput = {
   stateHistory?: Prisma.StateHistoryUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -371,6 +377,7 @@ export type UserUncheckedUpdateInput = {
   stateHistory?: Prisma.StateHistoryUncheckedUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUncheckedUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUncheckedUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -492,6 +499,20 @@ export type UserUpdateOneRequiredWithoutProjectPartsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutProjectPartsInput, Prisma.UserUpdateWithoutProjectPartsInput>, Prisma.UserUncheckedUpdateWithoutProjectPartsInput>
 }
 
+export type UserCreateNestedOneWithoutProjectEpicsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutProjectEpicsInput, Prisma.UserUncheckedCreateWithoutProjectEpicsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutProjectEpicsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutProjectEpicsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutProjectEpicsInput, Prisma.UserUncheckedCreateWithoutProjectEpicsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutProjectEpicsInput
+  upsert?: Prisma.UserUpsertWithoutProjectEpicsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutProjectEpicsInput, Prisma.UserUpdateWithoutProjectEpicsInput>, Prisma.UserUncheckedUpdateWithoutProjectEpicsInput>
+}
+
 export type UserCreateNestedOneWithoutMilestonesInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutMilestonesInput, Prisma.UserUncheckedCreateWithoutMilestonesInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutMilestonesInput
@@ -593,6 +614,7 @@ export type UserCreateWithoutProjectsInput = {
   stateHistory?: Prisma.StateHistoryCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutProjectsInput = {
@@ -612,6 +634,7 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   stateHistory?: Prisma.StateHistoryUncheckedCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneUncheckedCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartUncheckedCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutProjectsInput = {
@@ -647,6 +670,7 @@ export type UserUpdateWithoutProjectsInput = {
   stateHistory?: Prisma.StateHistoryUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutProjectsInput = {
@@ -666,6 +690,7 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   stateHistory?: Prisma.StateHistoryUncheckedUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUncheckedUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUncheckedUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutProjectPartsInput = {
@@ -685,6 +710,7 @@ export type UserCreateWithoutProjectPartsInput = {
   integrations?: Prisma.IntegrationCreateNestedManyWithoutUserInput
   stateHistory?: Prisma.StateHistoryCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutProjectPartsInput = {
@@ -704,6 +730,7 @@ export type UserUncheckedCreateWithoutProjectPartsInput = {
   integrations?: Prisma.IntegrationUncheckedCreateNestedManyWithoutUserInput
   stateHistory?: Prisma.StateHistoryUncheckedCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneUncheckedCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutProjectPartsInput = {
@@ -739,6 +766,7 @@ export type UserUpdateWithoutProjectPartsInput = {
   integrations?: Prisma.IntegrationUpdateManyWithoutUserNestedInput
   stateHistory?: Prisma.StateHistoryUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutProjectPartsInput = {
@@ -758,6 +786,103 @@ export type UserUncheckedUpdateWithoutProjectPartsInput = {
   integrations?: Prisma.IntegrationUncheckedUpdateManyWithoutUserNestedInput
   stateHistory?: Prisma.StateHistoryUncheckedUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUncheckedUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutProjectEpicsInput = {
+  id?: string
+  email: string
+  password?: string | null
+  name: string
+  timezone?: string
+  preferences?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  tasks?: Prisma.TaskCreateNestedManyWithoutUserInput
+  ideas?: Prisma.IdeaCreateNestedManyWithoutUserInput
+  sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
+  integrations?: Prisma.IntegrationCreateNestedManyWithoutUserInput
+  stateHistory?: Prisma.StateHistoryCreateNestedManyWithoutUserInput
+  milestones?: Prisma.ProjectMilestoneCreateNestedManyWithoutUserInput
+  projectParts?: Prisma.ProjectPartCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutProjectEpicsInput = {
+  id?: string
+  email: string
+  password?: string | null
+  name: string
+  timezone?: string
+  preferences?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  deletedAt?: Date | string | null
+  tasks?: Prisma.TaskUncheckedCreateNestedManyWithoutUserInput
+  ideas?: Prisma.IdeaUncheckedCreateNestedManyWithoutUserInput
+  sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
+  integrations?: Prisma.IntegrationUncheckedCreateNestedManyWithoutUserInput
+  stateHistory?: Prisma.StateHistoryUncheckedCreateNestedManyWithoutUserInput
+  milestones?: Prisma.ProjectMilestoneUncheckedCreateNestedManyWithoutUserInput
+  projectParts?: Prisma.ProjectPartUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutProjectEpicsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutProjectEpicsInput, Prisma.UserUncheckedCreateWithoutProjectEpicsInput>
+}
+
+export type UserUpsertWithoutProjectEpicsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutProjectEpicsInput, Prisma.UserUncheckedUpdateWithoutProjectEpicsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutProjectEpicsInput, Prisma.UserUncheckedCreateWithoutProjectEpicsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutProjectEpicsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutProjectEpicsInput, Prisma.UserUncheckedUpdateWithoutProjectEpicsInput>
+}
+
+export type UserUpdateWithoutProjectEpicsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferences?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tasks?: Prisma.TaskUpdateManyWithoutUserNestedInput
+  ideas?: Prisma.IdeaUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
+  integrations?: Prisma.IntegrationUpdateManyWithoutUserNestedInput
+  stateHistory?: Prisma.StateHistoryUpdateManyWithoutUserNestedInput
+  milestones?: Prisma.ProjectMilestoneUpdateManyWithoutUserNestedInput
+  projectParts?: Prisma.ProjectPartUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutProjectEpicsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  password?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  preferences?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  deletedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  tasks?: Prisma.TaskUncheckedUpdateManyWithoutUserNestedInput
+  ideas?: Prisma.IdeaUncheckedUpdateManyWithoutUserNestedInput
+  sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
+  integrations?: Prisma.IntegrationUncheckedUpdateManyWithoutUserNestedInput
+  stateHistory?: Prisma.StateHistoryUncheckedUpdateManyWithoutUserNestedInput
+  milestones?: Prisma.ProjectMilestoneUncheckedUpdateManyWithoutUserNestedInput
+  projectParts?: Prisma.ProjectPartUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutMilestonesInput = {
@@ -777,6 +902,7 @@ export type UserCreateWithoutMilestonesInput = {
   integrations?: Prisma.IntegrationCreateNestedManyWithoutUserInput
   stateHistory?: Prisma.StateHistoryCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutMilestonesInput = {
@@ -796,6 +922,7 @@ export type UserUncheckedCreateWithoutMilestonesInput = {
   integrations?: Prisma.IntegrationUncheckedCreateNestedManyWithoutUserInput
   stateHistory?: Prisma.StateHistoryUncheckedCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartUncheckedCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutMilestonesInput = {
@@ -831,6 +958,7 @@ export type UserUpdateWithoutMilestonesInput = {
   integrations?: Prisma.IntegrationUpdateManyWithoutUserNestedInput
   stateHistory?: Prisma.StateHistoryUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMilestonesInput = {
@@ -850,6 +978,7 @@ export type UserUncheckedUpdateWithoutMilestonesInput = {
   integrations?: Prisma.IntegrationUncheckedUpdateManyWithoutUserNestedInput
   stateHistory?: Prisma.StateHistoryUncheckedUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUncheckedUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutTasksInput = {
@@ -869,6 +998,7 @@ export type UserCreateWithoutTasksInput = {
   stateHistory?: Prisma.StateHistoryCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutTasksInput = {
@@ -888,6 +1018,7 @@ export type UserUncheckedCreateWithoutTasksInput = {
   stateHistory?: Prisma.StateHistoryUncheckedCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneUncheckedCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartUncheckedCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutTasksInput = {
@@ -923,6 +1054,7 @@ export type UserUpdateWithoutTasksInput = {
   stateHistory?: Prisma.StateHistoryUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutTasksInput = {
@@ -942,6 +1074,7 @@ export type UserUncheckedUpdateWithoutTasksInput = {
   stateHistory?: Prisma.StateHistoryUncheckedUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUncheckedUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUncheckedUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutIdeasInput = {
@@ -961,6 +1094,7 @@ export type UserCreateWithoutIdeasInput = {
   stateHistory?: Prisma.StateHistoryCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutIdeasInput = {
@@ -980,6 +1114,7 @@ export type UserUncheckedCreateWithoutIdeasInput = {
   stateHistory?: Prisma.StateHistoryUncheckedCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneUncheckedCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartUncheckedCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutIdeasInput = {
@@ -1015,6 +1150,7 @@ export type UserUpdateWithoutIdeasInput = {
   stateHistory?: Prisma.StateHistoryUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutIdeasInput = {
@@ -1034,6 +1170,7 @@ export type UserUncheckedUpdateWithoutIdeasInput = {
   stateHistory?: Prisma.StateHistoryUncheckedUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUncheckedUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUncheckedUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutStateHistoryInput = {
@@ -1053,6 +1190,7 @@ export type UserCreateWithoutStateHistoryInput = {
   integrations?: Prisma.IntegrationCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutStateHistoryInput = {
@@ -1072,6 +1210,7 @@ export type UserUncheckedCreateWithoutStateHistoryInput = {
   integrations?: Prisma.IntegrationUncheckedCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneUncheckedCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartUncheckedCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutStateHistoryInput = {
@@ -1107,6 +1246,7 @@ export type UserUpdateWithoutStateHistoryInput = {
   integrations?: Prisma.IntegrationUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutStateHistoryInput = {
@@ -1126,6 +1266,7 @@ export type UserUncheckedUpdateWithoutStateHistoryInput = {
   integrations?: Prisma.IntegrationUncheckedUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUncheckedUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUncheckedUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutSessionsInput = {
@@ -1145,6 +1286,7 @@ export type UserCreateWithoutSessionsInput = {
   stateHistory?: Prisma.StateHistoryCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutSessionsInput = {
@@ -1164,6 +1306,7 @@ export type UserUncheckedCreateWithoutSessionsInput = {
   stateHistory?: Prisma.StateHistoryUncheckedCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneUncheckedCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartUncheckedCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutSessionsInput = {
@@ -1199,6 +1342,7 @@ export type UserUpdateWithoutSessionsInput = {
   stateHistory?: Prisma.StateHistoryUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSessionsInput = {
@@ -1218,6 +1362,7 @@ export type UserUncheckedUpdateWithoutSessionsInput = {
   stateHistory?: Prisma.StateHistoryUncheckedUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUncheckedUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUncheckedUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutIntegrationsInput = {
@@ -1237,6 +1382,7 @@ export type UserCreateWithoutIntegrationsInput = {
   stateHistory?: Prisma.StateHistoryCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutIntegrationsInput = {
@@ -1256,6 +1402,7 @@ export type UserUncheckedCreateWithoutIntegrationsInput = {
   stateHistory?: Prisma.StateHistoryUncheckedCreateNestedManyWithoutUserInput
   milestones?: Prisma.ProjectMilestoneUncheckedCreateNestedManyWithoutUserInput
   projectParts?: Prisma.ProjectPartUncheckedCreateNestedManyWithoutUserInput
+  projectEpics?: Prisma.ProjectEpicUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutIntegrationsInput = {
@@ -1291,6 +1438,7 @@ export type UserUpdateWithoutIntegrationsInput = {
   stateHistory?: Prisma.StateHistoryUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutIntegrationsInput = {
@@ -1310,6 +1458,7 @@ export type UserUncheckedUpdateWithoutIntegrationsInput = {
   stateHistory?: Prisma.StateHistoryUncheckedUpdateManyWithoutUserNestedInput
   milestones?: Prisma.ProjectMilestoneUncheckedUpdateManyWithoutUserNestedInput
   projectParts?: Prisma.ProjectPartUncheckedUpdateManyWithoutUserNestedInput
+  projectEpics?: Prisma.ProjectEpicUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -1326,6 +1475,7 @@ export type UserCountOutputType = {
   stateHistory: number
   milestones: number
   projectParts: number
+  projectEpics: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1337,6 +1487,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   stateHistory?: boolean | UserCountOutputTypeCountStateHistoryArgs
   milestones?: boolean | UserCountOutputTypeCountMilestonesArgs
   projectParts?: boolean | UserCountOutputTypeCountProjectPartsArgs
+  projectEpics?: boolean | UserCountOutputTypeCountProjectEpicsArgs
 }
 
 /**
@@ -1405,6 +1556,13 @@ export type UserCountOutputTypeCountProjectPartsArgs<ExtArgs extends runtime.Typ
   where?: Prisma.ProjectPartWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountProjectEpicsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ProjectEpicWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1424,6 +1582,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   stateHistory?: boolean | Prisma.User$stateHistoryArgs<ExtArgs>
   milestones?: boolean | Prisma.User$milestonesArgs<ExtArgs>
   projectParts?: boolean | Prisma.User$projectPartsArgs<ExtArgs>
+  projectEpics?: boolean | Prisma.User$projectEpicsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1473,6 +1632,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   stateHistory?: boolean | Prisma.User$stateHistoryArgs<ExtArgs>
   milestones?: boolean | Prisma.User$milestonesArgs<ExtArgs>
   projectParts?: boolean | Prisma.User$projectPartsArgs<ExtArgs>
+  projectEpics?: boolean | Prisma.User$projectEpicsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1489,6 +1649,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     stateHistory: Prisma.$StateHistoryPayload<ExtArgs>[]
     milestones: Prisma.$ProjectMilestonePayload<ExtArgs>[]
     projectParts: Prisma.$ProjectPartPayload<ExtArgs>[]
+    projectEpics: Prisma.$ProjectEpicPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1902,6 +2063,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   stateHistory<T extends Prisma.User$stateHistoryArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$stateHistoryArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StateHistoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   milestones<T extends Prisma.User$milestonesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$milestonesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectMilestonePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   projectParts<T extends Prisma.User$projectPartsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$projectPartsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectPartPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  projectEpics<T extends Prisma.User$projectEpicsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$projectEpicsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectEpicPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2522,6 +2684,30 @@ export type User$projectPartsArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   distinct?: Prisma.ProjectPartScalarFieldEnum | Prisma.ProjectPartScalarFieldEnum[]
+}
+
+/**
+ * User.projectEpics
+ */
+export type User$projectEpicsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ProjectEpic
+   */
+  select?: Prisma.ProjectEpicSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ProjectEpic
+   */
+  omit?: Prisma.ProjectEpicOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ProjectEpicInclude<ExtArgs> | null
+  where?: Prisma.ProjectEpicWhereInput
+  orderBy?: Prisma.ProjectEpicOrderByWithRelationInput | Prisma.ProjectEpicOrderByWithRelationInput[]
+  cursor?: Prisma.ProjectEpicWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ProjectEpicScalarFieldEnum | Prisma.ProjectEpicScalarFieldEnum[]
 }
 
 /**

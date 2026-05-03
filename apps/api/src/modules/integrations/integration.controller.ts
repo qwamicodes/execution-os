@@ -28,10 +28,6 @@ import {
 } from "./integration.schema";
 import * as integrationService from "./integration.service";
 
-function queueAutoClassification() {
-	return env.AI_AUTO_CLASSIFY_ON_TASK_CREATE;
-}
-
 function verifySlackSignature(
 	rawBody: string,
 	signature?: string,
@@ -403,7 +399,7 @@ export const integrationController = new Elysia({ prefix: "/integrations" })
 			);
 			internal_logger.set("result", { task_id: task.id, source: task.source });
 			internal_logger.set("auto_classification", {
-				queued: queueAutoClassification(),
+				queued: false,
 			});
 			publishRealtimeEvent(userId, "task.created", {
 				taskId: task.id,
@@ -432,7 +428,7 @@ export const integrationController = new Elysia({ prefix: "/integrations" })
 			);
 			internal_logger.set("result", { task_id: task.id, source: task.source });
 			internal_logger.set("auto_classification", {
-				queued: queueAutoClassification(),
+				queued: false,
 			});
 			publishRealtimeEvent(userId, "task.created", {
 				taskId: task.id,
@@ -461,7 +457,7 @@ export const integrationController = new Elysia({ prefix: "/integrations" })
 			);
 			internal_logger.set("result", { task_id: task.id, source: task.source });
 			internal_logger.set("auto_classification", {
-				queued: queueAutoClassification(),
+				queued: false,
 			});
 			publishRealtimeEvent(userId, "task.created", {
 				taskId: task.id,
@@ -490,7 +486,7 @@ export const integrationController = new Elysia({ prefix: "/integrations" })
 			);
 			internal_logger.set("result", { task_id: task.id, source: task.source });
 			internal_logger.set("auto_classification", {
-				queued: queueAutoClassification(),
+				queued: false,
 			});
 			publishRealtimeEvent(userId, "task.created", {
 				taskId: task.id,
@@ -615,7 +611,6 @@ export const integrationController = new Elysia({ prefix: "/integrations" })
 						issue,
 						internal_logger,
 					);
-					queueAutoClassification();
 					createdTasks.push({
 						taskId: task.id,
 						title: task.title,
