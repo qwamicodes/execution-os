@@ -1,4 +1,9 @@
-import type { Prisma, ProjectType, TaskSize, TaskUrgency } from "@repo/database";
+import type {
+	Prisma,
+	ProjectType,
+	TaskSize,
+	TaskUrgency,
+} from "@repo/database";
 import OpenAI from "openai";
 import { z } from "zod";
 import { env } from "../../config";
@@ -169,7 +174,13 @@ const ClassificationSchema = z.object({
 		.optional()
 		.default(null),
 	tags: z.array(z.string().min(1).max(50)).max(10).default([]),
-	rewrittenTitle: z.string().min(6).max(180).nullable().optional().default(null),
+	rewrittenTitle: z
+		.string()
+		.min(6)
+		.max(180)
+		.nullable()
+		.optional()
+		.default(null),
 	rewrittenDescription: z
 		.string()
 		.min(12)
@@ -596,13 +607,17 @@ export async function generateText(
 	for (const provider of attemptOrder) {
 		const startedAt = performance.now();
 		try {
-			const content = await callProvider(provider, {
-				systemPrompt: input.systemPrompt,
-				userPrompt: input.userPrompt,
-				jsonMode: input.jsonMode ?? false,
-				temperature: input.temperature ?? 0.2,
-				maxTokens: input.maxTokens ?? 1200,
-			}, input.operation);
+			const content = await callProvider(
+				provider,
+				{
+					systemPrompt: input.systemPrompt,
+					userPrompt: input.userPrompt,
+					jsonMode: input.jsonMode ?? false,
+					temperature: input.temperature ?? 0.2,
+					maxTokens: input.maxTokens ?? 1200,
+				},
+				input.operation,
+			);
 			const latencyMs = Math.round(performance.now() - startedAt);
 			const model = providerModel(provider, input.operation);
 
@@ -918,15 +933,22 @@ function isFeatureBlockedByMetadata(
 	return (featureGate as Record<string, unknown>).blocked === true;
 }
 
-function getBlockingTaskIdFromMetadata(
+function getBlockingTaskIdsFromMetadata(
 	sourceMetadata: Prisma.JsonValue | null | undefined,
 ) {
-	if (!sourceMetadata || typeof sourceMetadata !== "object") return null;
+	if (!sourceMetadata || typeof sourceMetadata !== "object") return [];
 	const metadata = sourceMetadata as Record<string, unknown>;
 	const featureGate = metadata.featureGate;
-	if (!featureGate || typeof featureGate !== "object") return null;
-	const candidate = (featureGate as Record<string, unknown>).blockingTaskId;
-	return typeof candidate === "string" ? candidate : null;
+	if (!featureGate || typeof featureGate !== "object") return [];
+	const gate = featureGate as Record<string, unknown>;
+	const candidates = Array.isArray(gate.blockingTaskIds)
+		? gate.blockingTaskIds
+		: typeof gate.blockingTaskId === "string"
+			? [gate.blockingTaskId]
+			: [];
+	return Array.from(
+		new Set(candidates.filter((id): id is string => typeof id === "string")),
+	);
 }
 
 export async function recommendTaskForFocus(
@@ -1011,8 +1033,10 @@ export async function recommendTaskForFocus(
 	const blockingIds = Array.from(
 		new Set(
 			tasks
-				.map((task) =>
-					getBlockingTaskIdFromMetadata(task.sourceMetadata as Prisma.JsonValue),
+				.flatMap((task) =>
+					getBlockingTaskIdsFromMetadata(
+						task.sourceMetadata as Prisma.JsonValue,
+					),
 				)
 				.filter((id): id is string => Boolean(id)),
 		),
@@ -1036,13 +1060,22 @@ export async function recommendTaskForFocus(
 	);
 
 	const eligibleTasks = tasks.filter((task) => {
-		if (isFeatureBlockedByMetadata(task.sourceMetadata as Prisma.JsonValue))
-			return false;
-		const blockingTaskId = getBlockingTaskIdFromMetadata(
+		const blockingTaskIds = getBlockingTaskIdsFromMetadata(
 			task.sourceMetadata as Prisma.JsonValue,
 		);
-		if (blockingTaskId && unresolvedBlockingTaskIds.has(blockingTaskId))
+		if (
+			isFeatureBlockedByMetadata(task.sourceMetadata as Prisma.JsonValue) &&
+			blockingTaskIds.length === 0
+		) {
 			return false;
+		}
+		if (
+			blockingTaskIds.some((blockingTaskId) =>
+				unresolvedBlockingTaskIds.has(blockingTaskId),
+			)
+		) {
+			return false;
+		}
 		if (!task.project) return true;
 		if (task.project.archivedAt || task.project.deletedAt) return false;
 		return true;
@@ -1221,7 +1254,9 @@ export async function recommendTaskForFocus(
 			].join("\n"),
 		});
 
-		const exists = ranked.some((entry) => entry.task.id === aiSelection.data.taskId);
+		const exists = ranked.some(
+			(entry) => entry.task.id === aiSelection.data.taskId,
+		);
 		if (exists) {
 			strategy = "ai";
 			provider = aiSelection.provider;

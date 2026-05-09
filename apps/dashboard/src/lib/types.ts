@@ -77,6 +77,9 @@ export interface ProjectMilestone {
 	completedAt: string | null;
 	createdAt: string;
 	updatedAt: string;
+	taskCount?: number;
+	completedTasks?: number;
+	openTasks?: number;
 }
 
 export interface ProjectPart {
@@ -101,6 +104,9 @@ export interface ProjectEpic {
 	order: number | null;
 	createdAt: string;
 	updatedAt: string;
+	taskCount?: number;
+	completedTasks?: number;
+	openTasks?: number;
 }
 
 export interface Task {

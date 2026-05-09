@@ -297,6 +297,136 @@ function readFeatureGateDependencies(
 	};
 }
 
+async function findIncompleteTaskIds(
+	client: typeof prisma | Prisma.TransactionClient,
+	userId: string,
+	taskIds: string[],
+) {
+	const uniqueTaskIds = Array.from(new Set(taskIds.filter(Boolean)));
+	if (uniqueTaskIds.length === 0) return [];
+	const incompleteTasks = await client.task.findMany({
+		where: {
+			id: { in: uniqueTaskIds },
+			userId,
+			deletedAt: null,
+			state: { not: "Done" },
+		},
+		select: { id: true },
+	});
+	const incompleteTaskIds = new Set(incompleteTasks.map((task) => task.id));
+	return uniqueTaskIds.filter((taskId) => incompleteTaskIds.has(taskId));
+}
+
+async function reconcileBlockedTaskGate(
+	client: typeof prisma | Prisma.TransactionClient,
+	params: {
+		userId: string;
+		blockedTaskId: string;
+		resolvedBlockingTaskId?: string;
+		blockingTaskIds?: string[];
+	},
+) {
+	const blockedTask = await client.task.findFirst({
+		where: { id: params.blockedTaskId, userId: params.userId, deletedAt: null },
+		select: { id: true, state: true, sourceMetadata: true },
+	});
+	if (!blockedTask) return;
+
+	const gate = readFeatureGateDependencies(
+		blockedTask.sourceMetadata as Prisma.JsonValue,
+	);
+	const candidateBlockingTaskIds =
+		params.blockingTaskIds ??
+		gate.blockingTaskIds.filter(
+			(taskId) => taskId !== params.resolvedBlockingTaskId,
+		);
+	const incompleteBlockingTaskIds = await findIncompleteTaskIds(
+		client,
+		params.userId,
+		candidateBlockingTaskIds,
+	);
+	const nextBlocked = incompleteBlockingTaskIds.length > 0;
+	const data: Prisma.TaskUpdateInput = {
+		sourceMetadata: mergeFeatureGateMetadata(
+			blockedTask.sourceMetadata,
+			nextBlocked,
+			nextBlocked ? gate.reason : null,
+			incompleteBlockingTaskIds,
+			gate.blocksTaskIds,
+		),
+	};
+
+	if (!nextBlocked && blockedTask.state === "Blocked") {
+		data.state = "Ready";
+		data.stateChangedAt = new Date();
+		data.stateHistory = {
+			create: {
+				fromState: "Blocked",
+				toState: "Ready",
+				reason: "Unblocked after dependency completed",
+				userId: params.userId,
+			},
+		};
+	}
+
+	await client.task.update({
+		where: { id: blockedTask.id },
+		data,
+	});
+}
+
+export async function reconcileTaskDependencyCompletion(
+	userId: string,
+	completedTaskId: string,
+	client: typeof prisma | Prisma.TransactionClient = prisma,
+	blockedTaskIds?: string[],
+) {
+	const completedTask = await client.task.findFirst({
+		where: { id: completedTaskId, userId, deletedAt: null },
+		select: { sourceMetadata: true },
+	});
+	if (!completedTask) return;
+
+	const gate = readFeatureGateDependencies(
+		completedTask.sourceMetadata as Prisma.JsonValue,
+	);
+	const linkedBlockedTasks = await client.task.findMany({
+		where: {
+			userId,
+			deletedAt: null,
+			id: { not: completedTaskId },
+			OR: [
+				{
+					sourceMetadata: {
+						path: ["featureGate", "blockingTaskId"],
+						equals: completedTaskId,
+					},
+				},
+				{
+					sourceMetadata: {
+						path: ["featureGate", "blockingTaskIds"],
+						array_contains: completedTaskId,
+					},
+				},
+			],
+		},
+		select: { id: true },
+	});
+	const taskIdsToReconcile = Array.from(
+		new Set([
+			...(blockedTaskIds ?? gate.blocksTaskIds),
+			...linkedBlockedTasks.map((task) => task.id),
+		]),
+	);
+	for (const blockedTaskId of taskIdsToReconcile) {
+		await reconcileBlockedTaskGate(client, {
+			userId,
+			blockedTaskId,
+			resolvedBlockingTaskId: completedTaskId,
+		});
+	}
+}
+
 async function sleep(ms: number) {
 	await new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -2036,15 +2166,41 @@ export async function updateTask(
 		);
 	}
 
+	const incompleteNextBlockingTaskIds = await findIncompleteTaskIds(
+		prisma,
+		userId,
+		nextBlockingTaskIds,
+	);
+	const preservesManualFeatureBlock =
+		featureBlocked === undefined &&
+		currentGate.blocked &&
+		currentGate.blockingTaskIds.length === 0;
 	const nextFeatureBlocked =
 		featureBlocked !== undefined
-			? featureBlocked
-			: currentGate.blocked || nextBlockingTaskIds.length > 0;
+			? featureBlocked &&
+				(nextBlockingTaskIds.length === 0 ||
+					incompleteNextBlockingTaskIds.length > 0)
+			: preservesManualFeatureBlock || incompleteNextBlockingTaskIds.length > 0;
+	const effectiveNextBlockingTaskIds =
+		nextBlockingTaskIds.length > 0 ? incompleteNextBlockingTaskIds : [];
 	const nextFeatureBlockReason = nextFeatureBlocked
 		? featureBlockReason !== undefined
 			? featureBlockReason
 			: currentGate.reason
 		: null;
+	const shouldWriteFeatureGate =
+		hasFeatureGateUpdate ||
+		(currentGate.blocked &&
+			currentGate.blockingTaskIds.length > 0 &&
+			incompleteNextBlockingTaskIds.length !==
+				currentGate.blockingTaskIds.length);
+	const autoUnblockedState =
+		!state &&
+		shouldWriteFeatureGate &&
+		!nextFeatureBlocked &&
+		existing.state === "Blocked"
+			? "Ready"
+			: null;
 
 	const updatedTask = await prisma.$transaction(async (tx) => {
 		const removedBlockedTaskIds = currentBlocksTaskIds.filter(
@@ -2055,28 +2211,10 @@ export async function updateTask(
 		);
 
 		for (const blockedTaskId of removedBlockedTaskIds) {
-			const previousBlockedTask = await tx.task.findFirst({
-				where: { id: blockedTaskId, userId, deletedAt: null },
-				select: { sourceMetadata: true },
-			});
-			if (!previousBlockedTask) continue;
-			const previousGate = readFeatureGateDependencies(
-				previousBlockedTask.sourceMetadata as Prisma.JsonValue,
-			);
-			const nextBlockingTaskIds = previousGate.blockingTaskIds.filter(
-				(taskId) => taskId !== existing.id,
-			);
-			await tx.task.update({
-				where: { id: blockedTaskId },
-				data: {
-					sourceMetadata: mergeFeatureGateMetadata(
-						previousBlockedTask.sourceMetadata,
-						nextBlockingTaskIds.length > 0,
-						previousGate.reason,
-						nextBlockingTaskIds,
-						previousGate.blocksTaskIds,
-					),
-				},
+			await reconcileBlockedTaskGate(tx, {
+				userId,
+				blockedTaskId,
+				resolvedBlockingTaskId: existing.id,
 			});
 		}
 
@@ -2094,19 +2232,29 @@ export async function updateTask(
 			const nextBlockingTaskIds = Array.from(
 				new Set([...blockedTaskGate.blockingTaskIds, existing.id]),
 			);
-			await tx.task.update({
-				where: { id: blockedTaskId },
-				data: {
-					sourceMetadata: mergeFeatureGateMetadata(
-						blockedTask.sourceMetadata,
-						nextBlockingTaskIds.length > 0,
-						blockedTaskGate.reason,
-						nextBlockingTaskIds,
-						blockedTaskGate.blocksTaskIds,
-					),
-				},
+			await reconcileBlockedTaskGate(tx, {
+				userId,
+				blockedTaskId,
+				blockingTaskIds: nextBlockingTaskIds,
 			});
 		}
+
+		if (state === "Done") {
+			const blockedTaskIds = Array.from(
+				new Set([...currentBlocksTaskIds, ...nextBlocksTaskIds]),
+			);
+			await reconcileTaskDependencyCompletion(
+				userId,
+				existing.id,
+				tx,
+				blockedTaskIds,
+			);
+		}
+
+		const nextState = state ?? autoUnblockedState;
+		const nextStateReason = state
+			? "Manual state change"
+			: "Unblocked after dependency completed";
 
 		return tx.task.update({
 			where: { id: taskId },
@@ -2161,24 +2309,24 @@ export async function updateTask(
 							? new Date(updateData.deadline)
 							: null
 						: undefined,
-				sourceMetadata: hasFeatureGateUpdate
+				sourceMetadata: shouldWriteFeatureGate
 					? mergeFeatureGateMetadata(
 							existing.sourceMetadata,
 							nextFeatureBlocked,
 							nextFeatureBlockReason,
-							nextBlockingTaskIds,
+							effectiveNextBlockingTaskIds,
 							nextBlocksTaskIds,
 						)
 					: undefined,
-				...(state
+				...(nextState
 					? {
-							state: state as TaskState,
+							state: nextState as TaskState,
 							stateChangedAt: new Date(),
 							stateHistory: {
 								create: {
 									fromState: existing.state,
-									toState: state as TaskState,
-									reason: "Manual state change",
+									toState: nextState as TaskState,
+									reason: nextStateReason,
 									userId,
 								},
 							},
@@ -2318,7 +2466,7 @@ export async function convertTaskToIdea(
 	if (!task) throw new NotFoundError("Task");
 
 	const idea = await prisma.$transaction(async (tx) => {
-		const createdIdea = await (tx as any).idea.create({
+		const createdIdea = await tx.idea.create({
 			data: {
 				title: task.title,
 				description: task.description,
@@ -2391,7 +2539,7 @@ export async function migrateLegacyIdeaTasks(
 	let migrated = 0;
 	for (const task of legacyTasks) {
 		await prisma.$transaction(async (tx) => {
-			await (tx as any).idea.create({
+			await tx.idea.create({
 				data: {
 					title: task.title,
 					description: task.description,

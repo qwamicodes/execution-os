@@ -8,7 +8,10 @@ import {
 import { redis } from "../../shared/redis";
 import type { RequestLogger } from "../../shared/wide-event";
 import { recommendTaskForFocus } from "../ai/ai.service";
-import { recalculatePrioritiesForUser } from "../tasks/task.service";
+import {
+	recalculatePrioritiesForUser,
+	reconcileTaskDependencyCompletion,
+} from "../tasks/task.service";
 import type {
 	CompleteSessionInput,
 	ExtendSessionInput,
@@ -26,15 +29,22 @@ function isFeatureBlockedByMetadata(
 	return (featureGate as Record<string, unknown>).blocked === true;
 }
 
-function getBlockingTaskIdFromMetadata(
+function getBlockingTaskIdsFromMetadata(
 	sourceMetadata: Prisma.JsonValue | null | undefined,
 ) {
-	if (!sourceMetadata || typeof sourceMetadata !== "object") return null;
+	if (!sourceMetadata || typeof sourceMetadata !== "object") return [];
 	const metadata = sourceMetadata as Record<string, unknown>;
 	const featureGate = metadata.featureGate;
-	if (!featureGate || typeof featureGate !== "object") return null;
-	const candidate = (featureGate as Record<string, unknown>).blockingTaskId;
-	return typeof candidate === "string" ? candidate : null;
+	if (!featureGate || typeof featureGate !== "object") return [];
+	const gate = featureGate as Record<string, unknown>;
+	const candidates = Array.isArray(gate.blockingTaskIds)
+		? gate.blockingTaskIds
+		: typeof gate.blockingTaskId === "string"
+			? [gate.blockingTaskId]
+			: [];
+	return Array.from(
+		new Set(candidates.filter((id): id is string => typeof id === "string")),
+	);
 }
 
 export async function startSession(
@@ -77,25 +87,30 @@ export async function startSession(
 		);
 	}
 
-	if (isFeatureBlockedByMetadata(task.sourceMetadata as Prisma.JsonValue)) {
+	const blockingTaskIds = getBlockingTaskIdsFromMetadata(
+		task.sourceMetadata as Prisma.JsonValue,
+	);
+	if (
+		isFeatureBlockedByMetadata(task.sourceMetadata as Prisma.JsonValue) &&
+		blockingTaskIds.length === 0
+	) {
 		throw new UnprocessableError(
 			"Task is blocked by feature readiness and cannot be started yet",
 		);
 	}
 
-	const blockingTaskId = getBlockingTaskIdFromMetadata(
-		task.sourceMetadata as Prisma.JsonValue,
-	);
-	if (blockingTaskId) {
-		const blockingTask = await prisma.task.findFirst({
+	if (blockingTaskIds.length > 0) {
+		const blockingTasks = await prisma.task.findMany({
 			where: {
-				id: blockingTaskId,
+				id: { in: blockingTaskIds },
 				userId,
 				deletedAt: null,
+				state: { not: "Done" },
 			},
 			select: { id: true, state: true, title: true },
 		});
-		if (blockingTask && blockingTask.state !== "Done") {
+		const blockingTask = blockingTasks[0];
+		if (blockingTask) {
 			throw new UnprocessableError(
 				`Task is blocked by "${blockingTask.title}" (${blockingTask.id})`,
 			);
@@ -492,6 +507,9 @@ export async function completeSession(
 				},
 			},
 		});
+		if (newTaskState === "Done") {
+			await reconcileTaskDependencyCompletion(userId, session.taskId, tx);
+		}
 
 		return updatedSession;
 	});

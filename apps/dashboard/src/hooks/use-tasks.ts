@@ -32,6 +32,7 @@ export function useCreateTask() {
 			queryClient.invalidateQueries({ queryKey: queryKeys.tasks.all });
 			queryClient.invalidateQueries({ queryKey: queryKeys.inbox });
 			queryClient.invalidateQueries({ queryKey: ["ai", "recommendation"] });
+			queryClient.invalidateQueries({ queryKey: queryKeys.projects.all });
 		},
 	});
 }
@@ -53,6 +54,17 @@ export function useUpdateTask() {
 				});
 				queryClient.invalidateQueries({
 					queryKey: queryKeys.tasks.subtasks(_data.parentId),
+				});
+			}
+			if (_data.projectId) {
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.projects.milestones(_data.projectId),
+				});
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.projects.epics(_data.projectId),
+				});
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.projects.detail(_data.projectId),
 				});
 			}
 			queryClient.invalidateQueries({ queryKey: queryKeys.inbox });

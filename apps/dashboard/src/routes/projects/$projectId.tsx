@@ -71,6 +71,8 @@ import { useTasks, useUpdateTask } from "@/hooks/use-tasks";
 import { formatDate, isOverdue, PROJECT_TYPE_CONFIG } from "@/lib/constants";
 import type { TaskFilters, TaskSize, TaskState } from "@/lib/types";
 
+type GroupFilter = "all" | "open" | "completed" | "overdue";
+
 export interface ProjectDetailSearch {
 	state?: string;
 	partId?: string;
@@ -143,6 +145,48 @@ function Section({
 	);
 }
 
+function getGroupTaskStats(group: {
+	taskCount?: number;
+	completedTasks?: number;
+	openTasks?: number;
+}) {
+	return {
+		taskCount: group.taskCount ?? 0,
+		completedTasks: group.completedTasks ?? 0,
+		openTasks: group.openTasks ?? 0,
+	};
+}
+
+function isGroupComplete(
+	group: {
+		taskCount?: number;
+		completedTasks?: number;
+		openTasks?: number;
+	},
+	fallbackComplete = false,
+) {
+	const stats = getGroupTaskStats(group);
+	return stats.taskCount > 0 ? stats.openTasks === 0 : fallbackComplete;
+}
+
+function matchesGroupFilter(
+	group: {
+		taskCount?: number;
+		completedTasks?: number;
+		openTasks?: number;
+	},
+	targetDate: string | null,
+	filter: GroupFilter,
+	fallbackComplete = false,
+) {
+	const complete = isGroupComplete(group, fallbackComplete);
+	if (filter === "completed") return complete;
+	if (filter === "open") return !complete;
+	if (filter === "overdue")
+		return Boolean(targetDate && isOverdue(targetDate) && !complete);
+	return true;
+}
+
 function ProjectDetailPage() {
 	const { projectId } = Route.useParams();
 	const search = Route.useSearch();
@@ -175,6 +219,8 @@ function ProjectDetailPage() {
 	const [milestonesCollapsed, setMilestonesCollapsed] = useState(true);
 	const [partsCollapsed, setPartsCollapsed] = useState(true);
 	const [epicsCollapsed, setEpicsCollapsed] = useState(true);
+	const [milestoneFilter, setMilestoneFilter] = useState<GroupFilter>("all");
+	const [epicFilter, setEpicFilter] = useState<GroupFilter>("all");
 	const [tasksCollapsed, setTasksCollapsed] = useState(false);
 	const [batchState, setBatchState] = useState("no-change");
 	const [batchScope, setBatchScope] = useState("current-filters");
@@ -242,6 +288,17 @@ function ProjectDetailPage() {
 
 	const isArchived = !!project.archivedAt;
 	const typeConfig = PROJECT_TYPE_CONFIG[project.type];
+	const filteredMilestones = milestones.filter((milestone) =>
+		matchesGroupFilter(
+			milestone,
+			milestone.targetDate,
+			milestoneFilter,
+			milestone.status === "Completed",
+		),
+	);
+	const filteredEpics = epics.filter((epic) =>
+		matchesGroupFilter(epic, epic.targetDate, epicFilter),
+	);
 
 	function handleArchiveToggle() {
 		if (!project) return;
@@ -276,6 +333,16 @@ function ProjectDetailPage() {
 
 	function handleTaskSelect(taskId: string) {
 		navigate({ to: "/tasks/$taskId", params: { taskId } });
+	}
+
+	function handleMilestoneFilterSelect(milestoneId: string) {
+		setTasksCollapsed(false);
+		updateSearch({ milestoneId });
+	}
+
+	function handleEpicFilterSelect(epicId: string) {
+		setTasksCollapsed(false);
+		updateSearch({ epicId });
 	}
 
 	function handleBatchApplyTasks() {
@@ -792,136 +859,215 @@ function ProjectDetailPage() {
 							</span>
 						</div>
 					)}
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<p className="text-xs text-muted-foreground">
+							Showing {filteredMilestones.length} of {milestones.length}
+						</p>
+						<Select
+							value={milestoneFilter}
+							onValueChange={(value) =>
+								setMilestoneFilter(value as GroupFilter)
+							}
+						>
+							<SelectTrigger className="h-8 w-[160px] text-xs">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All milestones</SelectItem>
+								<SelectItem value="open">Open</SelectItem>
+								<SelectItem value="completed">Completed</SelectItem>
+								<SelectItem value="overdue">Overdue</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
 					{milestones.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							No milestones yet. Add one to track project checkpoints.
 						</p>
+					) : filteredMilestones.length === 0 ? (
+						<p className="text-sm text-muted-foreground">
+							No milestones match this filter.
+						</p>
 					) : (
 						<div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border">
-							{milestones.map((milestone) => (
-								<div
-									key={milestone.id}
-									className="flex flex-col gap-3 bg-card px-3 py-2.5 lg:flex-row lg:items-start lg:justify-between"
-								>
-									{editingMilestoneId === milestone.id ? (
-										<div className="grid w-full gap-2 pr-3 sm:grid-cols-[1fr_180px]">
-											<Input
-												value={editingMilestoneTitle}
-												onChange={(event) =>
-													setEditingMilestoneTitle(event.target.value)
-												}
-												placeholder="Milestone title"
-											/>
-											<DatePicker
-												value={editingMilestoneDate}
-												onChange={(next) => setEditingMilestoneDate(next ?? "")}
-												boundary="end"
-											/>
-										</div>
-									) : (
-										<div className="space-y-1.5">
-											<div className="flex flex-wrap items-center gap-1.5">
-												<p className="text-sm font-medium text-foreground">
-													{milestone.title}
-												</p>
-												<Badge
-													variant={
-														milestone.status === "Completed"
-															? "done"
-															: milestone.status === "AtRisk"
-																? "danger"
-																: "warning"
+							{filteredMilestones.map((milestone) => {
+								const stats = getGroupTaskStats(milestone);
+								const milestoneComplete = isGroupComplete(
+									milestone,
+									milestone.status === "Completed",
+								);
+								return (
+									<div
+										key={milestone.id}
+										className={`flex flex-col gap-3 bg-card px-3 py-2.5 transition-colors lg:flex-row lg:items-start lg:justify-between ${
+											editingMilestoneId === milestone.id
+												? ""
+												: "cursor-pointer hover:bg-muted/35"
+										} ${
+											search.milestoneId === milestone.id
+												? "bg-primary/5 ring-1 ring-inset ring-primary/25"
+												: ""
+										}`}
+										role={
+											editingMilestoneId === milestone.id ? undefined : "button"
+										}
+										tabIndex={
+											editingMilestoneId === milestone.id ? undefined : 0
+										}
+										onClick={
+											editingMilestoneId === milestone.id
+												? undefined
+												: () => handleMilestoneFilterSelect(milestone.id)
+										}
+										onKeyDown={
+											editingMilestoneId === milestone.id
+												? undefined
+												: (event) => {
+														if (event.key === "Enter" || event.key === " ") {
+															event.preventDefault();
+															handleMilestoneFilterSelect(milestone.id);
+														}
 													}
-													className="px-1.5 py-0 text-[11px]"
-												>
-													{milestone.status}
-												</Badge>
-												{milestone.targetDate && (
+										}
+									>
+										{editingMilestoneId === milestone.id ? (
+											<div className="grid w-full gap-2 pr-3 sm:grid-cols-[1fr_180px]">
+												<Input
+													value={editingMilestoneTitle}
+													onChange={(event) =>
+														setEditingMilestoneTitle(event.target.value)
+													}
+													placeholder="Milestone title"
+												/>
+												<DatePicker
+													value={editingMilestoneDate}
+													onChange={(next) =>
+														setEditingMilestoneDate(next ?? "")
+													}
+													boundary="end"
+												/>
+											</div>
+										) : (
+											<div className="space-y-1.5">
+												<div className="flex flex-wrap items-center gap-1.5">
+													<p className="text-sm font-medium text-foreground">
+														{milestone.title}
+													</p>
 													<Badge
 														variant={
-															isOverdue(milestone.targetDate) &&
-															milestone.status !== "Completed"
-																? "danger"
-																: "info"
+															milestone.status === "Completed"
+																? "done"
+																: milestone.status === "AtRisk"
+																	? "danger"
+																	: "warning"
 														}
 														className="px-1.5 py-0 text-[11px]"
 													>
-														<Calendar className="mr-1 h-2.5 w-2.5" />
-														{formatDate(milestone.targetDate)}
-														{isOverdue(milestone.targetDate) &&
-														milestone.status !== "Completed"
-															? " · overdue"
-															: ""}
+														{milestone.status}
 													</Badge>
+													{milestone.targetDate && (
+														<Badge
+															variant={
+																milestoneComplete
+																	? "done"
+																	: isOverdue(milestone.targetDate) &&
+																			milestone.status !== "Completed"
+																		? "danger"
+																		: "info"
+															}
+															className="px-1.5 py-0 text-[11px]"
+														>
+															<Calendar className="mr-1 h-2.5 w-2.5" />
+															{formatDate(milestone.targetDate)}
+															{isOverdue(milestone.targetDate) &&
+															!milestoneComplete
+																? " · overdue"
+																: ""}
+														</Badge>
+													)}
+													{stats.taskCount > 0 && (
+														<Badge
+															variant={milestoneComplete ? "done" : "neutral"}
+															className="px-1.5 py-0 text-[11px]"
+														>
+															{stats.completedTasks}/{stats.taskCount} done
+														</Badge>
+													)}
+												</div>
+												{milestone.description && (
+													<p className="text-xs text-muted-foreground">
+														{milestone.description}
+													</p>
 												)}
-											</div>
-											{milestone.description && (
-												<p className="text-xs text-muted-foreground">
-													{milestone.description}
+												<p className="text-[11px] text-muted-foreground/70">
+													Created {formatDate(milestone.createdAt)} · Updated{" "}
+													{formatDate(milestone.updatedAt)}
+													{milestone.completedAt
+														? ` · Completed ${formatDate(milestone.completedAt)}`
+														: ""}
 												</p>
-											)}
-											<p className="text-[11px] text-muted-foreground/70">
-												Created {formatDate(milestone.createdAt)} · Updated{" "}
-												{formatDate(milestone.updatedAt)}
-												{milestone.completedAt
-													? ` · Completed ${formatDate(milestone.completedAt)}`
-													: ""}
-											</p>
-										</div>
-									)}
-									<div className="flex shrink-0 items-center gap-1.5">
-										{editingMilestoneId === milestone.id ? (
-											<>
-												<Button
-													size="sm"
-													className="bg-primary text-primary-foreground hover:bg-primary/90 h-7 text-xs"
-													onClick={() => handleSaveMilestoneEdit(milestone.id)}
-												>
-													Save
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-7 text-xs"
-													onClick={handleCancelMilestoneEdit}
-												>
-													Cancel
-												</Button>
-											</>
-										) : (
-											<>
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-7 w-7 p-0"
-													onClick={() => handleStartMilestoneEdit(milestone)}
-												>
-													<Pencil className="h-3.5 w-3.5" />
-												</Button>
-												{milestone.status !== "Completed" && (
+											</div>
+										)}
+										<div
+											className="flex shrink-0 items-center gap-1"
+											onClick={(event) => event.stopPropagation()}
+										>
+											{editingMilestoneId === milestone.id ? (
+												<>
 													<Button
 														size="sm"
-														className="bg-primary text-primary-foreground hover:bg-primary/90 h-7 w-7 p-0"
 														onClick={() =>
-															handleCompleteMilestone(milestone.id)
+															handleSaveMilestoneEdit(milestone.id)
 														}
+														disabled={!editingMilestoneTitle.trim()}
 													>
-														<CheckCircle2 className="h-3.5 w-3.5" />
+														Save
 													</Button>
-												)}
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-													onClick={() => handleDeleteMilestone(milestone.id)}
-												>
-													<Trash2 className="h-3.5 w-3.5" />
-												</Button>
-											</>
-										)}
+													<Button
+														size="sm"
+														variant="ghost"
+														onClick={handleCancelMilestoneEdit}
+													>
+														Cancel
+													</Button>
+												</>
+											) : (
+												<>
+													<Button
+														size="icon-sm"
+														variant="ghost"
+														onClick={() => handleStartMilestoneEdit(milestone)}
+														aria-label="Edit milestone"
+													>
+														<Pencil className="h-3.5 w-3.5" />
+													</Button>
+													{milestone.status !== "Completed" && (
+														<Button
+															size="icon-sm"
+															variant="ghost"
+															onClick={() =>
+																handleCompleteMilestone(milestone.id)
+															}
+															aria-label="Complete milestone"
+														>
+															<CheckCircle2 className="h-3.5 w-3.5" />
+														</Button>
+													)}
+													<Button
+														size="icon-sm"
+														variant="ghost"
+														className="text-destructive hover:text-destructive"
+														onClick={() => handleDeleteMilestone(milestone.id)}
+														aria-label="Delete milestone"
+													>
+														<Trash2 className="h-3.5 w-3.5" />
+													</Button>
+												</>
+											)}
+										</div>
 									</div>
-								</div>
-							))}
+								);
+							})}
 						</div>
 					)}
 				</div>
@@ -968,144 +1114,214 @@ function ProjectDetailPage() {
 						onChange={(event) => setEpicDescription(event.target.value)}
 						placeholder="Epic description (optional)"
 					/>
+					<div className="flex flex-wrap items-center justify-between gap-2">
+						<p className="text-xs text-muted-foreground">
+							Showing {filteredEpics.length} of {epics.length}
+						</p>
+						<Select
+							value={epicFilter}
+							onValueChange={(value) => setEpicFilter(value as GroupFilter)}
+						>
+							<SelectTrigger className="h-8 w-[150px] text-xs">
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								<SelectItem value="all">All epics</SelectItem>
+								<SelectItem value="open">Open</SelectItem>
+								<SelectItem value="completed">Completed</SelectItem>
+								<SelectItem value="overdue">Overdue</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
 					{epics.length === 0 ? (
 						<p className="text-sm text-muted-foreground">
 							No epics yet. Add one to group work by feature area.
 						</p>
+					) : filteredEpics.length === 0 ? (
+						<p className="text-sm text-muted-foreground">
+							No epics match this filter.
+						</p>
 					) : (
 						<div className="divide-y divide-border/60 overflow-hidden rounded-md border border-border">
-							{epics.map((epic) => (
-								<div
-									key={epic.id}
-									className="flex flex-col gap-3 bg-card px-3 py-2.5 lg:flex-row lg:items-start lg:justify-between"
-								>
-									{editingEpicId === epic.id ? (
-										<div className="grid w-full gap-2 lg:grid-cols-[110px_1fr_180px_100px]">
-											<Input
-												value={editingEpicKey}
-												onChange={(event) =>
-													setEditingEpicKey(event.target.value)
-												}
-												placeholder="Key"
-											/>
-											<Input
-												value={editingEpicName}
-												onChange={(event) =>
-													setEditingEpicName(event.target.value)
-												}
-												placeholder="Epic name"
-											/>
-											<DatePicker
-												value={editingEpicTargetDate}
-												onChange={(next) =>
-													setEditingEpicTargetDate(next ?? "")
-												}
-												boundary="end"
-											/>
-											<Input
-												value={editingEpicOrder}
-												onChange={(event) =>
-													setEditingEpicOrder(event.target.value)
-												}
-												placeholder="Order"
-												type="number"
-												step={1}
-											/>
-											<Input
-												value={editingEpicDescription}
-												onChange={(event) =>
-													setEditingEpicDescription(event.target.value)
-												}
-												placeholder="Description (optional)"
-												className="lg:col-span-4"
-											/>
-										</div>
-									) : (
-										<div className="space-y-1.5">
-											<div className="flex flex-wrap items-center gap-1.5">
-												{epic.key && (
-													<Badge
-														variant="lavender"
-														className="px-1.5 py-0 text-[11px] font-mono"
-													>
-														{epic.key}
-													</Badge>
-												)}
-												<p className="text-sm font-medium text-foreground">
-													{epic.name}
-												</p>
-												{epic.targetDate && (
-													<Badge
-														variant={
-															isOverdue(epic.targetDate) ? "danger" : "info"
+							{filteredEpics.map((epic) => {
+								const stats = getGroupTaskStats(epic);
+								const epicComplete = isGroupComplete(epic);
+								return (
+									<div
+										key={epic.id}
+										className={`flex flex-col gap-3 bg-card px-3 py-2.5 transition-colors lg:flex-row lg:items-start lg:justify-between ${
+											editingEpicId === epic.id
+												? ""
+												: "cursor-pointer hover:bg-muted/35"
+										} ${
+											search.epicId === epic.id
+												? "bg-primary/5 ring-1 ring-inset ring-primary/25"
+												: ""
+										}`}
+										role={editingEpicId === epic.id ? undefined : "button"}
+										tabIndex={editingEpicId === epic.id ? undefined : 0}
+										onClick={
+											editingEpicId === epic.id
+												? undefined
+												: () => handleEpicFilterSelect(epic.id)
+										}
+										onKeyDown={
+											editingEpicId === epic.id
+												? undefined
+												: (event) => {
+														if (event.key === "Enter" || event.key === " ") {
+															event.preventDefault();
+															handleEpicFilterSelect(epic.id);
 														}
-														className="px-1.5 py-0 text-[11px]"
-													>
-														Due {formatDate(epic.targetDate)}
-													</Badge>
-												)}
-												{epic.order != null && (
-													<Badge
-														variant="neutral"
-														className="px-1.5 py-0 text-[11px]"
-													>
-														#{epic.order}
-													</Badge>
-												)}
-											</div>
-											{epic.description && (
-												<p className="text-xs text-muted-foreground">
-													{epic.description}
-												</p>
-											)}
-											<p className="text-[11px] text-muted-foreground/70">
-												Created {formatDate(epic.createdAt)} · Updated{" "}
-												{formatDate(epic.updatedAt)}
-											</p>
-										</div>
-									)}
-									<div className="flex shrink-0 items-center gap-1.5">
+													}
+										}
+									>
 										{editingEpicId === epic.id ? (
-											<>
-												<Button
-													size="sm"
-													className="bg-primary text-primary-foreground hover:bg-primary/90 h-7 text-xs"
-													onClick={() => handleSaveEpicEdit(epic.id)}
-												>
-													Save
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-7 text-xs"
-													onClick={handleCancelEpicEdit}
-												>
-													Cancel
-												</Button>
-											</>
+											<div className="grid w-full gap-2 lg:grid-cols-[110px_1fr_180px_100px]">
+												<Input
+													value={editingEpicKey}
+													onChange={(event) =>
+														setEditingEpicKey(event.target.value)
+													}
+													placeholder="Key"
+												/>
+												<Input
+													value={editingEpicName}
+													onChange={(event) =>
+														setEditingEpicName(event.target.value)
+													}
+													placeholder="Epic name"
+												/>
+												<DatePicker
+													value={editingEpicTargetDate}
+													onChange={(next) =>
+														setEditingEpicTargetDate(next ?? "")
+													}
+													boundary="end"
+												/>
+												<Input
+													value={editingEpicOrder}
+													onChange={(event) =>
+														setEditingEpicOrder(event.target.value)
+													}
+													placeholder="Order"
+													type="number"
+													step={1}
+												/>
+												<Input
+													value={editingEpicDescription}
+													onChange={(event) =>
+														setEditingEpicDescription(event.target.value)
+													}
+													placeholder="Description (optional)"
+													className="lg:col-span-4"
+												/>
+											</div>
 										) : (
-											<>
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-7 w-7 p-0"
-													onClick={() => handleStartEpicEdit(epic)}
-												>
-													<Pencil className="h-3.5 w-3.5" />
-												</Button>
-												<Button
-													variant="ghost"
-													size="sm"
-													className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-													onClick={() => handleDeleteEpic(epic.id)}
-												>
-													<Trash2 className="h-3.5 w-3.5" />
-												</Button>
-											</>
+											<div className="space-y-1.5">
+												<div className="flex flex-wrap items-center gap-1.5">
+													{epic.key && (
+														<Badge
+															variant="lavender"
+															className="px-1.5 py-0 text-[11px] font-mono"
+														>
+															{epic.key}
+														</Badge>
+													)}
+													<p className="text-sm font-medium text-foreground">
+														{epic.name}
+													</p>
+													{epic.targetDate && (
+														<Badge
+															variant={
+																epicComplete
+																	? "done"
+																	: isOverdue(epic.targetDate)
+																		? "danger"
+																		: "info"
+															}
+															className="px-1.5 py-0 text-[11px]"
+														>
+															Due {formatDate(epic.targetDate)}
+															{isOverdue(epic.targetDate) && !epicComplete
+																? " · overdue"
+																: ""}
+														</Badge>
+													)}
+													{stats.taskCount > 0 && (
+														<Badge
+															variant={epicComplete ? "done" : "neutral"}
+															className="px-1.5 py-0 text-[11px]"
+														>
+															{stats.completedTasks}/{stats.taskCount} done
+														</Badge>
+													)}
+													{epic.order != null && (
+														<Badge
+															variant="neutral"
+															className="px-1.5 py-0 text-[11px]"
+														>
+															#{epic.order}
+														</Badge>
+													)}
+												</div>
+												{epic.description && (
+													<p className="text-xs text-muted-foreground">
+														{epic.description}
+													</p>
+												)}
+												<p className="text-[11px] text-muted-foreground/70">
+													Created {formatDate(epic.createdAt)} · Updated{" "}
+													{formatDate(epic.updatedAt)}
+												</p>
+											</div>
 										)}
+										<div
+											className="flex shrink-0 items-center gap-1.5"
+											onClick={(event) => event.stopPropagation()}
+										>
+											{editingEpicId === epic.id ? (
+												<>
+													<Button
+														size="sm"
+														className="bg-primary text-primary-foreground hover:bg-primary/90 h-7 text-xs"
+														onClick={() => handleSaveEpicEdit(epic.id)}
+													>
+														Save
+													</Button>
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-7 text-xs"
+														onClick={handleCancelEpicEdit}
+													>
+														Cancel
+													</Button>
+												</>
+											) : (
+												<>
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-7 w-7 p-0"
+														onClick={() => handleStartEpicEdit(epic)}
+													>
+														<Pencil className="h-3.5 w-3.5" />
+													</Button>
+													<Button
+														variant="ghost"
+														size="sm"
+														className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+														onClick={() => handleDeleteEpic(epic.id)}
+													>
+														<Trash2 className="h-3.5 w-3.5" />
+													</Button>
+												</>
+											)}
+										</div>
 									</div>
-								</div>
-							))}
+								);
+							})}
 						</div>
 					)}
 				</div>
@@ -1586,7 +1802,6 @@ function ProjectDetailPage() {
 								className="justify-center bg-primary text-primary-foreground hover:bg-primary/90"
 								onClick={handleBatchApplyTasks}
 								disabled={batchApplyTasks.isPending || totalTasks === 0}
-								className="justify-center"
 							>
 								<CheckCircle2 className="mr-1.5 h-4 w-4" />
 								Apply

@@ -92,6 +92,83 @@ async function recalculateProjectTargetCompletionDate(projectId: string) {
 	});
 }
 
+type ProjectTaskStats = {
+	taskCount: number;
+	completedTasks: number;
+	openTasks: number;
+};
+
+function createEmptyTaskStats(): ProjectTaskStats {
+	return { taskCount: 0, completedTasks: 0, openTasks: 0 };
+}
+
+async function getMilestoneTaskStats(
+	userId: string,
+	projectId: string,
+	milestoneIds: string[],
+) {
+	if (milestoneIds.length === 0) return new Map<string, ProjectTaskStats>();
+	const rows = await prisma.task.groupBy({
+		by: ["milestoneId", "state"],
+		where: {
+			userId,
+			projectId,
+			deletedAt: null,
+			milestoneId: { in: milestoneIds },
+		},
+		_count: { _all: true },
+	});
+
+	const stats = new Map<string, ProjectTaskStats>();
+	for (const row of rows) {
+		if (!row.milestoneId) continue;
+		const current = stats.get(row.milestoneId) ?? createEmptyTaskStats();
+		current.taskCount += row._count._all;
+		if (row.state === "Done") {
+			current.completedTasks += row._count._all;
+		} else {
+			current.openTasks += row._count._all;
+		}
+		stats.set(row.milestoneId, current);
+	}
+	return stats;
+}
+
+async function getEpicTaskStats(
+	userId: string,
+	projectId: string,
+	epicIds: string[],
+) {
+	if (epicIds.length === 0) return new Map<string, ProjectTaskStats>();
+	const rows = await prisma.taskProjectEpic.findMany({
+		where: {
+			epicId: { in: epicIds },
+			task: {
+				userId,
+				projectId,
+				deletedAt: null,
+			},
+		},
+		select: {
+			epicId: true,
+			task: { select: { state: true } },
+		},
+	});
+
+	const stats = new Map<string, ProjectTaskStats>();
+	for (const row of rows) {
+		const current = stats.get(row.epicId) ?? createEmptyTaskStats();
+		current.taskCount += 1;
+		if (row.task.state === "Done") {
+			current.completedTasks += 1;
+		} else {
+			current.openTasks += 1;
+		}
+		stats.set(row.epicId, current);
+	}
+	return stats;
+}
+
 export async function createProject(
 	userId: string,
 	input: CreateProjectInput,
@@ -346,12 +423,7 @@ export async function batchApplyProjectTasks(
 
 	for (const candidate of candidates) {
 		try {
-			const task = await updateTask(
-				userId,
-				candidate.id,
-				input.apply,
-				logger,
-			);
+			const task = await updateTask(userId, candidate.id, input.apply, logger);
 			updated.push({ id: task.id, title: task.title });
 		} catch (error) {
 			failed.push({
@@ -393,7 +465,15 @@ export async function listMilestones(
 		where: { projectId, userId },
 		orderBy: [{ order: "asc" }, { targetDate: "asc" }, { createdAt: "asc" }],
 	});
-	return milestones;
+	const taskStats = await getMilestoneTaskStats(
+		userId,
+		projectId,
+		milestones.map((milestone) => milestone.id),
+	);
+	return milestones.map((milestone) => ({
+		...milestone,
+		...(taskStats.get(milestone.id) ?? createEmptyTaskStats()),
+	}));
 }
 
 export async function createMilestone(
@@ -622,10 +702,19 @@ export async function listEpics(
 		project_id: projectId,
 	});
 	await getProject(userId, projectId, logger);
-	return prisma.projectEpic.findMany({
+	const epics = await prisma.projectEpic.findMany({
 		where: { projectId, userId },
 		orderBy: [{ order: "asc" }, { name: "asc" }],
 	});
+	const taskStats = await getEpicTaskStats(
+		userId,
+		projectId,
+		epics.map((epic) => epic.id),
+	);
+	return epics.map((epic) => ({
+		...epic,
+		...(taskStats.get(epic.id) ?? createEmptyTaskStats()),
+	}));
 }
 
 export async function createEpic(
